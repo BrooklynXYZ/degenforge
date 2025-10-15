@@ -1,0 +1,533 @@
+# BTC-Backed Cross-Chain Yield Maximizer - API Documentation
+
+## Base URL
+```
+http://localhost:3001/api
+```
+
+## Authentication
+All protected endpoints require Bearer token:
+```
+Authorization: Bearer <jwt_token>
+```
+
+## Response Format
+All API responses follow this structure:
+```json
+{
+  "success": boolean,
+  "data": any,
+  "error": string,
+  "message": string,
+  "timestamp": string (ISO 8601)
+}
+```
+
+## Error Codes
+- `400` - Bad Request (validation errors, invalid input)
+- `401` - Unauthorized (missing/invalid authentication)
+- `403` - Forbidden (insufficient permissions)
+- `404` - Not Found (resource doesn't exist)
+- `409` - Conflict (duplicate resource)
+- `429` - Too Many Requests (rate limited)
+- `500` - Internal Server Error (server-side errors)
+
+---
+
+## Authentication Endpoints
+
+### POST /auth/connect-wallet
+Connect wallet and authenticate user.
+
+**Request Body:**
+```json
+{
+  "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+  "signature": "0x1234567890abcdef...",
+  "message": "DegenForge Authentication\n\nWallet: 0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7\nTimestamp: 1640995200\n\nSign this message to authenticate with DegenForge BTC Yield Maximizer.",
+  "walletType": "mezo-passport"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": "24h",
+    "user": {
+      "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+      "walletType": "mezo-passport"
+    }
+  },
+  "message": "Wallet connected successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:3001/api/auth/connect-wallet \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+    "signature": "0x1234567890abcdef...",
+    "message": "DegenForge Authentication...",
+    "walletType": "mezo-passport"
+  }'
+```
+
+---
+
+### GET /auth/sign-message/:address
+Generate message for wallet signing.
+
+**Parameters:**
+- `address` (string) - Wallet address
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "DegenForge Authentication\n\nWallet: 0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7\nTimestamp: 1640995200\n\nSign this message to authenticate with DegenForge BTC Yield Maximizer.",
+    "timestamp": 1640995200,
+    "walletType": "mezo-passport",
+    "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7"
+  },
+  "message": "Sign message generated successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+### GET /auth/verify-token
+Verify JWT token validity.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "user": {
+      "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+      "walletType": "mezo-passport"
+    },
+    "expiresAt": "2024-01-16T10:30:00.000Z"
+  },
+  "message": "Token is valid",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+### POST /auth/refresh-token
+Refresh JWT token.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": "24h",
+    "user": {
+      "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+      "walletType": "mezo-passport"
+    }
+  },
+  "message": "Token refreshed successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+### GET /auth/wallet-info
+Get wallet information from token.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7",
+    "formattedAddress": "0x742d...4C4d7",
+    "walletType": "mezo-passport",
+    "isConnected": true
+  },
+  "message": "Wallet info retrieved successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+## Lending Endpoints
+
+### POST /lending/deposit
+Deposit BTC as collateral for mUSD minting.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "btcAmount": "0.05",
+  "walletAddress": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "transactionHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+    "status": "confirmed",
+    "gasUsed": "150000",
+    "blockNumber": 12345,
+    "timestamp": "2024-01-15T10:30:00.000Z",
+    "collateralDeposited": "0.05"
+  },
+  "message": "BTC collateral deposited successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:3001/api/lending/deposit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -d '{
+    "btcAmount": "0.05",
+    "walletAddress": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7"
+  }'
+```
+
+---
+
+### POST /lending/mint
+Mint mUSD against deposited collateral.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "musdAmount": "2000",
+  "walletAddress": "0x742d35Cc6634C0532925a3b8D6Ac6E2f5964C4d7"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "transactionHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "status": "confirmed",
+    "gasUsed": "180000",
+    "blockNumber": 12346,
+    "timestamp": "2024-01-15T10:35:00.000Z",
+    "musdMinted": "2000",
+    "newLTV": "80.00%",
+    "interestRate": "1%"
+  },
+  "message": "mUSD minted successfully",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
+### GET /lending/position/:address
+Get user's loan position details.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Parameters:**
+- `address` (string) - User's wallet address
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "collateralBTC": "0.05",
+    "collateralValueUSD": "2500.00",
+    "musdMinted": "2000.00",
+    "currentLTV": "80.00%",
+    "interestRate": "1%",
+    "liquidationThreshold": "90%",
+    "healthFactor": "1.125",
+    "lastUpdated": "2024-01-15T10:35:00.000Z"
+  },
+  "message": "Loan position retrieved successfully",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
+### GET /lending/calculate-max
+Calculate maximum mUSD mintable for given BTC collateral.
+
+**Query Parameters:**
+- `btcAmount` (string) - BTC amount to use as collateral
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "maxMintable": "4500.00",
+    "atLTV": "90%",
+    "currentCollateral": "0.1",
+    "estimatedValue": "5000.00"
+  },
+  "message": "Maximum mintable amount calculated successfully",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**cURL Example:**
+```bash
+curl -X GET "http://localhost:3001/api/lending/calculate-max?btcAmount=0.1" \
+  -H "Authorization: Bearer <jwt_token>"
+```
+
+---
+
+### GET /lending/risk/:address
+Get liquidation risk assessment for user.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Parameters:**
+- `address` (string) - User's wallet address
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "riskLevel": "low",
+    "recommendations": [
+      "Your position is healthy",
+      "Continue monitoring market conditions",
+      "Consider optimizing your yield strategy"
+    ],
+    "liquidationRisk": 0,
+    "healthFactor": "1.125"
+  },
+  "message": "Risk assessment completed successfully",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Risk Levels:**
+- `low` - LTV < 70% (healthy position)
+- `medium` - LTV 70-85% (moderate risk)
+- `high` - LTV ≥ 85% (high liquidation risk)
+
+---
+
+### GET /lending/network-status
+Get Mezo network status and connection info.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "connected": true,
+    "chainId": 123456,
+    "blockNumber": 12345,
+    "gasPrice": "20"
+  },
+  "message": "Network status retrieved successfully",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
+## System Endpoints
+
+### GET /api/health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "DegenForge Backend API is running",
+  "timestamp": "2024-01-15T10:35:00.000Z",
+  "version": "1.0.0"
+}
+```
+
+---
+
+## Error Examples
+
+### Insufficient Collateral
+```json
+{
+  "success": false,
+  "error": "InsufficientCollateralError",
+  "message": "Minimum collateral required: $1800. Provided: $1500.00",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+### LTV Exceeded
+```json
+{
+  "success": false,
+  "error": "LTVExceededError",
+  "message": "LTV cannot exceed 90%. Current: 95.5%",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+### Authentication Failed
+```json
+{
+  "success": false,
+  "error": "AuthenticationError",
+  "message": "Invalid wallet signature",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+### Transaction Failed
+```json
+{
+  "success": false,
+  "error": "TransactionFailedError",
+  "message": "Transaction receipt not found",
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+---
+
+## Rate Limits
+- Authentication endpoints: 10 requests per minute per IP
+- Lending endpoints: 5 requests per minute per user
+- Read-only endpoints: 30 requests per minute per user
+
+---
+
+## Webhook Events (Future)
+Webhook events will be available for real-time notifications:
+
+- `collateral.deposited` - When BTC collateral is deposited
+- `musd.minted` - When mUSD is minted
+- `position.updated` - When loan position changes
+- `risk.alert` - When liquidation risk increases
+- `transaction.failed` - When transactions fail
+
+---
+
+## SDK Examples
+
+### JavaScript/TypeScript
+```javascript
+const API_BASE = 'http://localhost:3001/api';
+
+// Connect wallet
+const authResponse = await fetch(`${API_BASE}/auth/connect-wallet`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    address: userAddress,
+    signature: signature,
+    message: signMessage,
+    walletType: 'mezo-passport'
+  })
+});
+
+const { data: authData } = await authResponse.json();
+const token = authData.token;
+
+// Deposit BTC
+const depositResponse = await fetch(`${API_BASE}/lending/deposit`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    btcAmount: '0.05',
+    walletAddress: userAddress
+  })
+});
+```
+
+### Python
+```python
+import requests
+
+API_BASE = 'http://localhost:3001/api'
+
+# Connect wallet
+auth_response = requests.post(f'{API_BASE}/auth/connect-wallet', json={
+    'address': user_address,
+    'signature': signature,
+    'message': sign_message,
+    'walletType': 'mezo-passport'
+})
+
+token = auth_response.json()['data']['token']
+
+# Deposit BTC
+headers = {'Authorization': f'Bearer {token}'}
+deposit_response = requests.post(f'{API_BASE}/lending/deposit', 
+    headers=headers, json={
+        'btcAmount': '0.05',
+        'walletAddress': user_address
+    })
+```
+
+---
+
+## Support
+For technical support or questions:
+- Discord: [Mezo Community](https://discord.mezo.org)
+- GitHub: [Mezo Documentation](https://github.com/mezo-org/)
+- Email: support@degenforge.com

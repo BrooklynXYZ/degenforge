@@ -4,16 +4,15 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius, Layout } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { StatCard } from '@/components/cards/StatCard';
 import { VaultCard } from '@/components/cards/VaultCard';
-import { BridgeStepper } from '@/components/cards/BridgeStepper';
+// import { BridgeStepper } from '@/components/cards/BridgeStepper';
 import { TxListItem } from '@/components/lists/TxListItem';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+// Removed grid width calculations
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
@@ -37,26 +36,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     vaultId: '0x1234567890abcdef',
   };
 
-  const bridgeSteps = [
-    {
-      label: 'Minted',
-      txHash: '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e',
-      confirmations: 12,
-      status: 'confirmed' as const,
-    },
-    {
-      label: 'Wrapped',
-      txHash: 'Ey7Ck3Tz9mK2pL5qR8sT1uV4wX7yZ0aB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3w',
-      confirmations: 8,
-      status: 'confirmed' as const,
-    },
-    {
-      label: 'Deposited',
-      txHash: '',
-      confirmations: 0,
-      status: 'pending' as const,
-    },
-  ];
+  // Bridge flow removed for simplified neutral wallet experience
 
   const recentTxs = [
     {
@@ -91,110 +71,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Mezo Wallet</Text>
-        <Text style={styles.subheading}>Solana Yield Bridge</Text>
-      </View>
-
-      {/* Wallet Summary */}
-      <View style={styles.summarySection}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Value</Text>
-          <Text style={styles.summaryValue}>
-            ${walletData.totalValue.toLocaleString()}
-          </Text>
-          <Text style={styles.summaryChange}>
-            +{walletData.portfolioChange}% this week
-          </Text>
+      {/* Balance card centered a bit lower with actions */}
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceRow}>
+          <Text style={styles.balanceLabel}>Your available balance</Text>
+          <Text style={styles.balanceValue}>{`$${walletData.totalValue.toLocaleString()}`}</Text>
+        </View>
+        <View style={styles.quickActionsRow}>
+          <View style={styles.quickItem}>
+            <Text style={styles.quickIcon}>＋</Text>
+            <Text style={styles.quickLabel}>Top Up</Text>
+          </View>
+          <View style={styles.quickItem}>
+            <Text style={styles.quickIcon}>➤</Text>
+            <Text style={styles.quickLabel}>Send</Text>
+          </View>
+          <View style={styles.quickItem}>
+            <Text style={styles.quickIcon}>📷</Text>
+            <Text style={styles.quickLabel}>Withdraw</Text>
+          </View>
         </View>
       </View>
 
-      {/* Quick Stats */}
-      <View style={styles.statsGrid}>
-        <StatCard
-          label="BTC Collateral"
-          value={walletData.btcCollateral}
-          unit="BTC"
-          change="+0.05 BTC"
-          changeType="positive"
-          icon={<Text style={styles.statIcon}>₿</Text>}
-          style={styles.statCardHalf}
-        />
-        <StatCard
-          label="mUSD Balance"
-          value={walletData.musdBalance}
-          unit="USD"
-          change="+$500"
-          changeType="positive"
-          icon={<Text style={styles.statIcon}>💵</Text>}
-          style={styles.statCardHalf}
-        />
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.actionsSection}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
-          <ActionButton
-            variant="primary"
-            size="md"
-            onPress={() => onNavigate('Mint')}
-            style={styles.actionButtonHalf}
-          >
-            Deposit
-          </ActionButton>
-          <ActionButton
-            variant="secondary"
-            size="md"
-            onPress={() => onNavigate('Bridge')}
-            style={styles.actionButtonHalf}
-          >
-            Bridge
-          </ActionButton>
-        </View>
-        <ActionButton
-          variant="secondary"
-          size="md"
-          fullWidth
-          onPress={() => onNavigate('Redeem')}
-        >
-          Redeem
-        </ActionButton>
-      </View>
-
-      {/* Active Vault */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Active Vault</Text>
-        <VaultCard
-          collateralSats={vaultData.collateralSats}
-          debtMUSD={vaultData.debtMUSD}
-          collateralRatio={vaultData.collateralRatio}
-          vaultId={vaultData.vaultId}
-          onPress={() => onNavigate('VaultDetail')}
-        />
-      </View>
-
-      {/* Bridge Status */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Bridge Status</Text>
-        <BridgeStepper
-          currentStep={2}
-          steps={bridgeSteps}
-          onStepPress={(index) => console.log('Step pressed:', index)}
-        />
-      </View>
+      {/* Removed services grid and promo banner for minimal home */}
 
       {/* Recent Transactions */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <Text style={styles.sectionTitle}>Recent Transaction</Text>
           <ActionButton
             variant="secondary"
             size="sm"
             onPress={() => onNavigate('Activity')}
           >
-            View All
+            See All
           </ActionButton>
         </View>
         <View style={styles.txList}>
@@ -212,7 +122,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         </View>
       </View>
 
-      {/* Bottom spacing for nav */}
       <View style={styles.bottomSpacer} />
     </ScrollView>
   );
@@ -227,8 +136,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     paddingTop: Spacing.lg,
   },
+  balanceCard: {
+    backgroundColor: Colors.base.black,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xl,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: Spacing.md,
+  },
+  balanceLabel: {
+    ...Typography.bodySmall,
+    color: Colors.base.white,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   header: {
     marginBottom: Spacing.xl,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: Spacing.xl,
+  },
+  headerLeft: {
+    gap: Spacing.xs,
   },
   greeting: {
     ...Typography.h1,
@@ -239,34 +178,53 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.text.secondary,
   },
+  balanceValue: {
+    ...Typography.h1,
+    color: Colors.text.primary,
+  },
   summarySection: {
     marginBottom: Spacing.xl,
   },
   summaryCard: {
-    backgroundColor: Colors.accent.primary,
+    backgroundColor: Colors.neutral[50],
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
   },
   summaryLabel: {
     ...Typography.bodySmall,
-    color: Colors.base.white,
-    opacity: 0.8,
+    color: Colors.neutral[700],
   },
   summaryValue: {
     ...Typography.h1,
-    color: Colors.base.white,
+    color: Colors.neutral[900],
   },
   summaryChange: {
     ...Typography.caption,
-    color: Colors.base.white,
-    opacity: 0.8,
+    color: Colors.neutral[600],
   },
   statsGrid: {
     flexDirection: 'row',
     gap: Spacing.md,
     marginBottom: Spacing.xl,
   },
+  // quickBar replaced by balanceCard.quickActionsRow
+  quickItem: {
+    alignItems: 'center',
+    width: '32%',
+  },
+  quickIcon: {
+    fontSize: 20,
+    color: Colors.base.white,
+    marginBottom: Spacing.xs,
+  },
+  quickLabel: {
+    ...Typography.bodySmall,
+    color: Colors.base.white,
+  },
+  // removed services/promo styles
   statCardHalf: {
     flex: 1,
   },

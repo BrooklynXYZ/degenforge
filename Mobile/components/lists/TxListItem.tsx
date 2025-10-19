@@ -31,15 +31,22 @@ export const TxListItem: React.FC<TxListItemProps> = ({
     status === 'confirmed'
       ? Colors.semantic.confirmed
       : status === 'pending'
-      ? Colors.semantic.pending
-      : Colors.semantic.error;
+        ? Colors.semantic.pending
+        : Colors.semantic.error;
+
+  const statusBg =
+    status === 'confirmed'
+      ? '#E6F9F0'
+      : status === 'pending'
+        ? '#FFF4E6'
+        : '#FFECEC';
 
   const statusLabel =
     status === 'confirmed'
       ? 'Confirmed'
       : status === 'pending'
-      ? 'Pending'
-      : 'Failed';
+        ? 'Pending'
+        : 'Failed';
 
   return (
     <TouchableOpacity
@@ -61,8 +68,8 @@ export const TxListItem: React.FC<TxListItemProps> = ({
       {/* Middle: Amount and status */}
       <View style={styles.middleSection}>
         <Text style={styles.amount}>{amount.toLocaleString()}</Text>
-        <View style={[styles.statusChip, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusLabel}>{statusLabel}</Text>
+        <View style={[styles.statusChip, { backgroundColor: statusBg, borderColor: statusColor }]}>
+          <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
 
@@ -81,9 +88,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.bg.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[100],
+    backgroundColor: Colors.base.white,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.neutral[100],
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   leftSection: {
     flexDirection: 'row',
@@ -92,15 +105,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: BorderRadius.lg,
     backgroundColor: Colors.bg.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: {
-    fontSize: 20,
+    fontSize: 24,
   },
   details: {
     gap: Spacing.xs,
@@ -127,10 +140,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.pill,
+    borderWidth: 1,
   },
   statusLabel: {
     ...Typography.caption,
-    color: Colors.base.white,
     fontWeight: '600',
   },
   chevron: {

@@ -10,7 +10,7 @@ import {
 import { Colors, Typography, Spacing, BorderRadius, Animations } from '@/constants/designTokens';
 
 interface ActionButtonProps {
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'accent';
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
@@ -33,6 +33,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   const [isPressed, setIsPressed] = React.useState(false);
 
   const isPrimary = variant === 'primary';
+  const isAccent = variant === 'accent';
   const isDisabled = disabled || loading;
 
   const containerStyle: ViewStyle[] = [
@@ -41,14 +42,14 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     size === 'sm' && styles.sizeSm,
     size === 'md' && styles.sizeMd,
     size === 'lg' && styles.sizeLg,
-    isPrimary ? styles.primaryContainer : styles.secondaryContainer,
+    isPrimary ? styles.primaryContainer : isAccent ? styles.accentContainer : styles.secondaryContainer,
     isDisabled && styles.disabled,
     isPressed && styles.pressed,
   ];
 
   const textStyle: TextStyle[] = [
     styles.text,
-    isPrimary ? styles.primaryText : styles.secondaryText,
+    isPrimary ? styles.primaryText : isAccent ? styles.accentText : styles.secondaryText,
     isDisabled && styles.disabledText,
   ];
 
@@ -103,6 +104,9 @@ const styles = StyleSheet.create({
   primaryContainer: {
     backgroundColor: Colors.accent.primary,
   },
+  accentContainer: {
+    backgroundColor: '#EAC119',
+  },
   secondaryContainer: {
     backgroundColor: Colors.bg.secondary,
     borderWidth: 1,
@@ -111,6 +115,11 @@ const styles = StyleSheet.create({
   primaryText: {
     color: Colors.base.white,
     ...Typography.bodyMedium,
+  },
+  accentText: {
+    color: '#0A0A0A',
+    ...Typography.bodyMedium,
+    fontWeight: '700',
   },
   secondaryText: {
     color: Colors.text.primary,

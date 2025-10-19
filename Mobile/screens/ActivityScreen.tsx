@@ -251,14 +251,17 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Layout.screenPadding,
+    paddingBottom: Spacing.xl,
   },
   sectionHeader: {
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.bg.secondary,
+    backgroundColor: Colors.neutral[50],
     marginTop: Spacing.lg,
     marginBottom: Spacing.md,
     borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.neutral[100],
   },
   sectionTitle: {
     ...Typography.bodySmall,

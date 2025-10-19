@@ -116,22 +116,28 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Mint mUSD</Text>
-          <Text style={styles.subtitle}>Deposit BTC collateral on Mezo</Text>
+          <Text style={styles.subtitle}>Deposit BTC collateral</Text>
         </View>
 
         {/* Input Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Amount</Text>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              placeholderTextColor={Colors.text.tertiary}
-              keyboardType="decimal-pad"
-              value={btcAmount}
-              onChangeText={setBtcAmount}
-            />
-            <Text style={styles.inputUnit}>BTC</Text>
+          <View style={styles.amountCard}>
+            <View style={styles.amountHeader}>
+              <Text style={styles.amountCurrency}>BTC</Text>
+              <Text style={styles.amountBalance}>Balance $12,000.00</Text>
+            </View>
+            <View style={styles.amountInputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                placeholderTextColor={Colors.text.tertiary}
+                keyboardType="decimal-pad"
+                value={btcAmount}
+                onChangeText={setBtcAmount}
+              />
+              <Text style={styles.inputUnit}>BTC</Text>
+            </View>
           </View>
           <Text style={styles.inputHint}>
             Current price: ${btcPrice.toLocaleString()} / BTC
@@ -194,7 +200,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         {/* Action Buttons */}
         <View style={styles.actionsSection}>
           <ActionButton
-            variant="primary"
+            variant="accent"
             fullWidth
             disabled={btcValue <= 0}
             loading={isLoading}
@@ -318,15 +324,35 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     marginBottom: Spacing.md,
   },
-  inputContainer: {
+  amountCard: {
+    backgroundColor: Colors.base.black,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  amountHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  amountCurrency: {
+    ...Typography.h3,
+    color: Colors.base.white,
+  },
+  amountBalance: {
+    ...Typography.caption,
+    color: Colors.base.white,
+    opacity: 0.7,
+  },
+  amountInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.bg.secondary,
+    backgroundColor: '#1A1A1A',
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderColor: '#2A2A2A',
   },
+  // Old inputContainer replaced by amountInputRow
   input: {
     flex: 1,
     paddingVertical: Spacing.lg,

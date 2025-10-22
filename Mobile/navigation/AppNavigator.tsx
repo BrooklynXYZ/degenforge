@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/designTokens';
-import { PillBottomNav } from '@/components/nav/PillBottomNav';
+import PillBottomNav from '@/components/nav/PillBottomNav';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { MintScreen } from '@/screens/MintScreen';
 import { BridgeScreen } from '@/screens/BridgeScreen';
@@ -24,15 +24,19 @@ type ScreenName =
 export const AppNavigator: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Home');
+  const TAB_SCREENS: ScreenName[] = ['Home', 'Markets', 'Create', 'Activity', 'Profile'];
 
   const handleTabChange = (index: number) => {
     setActiveTab(index);
-    const screens: ScreenName[] = ['Home', 'Markets', 'Create', 'Activity', 'Profile'];
-    setCurrentScreen(screens[index]);
+    setCurrentScreen(TAB_SCREENS[index]);
   };
 
   const handleNavigate = (screen: ScreenName) => {
     setCurrentScreen(screen);
+    const tabIndex = TAB_SCREENS.indexOf(screen as ScreenName);
+    if (tabIndex !== -1) {
+      setActiveTab(tabIndex);
+    }
   };
 
   const renderScreen = () => {
@@ -60,13 +64,10 @@ export const AppNavigator: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.screenContainer}>
-        {renderScreen()}
-      </View>
-      <PillBottomNav
-        activeIndex={activeTab}
-        onIndexChange={handleTabChange}
-      />
+      <View style={styles.screenContainer}>{renderScreen()}</View>
+
+      {/* PillBottomNav expects activeIndex and onIndexChange */}
+      <PillBottomNav activeIndex={activeTab} onIndexChange={handleTabChange} />
     </View>
   );
 };
@@ -78,5 +79,6 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
+    paddingBottom: 100,
   },
 });

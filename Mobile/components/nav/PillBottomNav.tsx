@@ -8,7 +8,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Animations, Shadows, Layout } from '@/constants/designTokens';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface PillBottomNavProps {
   activeIndex: number;
@@ -18,55 +18,45 @@ interface PillBottomNavProps {
 const ICON_NAMES = ['Home', 'Markets', 'Create', 'Activity', 'Profile'];
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-export const PillBottomNav: React.FC<PillBottomNavProps> = ({
-  activeIndex,
-  onIndexChange,
-}) => {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-  const pillPositionAnim = React.useRef(new Animated.Value(0)).current;
+const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChange }) => {
+  const scaleAnims = React.useRef(ICON_NAMES.map(() => new Animated.Value(1))).current;
+  const STEADY_SCALE = 1.12;
 
   React.useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1.06,
+    scaleAnims.forEach((anim, idx) => {
+      Animated.spring(anim, {
+        toValue: idx === activeIndex ? STEADY_SCALE : 1,
+        friction: 8,
+        tension: 80,
         useNativeDriver: true,
-        speed: 12,
-        bounciness: 8,
-      }),
-      Animated.timing(pillPositionAnim, {
-        toValue: activeIndex,
-        duration: Animations.normal,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [activeIndex]);
+      }).start();
+    });
+  }, [activeIndex, scaleAnims]);
 
   const handlePress = (index: number) => {
     onIndexChange(index);
+    const anim = scaleAnims[index];
+    anim.stopAnimation();
+    anim.setValue(STEADY_SCALE);
+    Animated.sequence([
+      Animated.spring(anim, {
+        toValue: 1.22,
+        friction: 6,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(anim, {
+        toValue: STEADY_SCALE,
+        friction: 8,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
-
-  // Calculate pill background position
-  const pillWidth = (SCREEN_WIDTH - 32) / 5;
-  const pillLeft = pillPositionAnim.interpolate({
-    inputRange: [0, 1, 2, 3, 4],
-    outputRange: [0, pillWidth, pillWidth * 2, pillWidth * 3, pillWidth * 4],
-  });
 
   return (
     <View style={styles.container}>
-      <View style={[styles.navWrapper, { width: SCREEN_WIDTH - 32 }]}>
-        {/* Animated pill background */}
-        <Animated.View
-          style={[
-            styles.activePill,
-            {
-              left: pillLeft,
-              width: pillWidth,
-            },
-          ]}
-        />
-
-        {/* Nav items */}
+      <View style={[styles.navWrapper, { width: SCREEN_WIDTH - 40 }]}>
         {ICON_NAMES.map((name, index) => {
           const isActive = activeIndex === index;
           const isCenter = index === 2;
@@ -80,16 +70,32 @@ export const PillBottomNav: React.FC<PillBottomNavProps> = ({
                 isActive && isCenter && styles.centerItemActive,
               ]}
               onPress={() => handlePress(index)}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
               <Animated.View
                 style={[
                   styles.iconContainer,
-                  isActive && isCenter && { transform: [{ scale: scaleAnim }] },
+                  isCenter && styles.centerIcon,
+                  isActive && isCenter && styles.centerIconActive,
+                  { transform: [{ scale: scaleAnims[index] }] },
                 ]}
               >
                 <NavIcon name={name} active={isActive} isCenter={isCenter} />
               </Animated.View>
+
+              {!isCenter && (
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      color: isActive ? '#000000' : '#737373',
+                      fontWeight: isActive ? '700' : '400',
+                    },
+                  ]}
+                >
+                  {name}
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -105,67 +111,51 @@ interface NavIconProps {
 }
 
 const NavIcon: React.FC<NavIconProps> = ({ name, active, isCenter }) => {
-  const iconColor = active ? Colors.accent.primary : Colors.text.tertiary;
+  const iconColor = isCenter && active ? '#FFFFFF' : active ? '#000000' : '#737373';
+  const iconSize = isCenter ? 28 : 24;
 
-  // Simple icon representations (replace with actual icon library)
-  const getIcon = () => {
-    switch (name) {
-      case 'Home':
-        return '🏠';
-      case 'Markets':
-        return '📊';
-      case 'Create':
-        return '➕';
-      case 'Activity':
-        return '📋';
-      case 'Profile':
-        return '👤';
-      default:
-        return '•';
-    }
-  };
-
-  return (
-    <View
-      style={[
-        styles.icon,
-        isCenter && styles.centerIcon,
-        active && isCenter && styles.centerIconActive,
-      ]}
-    >
-      <Text style={{ fontSize: isCenter ? 24 : 20, color: iconColor }}>
-        {getIcon()}
-      </Text>
-    </View>
-  );
+  switch (name) {
+    case 'Home':
+      return <Feather name="home" size={iconSize} color={iconColor} />;
+    case 'Markets':
+      return <MaterialCommunityIcons name="chart-line" size={iconSize} color={iconColor} />;
+    case 'Create':
+      return <Feather name="plus-circle" size={iconSize} color={iconColor} />;
+    case 'Activity':
+      return <Feather name="activity" size={iconSize} color={iconColor} />;
+    case 'Profile':
+      return <Feather name="user" size={iconSize} color={iconColor} />;
+    default:
+      return <Feather name="circle" size={iconSize} color={iconColor} />;
+  }
 };
-
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Layout.bottomNav.floatingMarginBottom,
+    bottom: Platform.OS === 'ios' ? 34 : 25,
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 400,
+    zIndex: 1000,
+    pointerEvents: 'box-none',
   },
   navWrapper: {
     flexDirection: 'row',
-    height: Layout.bottomNav.floatingHeight,
-    backgroundColor: Colors.base.white,
-    borderRadius: Layout.bottomNav.borderRadius,
+    height: 70,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'space-around',
-    ...Shadows.floating,
-    paddingHorizontal: Spacing.sm,
-  },
-  activePill: {
-    position: 'absolute',
-    height: 48,
-    backgroundColor: Colors.accent.light,
-    borderRadius: BorderRadius.pill,
-    opacity: 0.3,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
   },
   navItem: {
     flex: 1,
@@ -174,31 +164,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  centerItem: {
-    marginVertical: -Spacing.lg,
-  },
-  centerItemActive: {
-    marginVertical: -Spacing.xl,
-  },
+  centerItem: { marginTop: -8 },
+  centerItemActive: { marginTop: -12 },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: BorderRadius.circle,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   centerIcon: {
-    width: Layout.bottomNav.centerIconSize,
-    height: Layout.bottomNav.centerIconSize,
-    backgroundColor: Colors.base.white,
-    borderRadius: BorderRadius.circle,
-    ...Shadows.card,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    shadowColor: 'rgba(238, 162, 184, 0.5)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   centerIconActive: {
-    backgroundColor: Colors.accent.primary,
+    backgroundColor: 'rgb(255, 0, 77)',
+    shadowColor: 'rgb(255, 0, 77)',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  label: {
+    fontSize: 11,
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
 });
+
+export default PillBottomNav;

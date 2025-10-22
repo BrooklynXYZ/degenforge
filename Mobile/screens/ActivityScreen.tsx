@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   SectionList,
-  SectionListData,
 } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius, Layout } from '@/constants/designTokens';
 import { TxListItem } from '@/components/lists/TxListItem';
 import { TxDetailModal } from '@/components/modals/TxDetailModal';
 
@@ -17,7 +14,8 @@ interface Transaction {
   token: string;
   amount: number;
   status: 'pending' | 'confirmed' | 'failed';
-  timestamp: string;
+  timestamp: number;
+  timestampText: string;
   mezoTxHash?: string;
   spectrumBtcTxId?: string;
   solanaTxSig?: string;
@@ -41,7 +39,8 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       token: 'mUSD',
       amount: 1000,
       status: 'confirmed',
-      timestamp: '2 hours ago',
+      timestamp: Date.now() - 2 * 60 * 60 * 1000,
+      timestampText: '2 hours ago',
       mezoTxHash: '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e',
       spectrumBtcTxId: 'abc123def456',
       solanaTxSig: 'Ey7Ck3Tz9mK2pL5qR8sT1uV4wX7yZ0aB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3w',
@@ -55,7 +54,8 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       token: 'SOL',
       amount: 5.5,
       status: 'confirmed',
-      timestamp: '1 day ago',
+      timestamp: Date.now() - 24 * 60 * 60 * 1000,
+      timestampText: '1 day ago',
       mezoTxHash: '0x1234567890abcdef1234567890abcdef',
       solanaTxSig: 'Fx8Dl4Ua0nJ3qM6rS9tU2vV5wX8yZ1aB2cD5eF6gH7iJ8kL9mN0oP1qR2sT3uV4w',
       confirmations: 32,
@@ -68,7 +68,8 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       token: 'mUSD',
       amount: 500,
       status: 'pending',
-      timestamp: '5 minutes ago',
+      timestamp: Date.now() - 5 * 60 * 1000,
+      timestampText: '5 minutes ago',
       mezoTxHash: '0xabcdef1234567890abcdef1234567890',
       confirmations: 2,
       blockSlot: 245679050,
@@ -80,7 +81,8 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       token: 'mUSD',
       amount: 2000,
       status: 'confirmed',
-      timestamp: '3 days ago',
+      timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      timestampText: '3 days ago',
       mezoTxHash: '0x5678901234567890abcdef1234567890',
       solanaTxSig: 'Gx9Em5Vb1oK4pL7qR0sT3uV6wX9yZ2aB3cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5w',
       confirmations: 64,
@@ -93,7 +95,8 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       token: 'mUSD',
       amount: 250,
       status: 'failed',
-      timestamp: '1 week ago',
+      timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
+      timestampText: '1 week ago',
       mezoTxHash: '0xfedcba9876543210fedcba9876543210',
       date: Date.now() - 7 * 24 * 60 * 60 * 1000,
     },
@@ -126,7 +129,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, styles.headerPadding]}>
+      <View style={styles.header}>
         <Text style={styles.title}>Activity</Text>
         <Text style={styles.subtitle}>Transaction history & audit trail</Text>
       </View>
@@ -140,8 +143,9 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
             token={item.token}
             amount={item.amount}
             status={item.status}
-            timestamp={item.timestamp}
+            timestamp={item.timestampText}
             onPress={() => handleTxPress(item)}
+            style={styles.txItem}
           />
         )}
         renderSectionHeader={({ section: { title } }) => (
@@ -151,11 +155,14 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
       />
 
       {transactions.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>📭</Text>
+          <View style={styles.emptyIcon}>
+            <Text style={styles.emptyIconText}>—</Text>
+          </View>
           <Text style={styles.emptyTitle}>No Transactions</Text>
           <Text style={styles.emptySubtitle}>
             Your transaction history will appear here
@@ -231,63 +238,83 @@ const groupTransactionsByDate = (txs: Transaction[]): GroupedTransaction[] => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    marginBottom: Spacing.lg,
-  },
-  headerPadding: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.lg,
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 24,
   },
   title: {
-    ...Typography.h1,
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    marginBottom: 4,
   },
   subtitle: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   listContent: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingBottom: Spacing.xl,
+    paddingHorizontal: 24,
+    paddingBottom: 120,
   },
   sectionHeader: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.neutral[50],
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.neutral[100],
+    paddingVertical: 8,
+    marginTop: 24,
+    marginBottom: 8,
+    backgroundColor: '#FAFAFA',
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#000000',
   },
   sectionTitle: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  txItem: {
+    marginBottom: 8,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xxxl,
-    gap: Spacing.md,
+    paddingVertical: 80,
+    gap: 16,
   },
   emptyIcon: {
+    width: 120,
+    height: 120,
+    borderWidth: 3,
+    borderColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIconText: {
     fontSize: 64,
+    fontWeight: '700',
+    color: '#000000',
   },
   emptyTitle: {
-    ...Typography.h2,
-    color: Colors.text.primary,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   emptySubtitle: {
-    ...Typography.body,
-    color: Colors.text.secondary,
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
     textAlign: 'center',
   },
   bottomSpacer: {
-    height: 120,
+    height: 20,
   },
 });

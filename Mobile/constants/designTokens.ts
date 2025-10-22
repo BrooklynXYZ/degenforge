@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 export const Colors = {
   base: {
     black: '#0B0B0B',
@@ -62,85 +60,80 @@ export const Typography = {
     lineHeight: 36,
     fontWeight: '700' as const,
     letterSpacing: -0.5,
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   h2: {
     fontSize: 22,
     lineHeight: 30,
     fontWeight: '700' as const,
     letterSpacing: -0.3,
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   h3: {
     fontSize: 18,
     lineHeight: 26,
     fontWeight: '600' as const,
     letterSpacing: -0.2,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   body: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400' as const,
     letterSpacing: 0,
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   bodyMedium: {
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '500' as const,
     letterSpacing: 0,
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   bodySmall: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '400' as const,
     letterSpacing: 0,
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   bodySmallMedium: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '500' as const,
     letterSpacing: 0,
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   caption: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '400' as const,
     letterSpacing: 0.3,
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   captionMedium: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500' as const,
     letterSpacing: 0.3,
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   label: {
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '600' as const,
     letterSpacing: 0.5,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
 };
 
-export const FontFamily = Platform.select({
-  ios: {
-    regular: 'system-ui',
-    medium: 'system-ui',
-    bold: 'system-ui',
-  },
-  android: {
-    regular: 'Roboto',
-    medium: 'Roboto',
-    bold: 'Roboto',
-  },
-  web: {
-    regular: "'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    medium: "'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    bold: "'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  default: {
-    regular: 'system-ui',
-    medium: 'system-ui',
-    bold: 'system-ui',
-  },
-});
+export const FontFamily = {
+  light: 'SpaceGrotesk_300Light',
+  regular: 'SpaceGrotesk_400Regular',
+  medium: 'SpaceGrotesk_500Medium',
+  semibold: 'SpaceGrotesk_600SemiBold',
+  bold: 'SpaceGrotesk_700Bold',
+};
 
 export const BorderRadius = {
   none: 0,

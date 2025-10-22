@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,37 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { Spacing, BorderRadius, Layout } from '@/constants/designTokens';
-import { TxListItem } from '@/components/lists/TxListItem';
+import { Spacing, Layout } from '@/constants/designTokens';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
-  const [selectedTx, setSelectedTx] = useState<string | null>(null);
+const STATUS_CONFIG = {
+  confirmed: {
+    bg: '#F0FFF4',
+    border: '#22C55E',
+    dot: '#22C55E',
+    text: '#22C55E',
+    label: 'Confirmed',
+  },
+  pending: {
+    bg: '#FFFBEB',
+    border: '#F59E0B',
+    dot: '#F59E0B',
+    text: '#F59E0B',
+    label: 'Pending',
+  },
+  failed: {
+    bg: '#FEF2F2',
+    border: '#EF4444',
+    dot: '#EF4444',
+    text: '#EF4444',
+    label: 'Failed',
+  },
+};
 
-  // Mock data
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const walletData = {
     btcCollateral: 0.5,
     musdBalance: 25000,
@@ -57,10 +77,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
     >
-      {/* Wallet Card */}
       <View style={styles.cardContainer}>
         <View style={styles.card}>
-          <View style={styles.cardOverlay} />          
+          <View style={styles.cardOverlay} />
           <View style={styles.balanceSection}>
             <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
             <Text style={styles.balanceValue}>
@@ -74,7 +93,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.cardFooter}>
             <View style={styles.assetInfo}>
               <Text style={styles.assetLabel}>BTC COLLATERAL</Text>
@@ -93,7 +112,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         <View style={styles.quickHeader}>
           <Text style={styles.quickTitle}>Quick Actions</Text>
         </View>
-        
+
         <View style={styles.quickActionsGrid}>
           <TouchableOpacity style={styles.quickActionItem}>
             <View style={styles.quickActionIcon}>
@@ -138,25 +157,72 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         </View>
       </View>
 
-      {/* Recent Transactions */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity onPress={() => onNavigate('Activity')}>
-            <Text style={styles.seeAllText}>View All</Text>
+      {/* Recent Activity */}
+      <View style={styles.activitySection}>
+        <View style={styles.activityHeader}>
+          <View>
+            <Text style={styles.activityTitle}>Recent Activity</Text>
+            <Text style={styles.activitySubtitle}>Last 3 transactions</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => onNavigate('Activity')}
+            style={styles.viewAllButton}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+            <View style={styles.arrowIcon}>
+              <View style={styles.viewAllArrowLine} />
+              <View style={styles.viewAllArrowHead} />
+            </View>
           </TouchableOpacity>
         </View>
-        <View style={styles.txList}>
-          {recentTxs.map((tx) => (
-            <TxListItem
+
+        <View style={styles.activityList}>
+          {recentTxs.map((tx, index) => (
+            <TouchableOpacity
               key={tx.id}
-              icon={tx.icon}
-              token={tx.token}
-              amount={tx.amount}
-              status={tx.status}
-              timestamp={tx.timestamp}
-              onPress={() => setSelectedTx(tx.id)}
-            />
+              style={[
+                styles.activityItem,
+                index === recentTxs.length - 1 && styles.activityItemLast,
+              ]}
+              onPress={() => console.log('Transaction pressed:', tx.id)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.activityLeft}>
+                <View style={styles.activityIconWrapper}>
+                  <Text style={styles.activityEmoji}>{tx.icon}</Text>
+                </View>
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityToken}>{tx.token}</Text>
+                  <Text style={styles.activityTime}>{tx.timestamp}</Text>
+                </View>
+              </View>
+
+              <View style={styles.activityRight}>
+                <Text style={styles.activityAmount}>{tx.amount.toLocaleString()}</Text>
+                <View style={[
+                  styles.activityStatus,
+                  {
+                    backgroundColor: STATUS_CONFIG[tx.status].bg,
+                    borderColor: STATUS_CONFIG[tx.status].border,
+                  },
+                ]}>
+                  <View style={[
+                    styles.statusDot,
+                    { backgroundColor: STATUS_CONFIG[tx.status].dot },
+                  ]} />
+                  <Text style={[
+                    styles.statusText,
+                    { color: STATUS_CONFIG[tx.status].text },
+                  ]}>
+                    {STATUS_CONFIG[tx.status].label}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.activityChevron}>
+                <View style={styles.chevronShape} />
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
       </View>
@@ -201,26 +267,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     opacity: 0.5,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    zIndex: 1,
-  },
-  walletIconContainer: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  walletIcon: {
-    gap: 3,
-  },
   balanceSection: {
     marginBottom: Spacing.xxl,
     zIndex: 1,
@@ -232,6 +278,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: Spacing.xl,
     marginBottom: Spacing.xs,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   balanceValue: {
     fontSize: 38,
@@ -239,6 +286,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -1,
     marginBottom: Spacing.sm,
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   changeContainer: {
     flexDirection: 'row',
@@ -260,6 +308,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#00FF88',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -277,11 +326,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666666',
     letterSpacing: 0.5,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   assetValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   quickSection: {
     paddingHorizontal: Layout.screenPadding,
@@ -295,6 +346,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000000',
     letterSpacing: -0.3,
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   quickActionsGrid: {
     flexDirection: 'row',
@@ -430,34 +482,166 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000000',
     textAlign: 'center',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
-  section: {
+  activitySection: {
     paddingHorizontal: Layout.screenPadding,
     marginBottom: Spacing.xl,
   },
-  sectionHeader: {
+  activityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#000000',
   },
-  sectionTitle: {
-    fontSize: 18,
+  activityTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#000000',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    marginBottom: 2,
   },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '600',
+  activitySubtitle: {
+    fontSize: 12,
     color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    letterSpacing: 0.2,
   },
-  txList: {
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: '#000000',
+  },
+  viewAllText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  arrowIcon: {
+    width: 12,
+    height: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  viewAllArrowLine: {
+    position: 'absolute',
+    width: 8,
+    height: 2,
+    backgroundColor: '#000000',
+    left: 1,
+  },
+  viewAllArrowHead: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: '#000000',
+    transform: [{ rotate: '45deg' }],
+    right: 1,
+    top: 4,
+  },
+  activityList: {
+    gap: 0,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    gap: 12,
+  },
+  activityItemLast: {
+    borderBottomWidth: 0,
+  },
+  activityLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  activityIconWrapper: {
+    width: 44,
+    height: 44,
+    borderWidth: 2,
+    borderColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
+  },
+  activityEmoji: {
+    fontSize: 20,
+  },
+  activityInfo: {
+    gap: 2,
+  },
+  activityToken: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
+  activityTime: {
+    fontSize: 11,
+    color: '#999999',
+    fontFamily: 'SpaceGrotesk_400Regular',
+  },
+  activityRight: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  activityAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontVariant: ['tabular-nums'],
+  },
+  activityStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
+  },
+  statusDot: {
+    width: 4,
+    height: 4,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  activityChevron: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevronShape: {
+    width: 6,
+    height: 6,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: '#999999',
+    transform: [{ rotate: '45deg' }],
   },
   bottomSpacer: {
     height: 120,

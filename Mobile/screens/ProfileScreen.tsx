@@ -7,7 +7,7 @@ import {
   Switch,
   TouchableOpacity,
 } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius, Layout } from '@/constants/designTokens';
+import { Feather } from '@expo/vector-icons';
 import { ActionButton } from '@/components/ui/ActionButton';
 
 interface ProfileScreenProps {
@@ -38,153 +38,164 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>Wallet settings & configuration</Text>
-      </View>
-
-      {/* Wallet Section */}
+      {/* Wallet Address */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Wallet</Text>
-        <View style={styles.walletCard}>
-          <View style={styles.walletInfo}>
-            <Text style={styles.walletLabel}>Wallet Address</Text>
-            <Text style={styles.walletAddress}>{truncateAddress(walletAddress)}</Text>
-          </View>
-          <ActionButton
-            variant="secondary"
-            size="sm"
+        <Text style={styles.sectionLabel}>Wallet Address</Text>
+        <View style={styles.card}>
+          <Text style={styles.addressText}>{truncateAddress(walletAddress)}</Text>
+          <TouchableOpacity
+            style={styles.copyButton}
             onPress={() => copyToClipboard(walletAddress)}
           >
-            Copy
-          </ActionButton>
+            <Feather name="copy" size={20} color="#000000" />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Network Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Network</Text>
-        <View style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View>
-              <Text style={styles.settingLabel}>Network</Text>
-              <Text style={styles.settingValue}>
-                {network === 'mainnet' ? 'Mainnet' : 'Testnet'}
-              </Text>
-            </View>
-            <Switch
-              value={network === 'testnet'}
-              onValueChange={(value) =>
-                setNetwork(value ? 'testnet' : 'mainnet')
-              }
-              trackColor={{
-                false: Colors.neutral[200],
-                true: Colors.accent.light,
-              }}
-              thumbColor={network === 'testnet' ? Colors.accent.primary : Colors.neutral[400]}
-            />
-          </View>
+        <Text style={styles.sectionLabel}>Network</Text>
+        <View style={styles.card}>
+          <Text style={styles.settingLabel}>
+            {network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+          </Text>
+          <Switch
+            value={network === 'testnet'}
+            onValueChange={(value) =>
+              setNetwork(value ? 'testnet' : 'mainnet')
+            }
+            trackColor={{ false: '#E5E5E5', true: '#000000' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#E5E5E5"
+          />
         </View>
       </View>
 
       {/* RPC Configuration */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>RPC Configuration</Text>
+        <Text style={styles.sectionLabel}>RPC Provider</Text>
+        <View style={styles.rpcGrid}>
+          <TouchableOpacity
+            style={[
+              styles.rpcOption,
+              rpcProvider === 'spectrum' && styles.rpcOptionSelected,
+            ]}
+            onPress={() => setRpcProvider('spectrum')}
+          >
+            <Text
+              style={[
+                styles.rpcLabel,
+                rpcProvider === 'spectrum' && styles.rpcLabelSelected,
+              ]}
+            >
+              SPECTRUM
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.rpcOption,
+              rpcProvider === 'custom' && styles.rpcOptionSelected,
+            ]}
+            onPress={() => setRpcProvider('custom')}
+          >
+            <Text
+              style={[
+                styles.rpcLabel,
+                rpcProvider === 'custom' && styles.rpcLabelSelected,
+              ]}
+            >
+              CUSTOM
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        {/* Mezo RPC */}
-        <View style={styles.configCard}>
-          <Text style={styles.configLabel}>Mezo RPC Endpoint</Text>
-          <View style={styles.configValueContainer}>
-            <Text style={styles.configValue}>{mezoRpcEndpoint}</Text>
-            <Text style={styles.configNote}>(Placeholder - not exposed)</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Endpoints</Text>
+        <View style={styles.card}>
+          <View style={styles.endpointRow}>
+            <Text style={styles.endpointLabel}>Mezo RPC</Text>
+            <Text style={styles.endpointValue}>
+              {mezoRpcEndpoint.substring(0, 30)}...
+            </Text>
           </View>
         </View>
-
-        {/* RPC Provider Selection */}
-        <View style={styles.settingCard}>
-          <Text style={styles.settingLabel}>RPC Provider</Text>
-          <View style={styles.rpcOptions}>
-            <RpcOption
-              label="Spectrum"
-              selected={rpcProvider === 'spectrum'}
-              onPress={() => setRpcProvider('spectrum')}
-            />
-            <RpcOption
-              label="Custom"
-              selected={rpcProvider === 'custom'}
-              onPress={() => setRpcProvider('custom')}
-            />
-          </View>
-        </View>
-
-        {/* Spectrum Endpoint */}
-        <View style={styles.configCard}>
-          <Text style={styles.configLabel}>Spectrum Endpoint</Text>
-          <View style={styles.configValueContainer}>
-            <Text style={styles.configValue}>{spectrumEndpoint}</Text>
-            <Text style={styles.configNote}>(Placeholder - not exposed)</Text>
+        <View style={styles.card}>
+          <View style={styles.endpointRow}>
+            <Text style={styles.endpointLabel}>Spectrum</Text>
+            <Text style={styles.endpointValue}>
+              {spectrumEndpoint.substring(0, 30)}...
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Appearance Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Appearance</Text>
-        <View style={styles.settingCard}>
-          <View style={styles.settingRow}>
-            <View>
-              <Text style={styles.settingLabel}>Dark Mode</Text>
-              <Text style={styles.settingValue}>
-                {isDarkMode ? 'Enabled' : 'Disabled'}
-              </Text>
-            </View>
-            <Switch
-              value={isDarkMode}
-              onValueChange={setIsDarkMode}
-              trackColor={{
-                false: Colors.neutral[200],
-                true: Colors.accent.light,
-              }}
-              thumbColor={isDarkMode ? Colors.accent.primary : Colors.neutral[400]}
-            />
-          </View>
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.card}>
+          <Text style={styles.settingLabel}>
+            Dark Mode ({isDarkMode ? 'On' : 'Off'})
+          </Text>
+          <Switch
+            value={isDarkMode}
+            onValueChange={setIsDarkMode}
+            trackColor={{ false: '#E5E5E5', true: '#000000' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#E5E5E5"
+          />
         </View>
       </View>
 
       {/* Security Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Security</Text>
-        <View style={styles.securityCard}>
-          <SecurityItem
-            icon="🔐"
-            title="Biometric Authentication"
-            description="Use fingerprint or face ID"
-            onPress={() => console.log('Biometric pressed')}
-          />
-          <SecurityItem
-            icon="🔑"
-            title="Private Key Backup"
-            description="Securely backup your keys"
-            onPress={() => console.log('Backup pressed')}
-          />
-          <SecurityItem
-            icon="⚠️"
-            title="Reset Wallet"
-            description="Clear all data and start fresh"
-            onPress={() => console.log('Reset pressed')}
-            danger
-          />
-        </View>
+        <Text style={styles.sectionLabel}>Security</Text>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => console.log('Biometric pressed')}
+        >
+          <Feather name="lock" size={20} color="#000000" />
+          <Text style={styles.menuLabel}>Biometric Authentication</Text>
+          <Feather name="chevron-right" size={20} color="#000000" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => console.log('Backup pressed')}
+        >
+          <Feather name="key" size={20} color="#000000" />
+          <Text style={styles.menuLabel}>Private Key Backup</Text>
+          <Feather name="chevron-right" size={20} color="#000000" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.menuItem, styles.menuItemDanger]}
+          onPress={() => console.log('Reset pressed')}
+        >
+          <Feather name="alert-triangle" size={20} color="#000000" />
+          <Text style={styles.menuLabel}>Reset Wallet</Text>
+          <Feather name="chevron-right" size={20} color="#000000" />
+        </TouchableOpacity>
       </View>
 
       {/* About Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.aboutCard}>
-          <AboutRow label="App Version" value="1.0.0" />
-          <AboutRow label="Build" value="2024.01.15" />
-          <AboutRow label="Network" value="Solana Mainnet" />
+        <Text style={styles.sectionLabel}>About</Text>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Version</Text>
+            <Text style={styles.infoValue}>1.0.0</Text>
+          </View>
+        </View>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Build</Text>
+            <Text style={styles.infoValue}>2024.01.15</Text>
+          </View>
+        </View>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Network</Text>
+            <Text style={styles.infoValue}>Solana Mainnet</Text>
+          </View>
         </View>
       </View>
 
@@ -195,14 +206,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
           fullWidth
           onPress={() => console.log('Support pressed')}
         >
-          Support & Feedback
+          Support
         </ActionButton>
         <ActionButton
-          variant="secondary"
+          variant="primary"
           fullWidth
           onPress={() => console.log('Logout pressed')}
         >
-          Disconnect Wallet
+          Disconnect
         </ActionButton>
       </View>
 
@@ -211,279 +222,135 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   );
 };
 
-interface RpcOptionProps {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}
-
-const RpcOption: React.FC<RpcOptionProps> = ({ label, selected, onPress }) => (
-  <TouchableOpacity
-    style={[styles.rpcOption, selected && styles.rpcOptionSelected]}
-    onPress={onPress}
-  >
-    <View
-      style={[
-        styles.rpcRadio,
-        selected && styles.rpcRadioSelected,
-      ]}
-    >
-      {selected && <View style={styles.rpcRadioDot} />}
-    </View>
-    <Text style={[styles.rpcLabel, selected && styles.rpcLabelSelected]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
-interface SecurityItemProps {
-  icon: string;
-  title: string;
-  description: string;
-  onPress: () => void;
-  danger?: boolean;
-}
-
-const SecurityItem: React.FC<SecurityItemProps> = ({
-  icon,
-  title,
-  description,
-  onPress,
-  danger,
-}) => (
-  <TouchableOpacity
-    style={[styles.securityItem, danger && styles.securityItemDanger]}
-    onPress={onPress}
-  >
-    <Text style={styles.securityIcon}>{icon}</Text>
-    <View style={styles.securityContent}>
-      <Text style={[styles.securityTitle, danger && styles.securityTitleDanger]}>
-        {title}
-      </Text>
-      <Text style={styles.securityDescription}>{description}</Text>
-    </View>
-    <Text style={styles.chevron}>›</Text>
-  </TouchableOpacity>
-);
-
-interface AboutRowProps {
-  label: string;
-  value: string;
-}
-
-const AboutRow: React.FC<AboutRowProps> = ({ label, value }) => (
-  <View style={styles.aboutRow}>
-    <Text style={styles.aboutLabel}>{label}</Text>
-    <Text style={styles.aboutValue}>{value}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.lg,
-  },
-  header: {
-    marginBottom: Spacing.xl,
-  },
-  title: {
-    ...Typography.h1,
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+    paddingHorizontal: 24,
+    paddingTop: 48,
   },
   section: {
-    marginBottom: Spacing.xl,
+    marginBottom: 32,
   },
-  sectionTitle: {
-    ...Typography.h3,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 12,
   },
-  walletCard: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#000000',
+    marginBottom: 8,
   },
-  walletInfo: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  walletLabel: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-  },
-  walletAddress: {
-    ...Typography.bodyMedium,
-    color: Colors.accent.primary,
-    fontFamily: 'monospace',
+  addressText: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontVariant: ['tabular-nums'],
   },
-  settingCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  copyButton: {
+    padding: 8,
   },
   settingLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
-  },
-  settingValue: {
-    ...Typography.bodyMedium,
-    color: Colors.text.primary,
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: Spacing.xs,
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
-  configCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
-  },
-  configLabel: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-    fontWeight: '600',
-  },
-  configValueContainer: {
-    gap: Spacing.xs,
-  },
-  configValue: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    fontFamily: 'monospace',
-  },
-  configNote: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    fontStyle: 'italic',
-  },
-  rpcOptions: {
-    gap: Spacing.md,
+  rpcGrid: {
+    flexDirection: 'row',
+    gap: 8,
   },
   rpcOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.bg.primary,
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
-  },
-  rpcOptionSelected: {
-    backgroundColor: Colors.accent.light,
-    borderColor: Colors.accent.primary,
-  },
-  rpcRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: BorderRadius.circle,
+    flex: 1,
+    padding: 16,
     borderWidth: 2,
-    borderColor: Colors.neutral[300],
+    borderColor: '#E5E5E5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rpcRadioSelected: {
-    borderColor: Colors.accent.primary,
-  },
-  rpcRadioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: BorderRadius.circle,
-    backgroundColor: Colors.accent.primary,
+  rpcOptionSelected: {
+    borderColor: '#000000',
+    backgroundColor: '#000000',
   },
   rpcLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: 0.8,
   },
   rpcLabelSelected: {
-    fontWeight: '600',
-    color: Colors.accent.primary,
+    color: '#FFFFFF',
   },
-  securityCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  },
-  securityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral[100],
-  },
-  securityItemDanger: {
-    backgroundColor: Colors.semantic.error,
-    opacity: 0.05,
-  },
-  securityIcon: {
-    fontSize: 24,
-  },
-  securityContent: {
+  endpointRow: {
     flex: 1,
-    gap: Spacing.xs,
   },
-  securityTitle: {
-    ...Typography.bodySmall,
-    color: Colors.text.primary,
+  endpointLabel: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    marginBottom: 4,
   },
-  securityTitleDanger: {
-    color: Colors.semantic.error,
+  endpointValue: {
+    fontSize: 12,
+    color: '#999999',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontVariant: ['tabular-nums'],
   },
-  securityDescription: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-  },
-  chevron: {
-    fontSize: 20,
-    color: Colors.text.tertiary,
-  },
-  aboutCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  aboutRow: {
+  menuItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#000000',
+    marginBottom: 8,
   },
-  aboutLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+  menuItemDanger: {
+    borderColor: '#000000',
+    backgroundColor: '#FAFAFA',
   },
-  aboutValue: {
-    ...Typography.bodySmall,
-    color: Colors.text.primary,
+  menuLabel: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
+  infoRow: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   actionsSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    gap: 16,
+    marginTop: 16,
+    marginBottom: 32,
   },
   bottomSpacer: {
     height: 120,

@@ -1,15 +1,4 @@
-/**
- * MintScreen / Deposit
- * 
- * Displays:
- * - Amount input (BTC)
- * - Estimated mUSD result
- * - LTV preview (progress bar)
- * - Confirm CTA with estimated fee (1%)
- * - Post-confirm screen showing Mezo mintTxHash and vault id
- */
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,10 +7,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { Colors, Typography, Spacing, BorderRadius, Layout } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { StatCard } from '@/components/cards/StatCard';
 
 interface MintScreenProps {
   onNavigate: (screen: string) => void;
@@ -32,10 +21,9 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data
   const btcPrice = 65000;
-  const ltvRatio = 0.5; // 50% LTV
-  const fee = 0.01; // 1%
+  const ltvRatio = 0.5;
+  const fee = 0.01;
 
   const btcValue = parseFloat(btcAmount) || 0;
   const usdValue = btcValue * btcPrice;
@@ -46,56 +34,52 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   const mockMintTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
   const mockVaultId = '0x1234567890abcdef1234567890abcdef';
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     setIsLoading(true);
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsLoading(false);
     setIsConfirmed(true);
-  };
+  }, []);
+
+  const handleMaxAmount = useCallback(() => {
+    setBtcAmount('0.5');
+  }, []);
 
   if (isConfirmed) {
     return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-      >
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.successSection}>
-          <Text style={styles.successIcon}>✓</Text>
-          <Text style={styles.successTitle}>Mint Successful</Text>
-          <Text style={styles.successSubtitle}>
-            Your mUSD has been minted on Mezo
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Transaction Details</Text>
-          <View style={styles.detailCard}>
-            <DetailRow label="Amount Minted" value={`${netMinted.toFixed(2)} mUSD`} />
-            <DetailRow label="Fee" value={`${feeAmount.toFixed(2)} mUSD`} />
-            <DetailRow label="BTC Collateral" value={`${btcAmount} BTC`} />
+          <View style={styles.successIcon}>
+            <Text style={styles.successIconText}>✓</Text>
           </View>
+          <Text style={styles.successTitle}>Mint Successful</Text>
+          <Text style={styles.successSubtitle}>Your mUSD has been minted on Mezo</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mezo Proof</Text>
+        <View style={styles.resultCard}>
+          <Text style={styles.resultLabel}>You Received</Text>
+          <Text style={styles.resultAmount}>{netMinted.toFixed(2)}</Text>
+          <Text style={styles.resultUnit}>mUSD</Text>
+        </View>
+
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsTitle}>Transaction Details</Text>
+          <DetailRow label="Amount Minted" value={`${netMinted.toFixed(2)} mUSD`} />
+          <DetailRow label="Fee" value={`${feeAmount.toFixed(2)} mUSD`} />
+          <DetailRow label="BTC Collateral" value={`${btcAmount} BTC`} />
+        </View>
+
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsTitle}>Mezo Proof</Text>
           <ProofBox label="Mint TX Hash" value={mockMintTxHash} />
           <ProofBox label="Vault ID" value={mockVaultId} />
         </View>
 
         <View style={styles.actionsSection}>
-          <ActionButton
-            variant="primary"
-            fullWidth
-            onPress={() => onNavigate('Bridge')}
-          >
+          <ActionButton variant="primary" fullWidth onPress={() => onNavigate('Bridge')}>
             Proceed to Bridge
           </ActionButton>
-          <ActionButton
-            variant="secondary"
-            fullWidth
-            onPress={() => onNavigate('Home')}
-          >
+          <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Back to Home
           </ActionButton>
         </View>
@@ -106,113 +90,80 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-      >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Mint mUSD</Text>
           <Text style={styles.subtitle}>Deposit BTC collateral</Text>
         </View>
 
-        {/* Input Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Amount</Text>
-          <View style={styles.amountCard}>
-            <View style={styles.amountHeader}>
-              <Text style={styles.amountCurrency}>BTC</Text>
-              <Text style={styles.amountBalance}>Balance $12,000.00</Text>
-            </View>
-            <View style={styles.amountInputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="0.00"
-                placeholderTextColor={Colors.text.tertiary}
-                keyboardType="decimal-pad"
-                value={btcAmount}
-                onChangeText={setBtcAmount}
-              />
-              <Text style={styles.inputUnit}>BTC</Text>
-            </View>
+        <View style={styles.inputSection}>
+          <View style={styles.inputHeader}>
+            <Text style={styles.inputLabel}>Amount</Text>
+            <TouchableOpacity onPress={handleMaxAmount} style={styles.maxButtonContainer}>
+              <Text style={styles.maxButton}>MAX</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.inputHint}>
-            Current price: ${btcPrice.toLocaleString()} / BTC
-          </Text>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor="#CCCCCC"
+              keyboardType="decimal-pad"
+              value={btcAmount}
+              onChangeText={setBtcAmount}
+            />
+            <Text style={styles.inputUnit}>BTC</Text>
+          </View>
+
+          <View style={styles.balanceRow}>
+            <Text style={styles.balanceLabel}>Balance: 0.5 BTC</Text>
+            <Text style={styles.priceLabel}>${btcPrice.toLocaleString()}</Text>
+          </View>
         </View>
 
-        {/* Preview Section */}
         {btcValue > 0 && (
           <>
             <View style={styles.statsGrid}>
-              <StatCard
-                label="USD Value"
-                value={usdValue.toFixed(2)}
-                unit="USD"
-                style={styles.statCardHalf}
-              />
-              <StatCard
-                label="mUSD Minted"
-                value={netMinted.toFixed(2)}
-                unit="mUSD"
-                style={styles.statCardHalf}
-              />
-            </View>
-
-            {/* LTV Preview */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>LTV Preview</Text>
-              <View style={styles.ltvCard}>
-                <View style={styles.ltvHeader}>
-                  <Text style={styles.ltvLabel}>Loan-to-Value</Text>
-                  <Text style={styles.ltvValue}>{(ltvRatio * 100).toFixed(0)}%</Text>
-                </View>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${ltvRatio * 100}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.ltvHint}>
-                  Safe range: 30% - 70%
-                </Text>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>USD Value</Text>
+                <Text style={styles.statValue}>${usdValue.toLocaleString()}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>You Receive</Text>
+                <Text style={styles.statValue}>{netMinted.toFixed(2)} mUSD</Text>
               </View>
             </View>
 
-            {/* Fee Breakdown */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Fee Breakdown</Text>
-              <View style={styles.feeCard}>
-                <FeeRow label="Mint Amount" value={musdMinted.toFixed(2)} />
-                <FeeRow label="Fee (1%)" value={feeAmount.toFixed(2)} highlight />
-                <View style={styles.feeDivider} />
-                <FeeRow label="You Receive" value={netMinted.toFixed(2)} bold />
+            <View style={styles.ltvSection}>
+              <View style={styles.ltvHeader}>
+                <Text style={styles.ltvLabel}>Loan-to-Value</Text>
+                <Text style={styles.ltvValue}>{(ltvRatio * 100).toFixed(0)}%</Text>
               </View>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${ltvRatio * 100}%` }]} />
+              </View>
+              <View style={styles.ltvRange}>
+                <Text style={styles.rangeLabel}>Safe</Text>
+                <Text style={styles.rangeLabel}>Risky</Text>
+              </View>
+            </View>
+
+            <View style={styles.feeSection}>
+              <FeeRow label="Mint Amount" value={`${musdMinted.toFixed(2)} mUSD`} />
+              <FeeRow label="Protocol Fee (1%)" value={`${feeAmount.toFixed(2)} mUSD`} />
+              <View style={styles.feeDivider} />
+              <FeeRow label="You Receive" value={`${netMinted.toFixed(2)} mUSD`} bold />
             </View>
           </>
         )}
 
-        {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          <ActionButton
-            variant="accent"
-            fullWidth
-            disabled={btcValue <= 0}
-            loading={isLoading}
-            onPress={handleConfirm}
-          >
+          <ActionButton variant="accent" fullWidth disabled={btcValue <= 0} loading={isLoading} onPress={handleConfirm}>
             Confirm Mint
           </ActionButton>
-          <ActionButton
-            variant="secondary"
-            fullWidth
-            onPress={() => onNavigate('Home')}
-          >
+          <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Cancel
           </ActionButton>
         </View>
@@ -223,298 +174,365 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   );
 };
 
-interface DetailRowProps {
-  label: string;
-  value: string;
-}
-
-const DetailRow: React.FC<DetailRowProps> = ({ label, value }) => (
+const DetailRow = React.memo<{ label: string; value: string }>(({ label, value }) => (
   <View style={styles.detailRow}>
     <Text style={styles.detailLabel}>{label}</Text>
     <Text style={styles.detailValue}>{value}</Text>
   </View>
-);
+));
 
-interface ProofBoxProps {
-  label: string;
-  value: string;
-}
+DetailRow.displayName = 'DetailRow';
 
-const ProofBox: React.FC<ProofBoxProps> = ({ label, value }) => (
-  <View style={styles.proofBox}>
+const ProofBox = React.memo<{ label: string; value: string }>(({ label, value }) => (
+  <View style={styles.proofRow}>
     <Text style={styles.proofLabel}>{label}</Text>
-    <View style={styles.proofValueContainer}>
-      <Text style={styles.proofValue}>{truncateHash(value)}</Text>
-      <ActionButton
-        variant="secondary"
-        size="sm"
-        onPress={() => copyToClipboard(value)}
-      >
-        Copy
-      </ActionButton>
+    <Text style={styles.proofValue}>{value.slice(0, 8)}...{value.slice(-6)}</Text>
+  </View>
+));
+
+ProofBox.displayName = 'ProofBox';
+
+const FeeRow = React.memo<{ label: string; value: string; bold?: boolean }>(
+  ({ label, value, bold }) => (
+    <View style={styles.feeRow}>
+      <Text style={[styles.feeLabel, bold && styles.feeLabelBold]}>{label}</Text>
+      <Text style={[styles.feeValue, bold && styles.feeValueBold]}>{value}</Text>
     </View>
-  </View>
+  )
 );
 
-interface FeeRowProps {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  bold?: boolean;
-}
-
-const FeeRow: React.FC<FeeRowProps> = ({ label, value, highlight, bold }) => (
-  <View style={styles.feeRow}>
-    <Text
-      style={[
-        styles.feeLabel,
-        highlight && styles.feeLabelHighlight,
-        bold && styles.feeLabelBold,
-      ]}
-    >
-      {label}
-    </Text>
-    <Text
-      style={[
-        styles.feeValue,
-        highlight && styles.feeValueHighlight,
-        bold && styles.feeValueBold,
-      ]}
-    >
-      {value}
-    </Text>
-  </View>
-);
-
-const truncateHash = (hash: string): string => {
-  if (hash.length <= 16) return hash;
-  return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
-};
-
-const copyToClipboard = (text: string) => {
-  console.log('Copied:', text);
-};
+FeeRow.displayName = 'FeeRow';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Spacing.lg,
+    paddingHorizontal: 24,
+    paddingTop: 48,
   },
   header: {
-    marginBottom: Spacing.xl,
+    marginBottom: 48,
   },
   title: {
-    ...Typography.h1,
-    color: Colors.text.primary,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+    fontSize: 16,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
-  section: {
-    marginBottom: Spacing.xl,
+  inputSection: {
+    marginBottom: 32,
+    borderWidth: 2,
+    borderColor: '#000000',
+    padding: 24,
   },
-  sectionTitle: {
-    ...Typography.h3,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
-  },
-  amountCard: {
-    backgroundColor: Colors.base.black,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  amountHeader: {
+  inputHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
-  amountCurrency: {
-    ...Typography.h3,
-    color: Colors.base.white,
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  amountBalance: {
-    ...Typography.caption,
-    color: Colors.base.white,
-    opacity: 0.7,
+  maxButtonContainer: {
+    borderWidth: 1.5,
+    borderColor: '#000000',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  amountInputRow: {
+  maxButton: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.lg,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+    marginBottom: Spacing.lg,
+    minHeight: 80,
   },
-  // Old inputContainer replaced by amountInputRow
   input: {
+    fontSize: 56,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
     flex: 1,
-    paddingVertical: Spacing.lg,
-    ...Typography.h2,
-    color: Colors.text.primary,
+    padding: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   inputUnit: {
-    ...Typography.bodyMedium,
-    color: Colors.text.secondary,
+    fontSize: 28,
     fontWeight: '600',
+    color: '#999999',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    marginLeft: Spacing.sm,
   },
-  inputHint: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
-    marginTop: Spacing.sm,
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
+  },
+  priceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    gap: 16,
+    marginBottom: 32,
   },
-  statCardHalf: {
+  statBox: {
     flex: 1,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#000000',
   },
-  ltvCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: Spacing.sm,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  ltvSection: {
+    marginBottom: 32,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   ltvHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing.lg,
   },
   ltvLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   ltvValue: {
-    ...Typography.h3,
-    color: Colors.accent.primary,
+    fontSize: 28,
     fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   progressBar: {
     height: 8,
-    backgroundColor: Colors.neutral[200],
-    borderRadius: BorderRadius.pill,
-    overflow: 'hidden',
+    backgroundColor: '#E5E5E5',
+    marginBottom: Spacing.md,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.accent.primary,
+    backgroundColor: '#000000',
   },
-  ltvHint: {
-    ...Typography.caption,
-    color: Colors.text.tertiary,
+  ltvRange: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  feeCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
+  rangeLabel: {
+    fontSize: 11,
+    color: '#999999',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  feeSection: {
+    marginBottom: 32,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#000000',
   },
   feeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
   feeLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
-  },
-  feeLabelHighlight: {
-    color: Colors.semantic.warning,
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   feeLabelBold: {
-    color: Colors.text.primary,
+    fontSize: 16,
     fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   feeValue: {
-    ...Typography.bodySmall,
-    color: Colors.text.primary,
-  },
-  feeValueHighlight: {
-    color: Colors.semantic.warning,
+    fontSize: 14,
     fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   feeValueBold: {
-    ...Typography.bodyMedium,
+    fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   feeDivider: {
-    height: 1,
-    backgroundColor: Colors.neutral[200],
+    height: 2,
+    backgroundColor: '#000000',
+    marginVertical: 16,
   },
   actionsSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    gap: 16,
+    marginTop: 16,
+    marginBottom: 32,
   },
   bottomSpacer: {
     height: 120,
   },
   successSection: {
     alignItems: 'center',
-    marginVertical: Spacing.xl,
-    gap: Spacing.md,
+    marginBottom: 64,
+    paddingTop: 80,
+    paddingBottom: 48,
   },
   successIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 0,
+    borderWidth: 4,
+    borderColor: '#000000',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  successIconText: {
     fontSize: 64,
-    color: Colors.semantic.success,
+    fontWeight: '700',
+    color: '#000000',
+    lineHeight: 64,
   },
   successTitle: {
-    ...Typography.h2,
-    color: Colors.text.primary,
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    marginBottom: Spacing.sm,
   },
   successSubtitle: {
-    ...Typography.body,
-    color: Colors.text.secondary,
+    fontSize: 16,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
+    textAlign: 'center',
   },
-  detailCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
+  resultCard: {
+    padding: 48,
+    alignItems: 'center',
+    marginBottom: 48,
+    borderWidth: 3,
+    borderColor: '#000000',
+  },
+  resultLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: Spacing.sm,
+  },
+  resultAmount: {
+    fontSize: 72,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    marginBottom: 8,
+    lineHeight: 72,
+  },
+  resultUnit: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
+  detailsSection: {
+    marginBottom: 32,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#000000',
+  },
+  detailsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: Spacing.lg,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
   detailLabel: {
-    ...Typography.bodySmall,
-    color: Colors.text.secondary,
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   detailValue: {
-    ...Typography.bodyMedium,
-    color: Colors.text.primary,
+    fontSize: 14,
     fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
-  proofBox: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
+  proofRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
   proofLabel: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-    fontWeight: '600',
-  },
-  proofValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+    fontSize: 14,
+    color: '#666666',
+    fontFamily: 'SpaceGrotesk_400Regular',
   },
   proofValue: {
-    ...Typography.caption,
-    color: Colors.accent.primary,
-    fontFamily: 'monospace',
-    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#000000',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -23,7 +23,7 @@ interface BridgeStepperProps {
   style?: ViewStyle;
 }
 
-export const BridgeStepper: React.FC<BridgeStepperProps> = ({
+export const BridgeStepper = React.memo<BridgeStepperProps>(({
   currentStep,
   steps,
   onStepPress,
@@ -32,12 +32,13 @@ export const BridgeStepper: React.FC<BridgeStepperProps> = ({
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: Animations.stepper,
       useNativeDriver: true,
     }).start();
-  }, [currentStep]);
+  }, [currentStep, fadeAnim]);
 
   return (
     <View style={[styles.container, style]}>
@@ -130,7 +131,9 @@ export const BridgeStepper: React.FC<BridgeStepperProps> = ({
       </View>
     </View>
   );
-};
+});
+
+BridgeStepper.displayName = 'BridgeStepper';
 
 const truncateHash = (hash: string): string => {
   if (hash.length <= 12) return hash;

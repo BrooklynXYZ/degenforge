@@ -19,7 +19,7 @@ interface StatCardProps {
   style?: ViewStyle;
 }
 
-export const StatCard: React.FC<StatCardProps> = ({
+export const StatCard = React.memo<StatCardProps>(({
   label,
   value,
   unit,
@@ -33,8 +33,8 @@ export const StatCard: React.FC<StatCardProps> = ({
     changeType === 'positive'
       ? Colors.semantic.success
       : changeType === 'negative'
-      ? Colors.semantic.error
-      : Colors.text.secondary;
+        ? Colors.semantic.error
+        : Colors.text.secondary;
 
   const containerStyle: ViewStyle[] = [styles.container, style];
 
@@ -70,7 +70,9 @@ export const StatCard: React.FC<StatCardProps> = ({
   }
 
   return <View style={containerStyle}>{content}</View>;
-};
+});
+
+StatCard.displayName = 'StatCard';
 
 const styles = StyleSheet.create({
   container: {

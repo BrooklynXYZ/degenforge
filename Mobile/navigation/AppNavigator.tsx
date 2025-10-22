@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Colors } from '@/constants/designTokens';
 import PillBottomNav from '@/components/nav/PillBottomNav';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { MintScreen } from '@/screens/MintScreen';
@@ -11,62 +10,58 @@ import { ProfileScreen } from '@/screens/ProfileScreen';
 
 type ScreenName =
   | 'Home'
-  | 'Markets'
   | 'Create'
   | 'Activity'
   | 'Profile'
   | 'Mint'
   | 'Bridge'
-  | 'PoolDetail'
-  | 'Redeem'
-  | 'VaultDetail';
+  | 'PoolDetail';
+
+const TAB_SCREENS: ScreenName[] = ['Home', 'Create', 'Activity', 'Profile'];
 
 export const AppNavigator: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Home');
-  const TAB_SCREENS: ScreenName[] = ['Home', 'Markets', 'Create', 'Activity', 'Profile'];
 
-  const handleTabChange = (index: number) => {
+  const handleTabChange = useCallback((index: number) => {
     setActiveTab(index);
     setCurrentScreen(TAB_SCREENS[index]);
-  };
+  }, []);
 
-  const handleNavigate = (screen: ScreenName) => {
+  const handleNavigate = useCallback((screen: ScreenName) => {
     setCurrentScreen(screen);
-    const tabIndex = TAB_SCREENS.indexOf(screen as ScreenName);
+    const tabIndex = TAB_SCREENS.indexOf(screen);
     if (tabIndex !== -1) {
       setActiveTab(tabIndex);
     }
-  };
+  }, []);
 
-  const renderScreen = () => {
+  const navFunction = handleNavigate as (screen: string) => void;
+
+  const screenComponent = useMemo(() => {
     switch (currentScreen) {
       case 'Home':
-        return <HomeScreen onNavigate={handleNavigate} />;
-      case 'Markets':
-        return <PoolDetailScreen onNavigate={handleNavigate} />;
+        return <HomeScreen onNavigate={navFunction} />;
       case 'Create':
-        return <MintScreen onNavigate={handleNavigate} />;
+        return <MintScreen onNavigate={navFunction} />;
       case 'Activity':
-        return <ActivityScreen onNavigate={handleNavigate} />;
+        return <ActivityScreen onNavigate={navFunction} />;
       case 'Profile':
-        return <ProfileScreen onNavigate={handleNavigate} />;
+        return <ProfileScreen onNavigate={navFunction} />;
       case 'Mint':
-        return <MintScreen onNavigate={handleNavigate} />;
+        return <MintScreen onNavigate={navFunction} />;
       case 'Bridge':
-        return <BridgeScreen onNavigate={handleNavigate} />;
+        return <BridgeScreen onNavigate={navFunction} />;
       case 'PoolDetail':
-        return <PoolDetailScreen onNavigate={handleNavigate} />;
+        return <PoolDetailScreen onNavigate={navFunction} />;
       default:
-        return <HomeScreen onNavigate={handleNavigate} />;
+        return <HomeScreen onNavigate={navFunction} />;
     }
-  };
+  }, [currentScreen, navFunction]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.screenContainer}>{renderScreen()}</View>
-
-      {/* PillBottomNav expects activeIndex and onIndexChange */}
+      <View style={styles.screenContainer}>{screenComponent}</View>
       <PillBottomNav activeIndex={activeTab} onIndexChange={handleTabChange} />
     </View>
   );
@@ -75,10 +70,9 @@ export const AppNavigator: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: '#FFFFFF',
   },
   screenContainer: {
     flex: 1,
-    paddingBottom: 100,
   },
 });

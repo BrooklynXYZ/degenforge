@@ -21,7 +21,7 @@ interface PoolCardProps {
   style?: ViewStyle;
 }
 
-export const PoolCard: React.FC<PoolCardProps> = ({
+export const PoolCard = React.memo<PoolCardProps>(({
   poolName,
   apy,
   tvl,
@@ -30,9 +30,8 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   onPress,
   style,
 }) => {
-  const tvlFormatted = formatTVL(tvl);
-
-  const containerStyle: ViewStyle[] = [styles.container, style];
+  const tvlFormatted = React.useMemo(() => formatTVL(tvl), [tvl]);
+  const containerStyle: ViewStyle[] = React.useMemo(() => [styles.container, style], [style]);
 
   const content = (
     <>
@@ -82,7 +81,9 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   }
 
   return <View style={containerStyle}>{content}</View>;
-};
+});
+
+PoolCard.displayName = 'PoolCard';
 
 const formatTVL = (tvl: number): string => {
   if (tvl >= 1e9) {

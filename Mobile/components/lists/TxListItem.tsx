@@ -18,7 +18,13 @@ interface TxListItemProps {
   style?: ViewStyle;
 }
 
-export const TxListItem: React.FC<TxListItemProps> = ({
+const STATUS_CONFIG = {
+  confirmed: { color: Colors.semantic.confirmed, bg: '#E6F9F0', label: 'Confirmed' },
+  pending: { color: Colors.semantic.pending, bg: '#FFF4E6', label: 'Pending' },
+  failed: { color: Colors.semantic.error, bg: '#FFECEC', label: 'Failed' },
+};
+
+export const TxListItem = React.memo<TxListItemProps>(({
   icon,
   token,
   amount,
@@ -27,26 +33,7 @@ export const TxListItem: React.FC<TxListItemProps> = ({
   onPress,
   style,
 }) => {
-  const statusColor =
-    status === 'confirmed'
-      ? Colors.semantic.confirmed
-      : status === 'pending'
-        ? Colors.semantic.pending
-        : Colors.semantic.error;
-
-  const statusBg =
-    status === 'confirmed'
-      ? '#E6F9F0'
-      : status === 'pending'
-        ? '#FFF4E6'
-        : '#FFECEC';
-
-  const statusLabel =
-    status === 'confirmed'
-      ? 'Confirmed'
-      : status === 'pending'
-        ? 'Pending'
-        : 'Failed';
+  const config = STATUS_CONFIG[status];
 
   return (
     <TouchableOpacity
@@ -54,7 +41,6 @@ export const TxListItem: React.FC<TxListItemProps> = ({
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {/* Left: Icon and details */}
       <View style={styles.leftSection}>
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>{icon}</Text>
@@ -65,21 +51,21 @@ export const TxListItem: React.FC<TxListItemProps> = ({
         </View>
       </View>
 
-      {/* Middle: Amount and status */}
       <View style={styles.middleSection}>
         <Text style={styles.amount}>{amount.toLocaleString()}</Text>
-        <View style={[styles.statusChip, { backgroundColor: statusBg, borderColor: statusColor }]}>
-          <Text style={[styles.statusLabel, { color: statusColor }]}>{statusLabel}</Text>
+        <View style={[styles.statusChip, { backgroundColor: config.bg, borderColor: config.color }]}>
+          <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
         </View>
       </View>
 
-      {/* Right: Chevron */}
       <View style={styles.chevron}>
         <Text style={styles.chevronIcon}>›</Text>
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+TxListItem.displayName = 'TxListItem';
 
 const styles = StyleSheet.create({
   container: {

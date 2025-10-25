@@ -34,6 +34,7 @@ export const Colors = {
   // Accent colors (with modern touches)
   accent: {
     primary: '#EAC119',       // Gold accent
+    ghalaGold: '#D4AF37',     // Ghala brand gold (splash screen)
     secondary: '#00BFA6',     // Teal
     tertiary: '#0066FF',      // Blue
     neon: '#00FF88',          // Neon green for positive changes
@@ -95,6 +96,7 @@ export const Colors = {
     background: '#0A0A0A',
     surface: '#1A1A1A',
     surfaceVariant: '#262626',
+    elevated: '#262626',
     border: '#404040',
     text: {
       primary: '#FFFFFF',

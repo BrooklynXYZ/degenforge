@@ -6,6 +6,7 @@ import {
   SectionList,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -84,10 +85,10 @@ const FilterTab: React.FC<FilterTabProps> = ({
         style={[
           styles.filterTab,
           {
-            borderColor: themeColors.border,
+            borderColor: isActive ? themeColors.textPrimary : themeColors.border,
             backgroundColor: isActive
               ? themeColors.textPrimary
-              : themeColors.surface,
+              : themeColors.surfaceElevated,
           },
         ]}
         onPress={onPress}
@@ -141,6 +142,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const transactions: Transaction[] = [
     {
@@ -212,11 +214,32 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
   ];
 
-  // Filter transactions based on active filter
+  // Filter transactions based on active filter and search query
   const filteredTransactions = useMemo(() => {
-    if (activeFilter === 'all') return transactions;
-    return transactions.filter((tx) => tx.status === activeFilter);
-  }, [activeFilter]);
+    let filtered = transactions;
+
+    // Apply status filter
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter((tx) => tx.status === activeFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((tx) => {
+        return (
+          tx.token.toLowerCase().includes(query) ||
+          tx.amount.toString().includes(query) ||
+          tx.status.toLowerCase().includes(query) ||
+          tx.mezoTxHash?.toLowerCase().includes(query) ||
+          tx.spectrumBtcTxId?.toLowerCase().includes(query) ||
+          tx.solanaTxSig?.toLowerCase().includes(query)
+        );
+      });
+    }
+
+    return filtered;
+  }, [activeFilter, searchQuery]);
 
   const groupedTxs = useMemo(
     () => groupTransactionsByDate(filteredTransactions),
@@ -308,6 +331,46 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
           count={filterCounts.failed}
           themeColors={themeColors}
         />
+      </Animated.View>
+
+      {/* Search Bar */}
+      <Animated.View
+        style={styles.searchContainer}
+        entering={FadeInDown.duration(400).delay(200)}
+      >
+        <View style={[styles.searchInputContainer, {
+          backgroundColor: themeColors.surfaceElevated,
+          borderColor: themeColors.border,
+        }]}>
+          <Feather
+            name="search"
+            size={20}
+            color={themeColors.textSecondary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: themeColors.textPrimary }]}
+            placeholder="Search transactions..."
+            placeholderTextColor={themeColors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather
+                name="x"
+                size={18}
+                color={themeColors.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </Animated.View>
 
       {/* Transaction List */}
@@ -466,6 +529,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs,
     borderWidth: Borders.width.thick,
     gap: Spacing.xxs,
+  },
+  searchContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: Borders.width.thick,
+    paddingHorizontal: Spacing.sm,
+    height: 48,
+  },
+  searchIcon: {
+    marginRight: Spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    ...Typography.body,
+    paddingVertical: Spacing.xs,
+  },
+  clearButton: {
+    padding: Spacing.xxs,
+    marginLeft: Spacing.xs,
   },
   filterLabel: {
     ...Typography.label,

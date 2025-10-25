@@ -34,6 +34,7 @@ import {
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard, InteractiveCard } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface BridgeScreenProps {
   onNavigate: (screen: string) => void;
@@ -52,6 +53,7 @@ interface BridgeStep {
 }
 
 export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
+  const { colors: themeColors } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [steps, setSteps] = useState<BridgeStep[]>([
@@ -137,7 +139,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
@@ -145,8 +147,10 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
       <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.title}>Bridge to Solana</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+              Bridge to Solana
+            </Text>
+            <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
               Wrap {bridgeAmount.toLocaleString()} mUSD and earn yield
             </Text>
           </View>
@@ -159,13 +163,13 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: themeColors.surfaceSecondary }]}>
             <Animated.View
               entering={SlideInRight.duration(800).delay(200)}
               style={[styles.progressFill, { width: `${progressPercentage}%` }]}
             />
           </View>
-          <Text style={styles.progressText}>
+          <Text style={[styles.progressText, { color: themeColors.textSecondary }]}>
             {Math.round(progressPercentage)}% Complete
           </Text>
         </View>
@@ -176,7 +180,9 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         entering={FadeInDown.duration(500).delay(200)}
         style={styles.section}
       >
-        <Text style={styles.sectionTitle}>Bridge Progress</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>
+          Bridge Progress
+        </Text>
         {steps.map((step, index) => (
           <AnimatedStepCard
             key={step.id}
@@ -184,6 +190,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
             index={index}
             isActive={currentStep === index}
             delay={300 + index * 100}
+            themeColors={themeColors}
           />
         ))}
       </Animated.View>
@@ -193,21 +200,33 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         entering={FadeInDown.duration(500).delay(400)}
         style={styles.section}
       >
-        <Text style={styles.sectionTitle}>Target Yield Pool</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>
+          Target Yield Pool
+        </Text>
         <InteractiveCard
           borderRadius="none"
           padding="xl"
           onPress={() => onNavigate('PoolDetail')}
         >
           <View style={styles.poolHeader}>
-            <View style={styles.poolIconContainer}>
+            <View
+              style={[
+                styles.poolIconContainer,
+                {
+                  backgroundColor: themeColors.surfaceSecondary,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
               <Text style={styles.poolIcon}>{poolData.logo}</Text>
             </View>
             <View style={styles.poolInfo}>
-              <Text style={styles.poolName}>{poolData.poolName}</Text>
+              <Text style={[styles.poolName, { color: themeColors.textPrimary }]}>
+                {poolData.poolName}
+              </Text>
               <View style={styles.poolMetaRow}>
                 <StatusBadge status="success" label={`${poolData.risk} Risk`} size="sm" showDot={false} />
-                <Text style={styles.poolTvl}>
+                <Text style={[styles.poolTvl, { color: themeColors.textTertiary }]}>
                   TVL: ${(poolData.tvl / 1000000000).toFixed(2)}B
                 </Text>
               </View>
@@ -221,7 +240,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
           <View style={styles.poolEstimate}>
             <Feather name="trending-up" size={16} color={Colors.semantic.success} />
-            <Text style={styles.poolEstimateText}>
+            <Text style={[styles.poolEstimateText, { color: themeColors.textSecondary }]}>
               Estimated: ${((bridgeAmount * poolData.apy) / 100).toLocaleString()}/year
             </Text>
           </View>
@@ -233,7 +252,9 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         entering={FadeInDown.duration(500).delay(500)}
         style={styles.section}
       >
-        <Text style={styles.sectionTitle}>Bridge Details</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>
+          Bridge Details
+        </Text>
         <SectionCard borderRadius="none" padding="xl">
           <DetailRow label="Amount" value={`${bridgeAmount.toLocaleString()} mUSD`} icon="dollar-sign" />
           <DetailRow label="From" value="Mezo Network" icon="hexagon" />
@@ -288,6 +309,7 @@ interface AnimatedStepCardProps {
   index: number;
   isActive: boolean;
   delay: number;
+  themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
 const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
@@ -295,6 +317,7 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
   index,
   isActive,
   delay,
+  themeColors,
 }) => {
   const scale = useSharedValue(isActive ? 1.02 : 1);
 
@@ -315,7 +338,7 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
       case 'failed':
         return Colors.semantic.error;
       default:
-        return Colors.text.tertiary;
+        return themeColors.textTertiary;
     }
   };
 
@@ -361,14 +384,18 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
               />
             </View>
             <View style={styles.stepContent}>
-              <Text style={styles.stepLabel}>{step.label}</Text>
-              <Text style={styles.stepDescription}>{step.description}</Text>
+              <Text style={[styles.stepLabel, { color: themeColors.textPrimary }]}>
+                {step.label}
+              </Text>
+              <Text style={[styles.stepDescription, { color: themeColors.textSecondary }]}>
+                {step.description}
+              </Text>
               {step.txHash && (
                 <TouchableOpacity style={styles.txHashRow}>
-                  <Text style={styles.txHash}>
+                  <Text style={[styles.txHash, { color: themeColors.textTertiary }]}>
                     {step.txHash.slice(0, 8)}...{step.txHash.slice(-6)}
                   </Text>
-                  <Feather name="external-link" size={12} color={Colors.text.tertiary} />
+                  <Feather name="external-link" size={12} color={themeColors.textTertiary} />
                 </TouchableOpacity>
               )}
             </View>

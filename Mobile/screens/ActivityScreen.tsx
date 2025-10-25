@@ -1,12 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SectionList,
+  TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
 import { TxListItem } from '@/components/lists/TxListItem';
 import { TxDetailModal } from '@/components/modals/TxDetailModal';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { useTheme } from '@/contexts/ThemeContext';
+import {
+  Colors,
+  Spacing,
+  Typography,
+  Borders,
+} from '@/constants/designTokens';
 
 interface Transaction {
   id: string;
@@ -28,14 +46,106 @@ interface ActivityScreenProps {
   onNavigate: (screen: string) => void;
 }
 
+type FilterType = 'all' | 'confirmed' | 'pending' | 'failed';
+
+// Filter Tab Component
+interface FilterTabProps {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+  count?: number;
+  themeColors: ReturnType<typeof useTheme>['colors'];
+}
+
+const FilterTab: React.FC<FilterTabProps> = ({
+  label,
+  isActive,
+  onPress,
+  count,
+  themeColors,
+}) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95, { damping: 15, stiffness: 200 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+  };
+
+  return (
+    <Animated.View style={[animatedStyle]}>
+      <TouchableOpacity
+        style={[
+          styles.filterTab,
+          {
+            borderColor: themeColors.border,
+            backgroundColor: isActive
+              ? themeColors.textPrimary
+              : themeColors.surface,
+          },
+        ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.8}
+      >
+        <Text
+          style={[
+            styles.filterLabel,
+            {
+              color: isActive ? themeColors.textInverse : themeColors.textPrimary,
+            },
+          ]}
+        >
+          {label}
+        </Text>
+        {count !== undefined && count > 0 && (
+          <View
+            style={[
+              styles.filterCount,
+              {
+                backgroundColor: isActive
+                  ? themeColors.textInverse
+                  : themeColors.surfaceSecondary,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterCountText,
+                {
+                  color: isActive
+                    ? themeColors.textPrimary
+                    : themeColors.textSecondary,
+                },
+              ]}
+            >
+              {count}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) => {
+  const { colors: themeColors, actualTheme } = useTheme();
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const transactions: Transaction[] = [
     {
       id: '1',
-      icon: '📤',
+      icon: 'arrow-up',
       token: 'mUSD',
       amount: 1000,
       status: 'confirmed',
@@ -50,7 +160,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
     {
       id: '2',
-      icon: '🌉',
+      icon: 'git-branch',
       token: 'SOL',
       amount: 5.5,
       status: 'confirmed',
@@ -64,7 +174,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
     {
       id: '3',
-      icon: '💰',
+      icon: 'dollar-sign',
       token: 'mUSD',
       amount: 500,
       status: 'pending',
@@ -77,7 +187,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
     {
       id: '4',
-      icon: '📥',
+      icon: 'arrow-down',
       token: 'mUSD',
       amount: 2000,
       status: 'confirmed',
@@ -91,7 +201,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
     {
       id: '5',
-      icon: '❌',
+      icon: 'x-circle',
       token: 'mUSD',
       amount: 250,
       status: 'failed',
@@ -102,11 +212,35 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     },
   ];
 
-  const groupedTxs = groupTransactionsByDate(transactions);
+  // Filter transactions based on active filter
+  const filteredTransactions = useMemo(() => {
+    if (activeFilter === 'all') return transactions;
+    return transactions.filter((tx) => tx.status === activeFilter);
+  }, [activeFilter]);
+
+  const groupedTxs = useMemo(
+    () => groupTransactionsByDate(filteredTransactions),
+    [filteredTransactions]
+  );
+
+  // Calculate counts for filters
+  const filterCounts = useMemo(() => ({
+    all: transactions.length,
+    confirmed: transactions.filter((tx) => tx.status === 'confirmed').length,
+    pending: transactions.filter((tx) => tx.status === 'pending').length,
+    failed: transactions.filter((tx) => tx.status === 'failed').length,
+  }), [transactions]);
 
   const handleTxPress = (tx: Transaction) => {
     setSelectedTx(tx);
     setModalVisible(true);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Simulate refresh
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setIsRefreshing(false);
   };
 
   const handleExport = () => {
@@ -128,46 +262,112 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Activity</Text>
-        <Text style={styles.subtitle}>Transaction history & audit trail</Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <Animated.View
+        style={styles.header}
+        entering={FadeInDown.duration(400).delay(100)}
+      >
+        <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+          Activity
+        </Text>
+        <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+          Transaction history & audit trail
+        </Text>
+      </Animated.View>
 
-      <SectionList
-        sections={groupedTxs}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TxListItem
-            icon={item.icon}
-            token={item.token}
-            amount={item.amount}
-            status={item.status}
-            timestamp={item.timestampText}
-            onPress={() => handleTxPress(item)}
-            style={styles.txItem}
-          />
-        )}
-        renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-          </View>
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        stickySectionHeadersEnabled={false}
-      />
+      {/* Filters */}
+      <Animated.View
+        style={styles.filtersContainer}
+        entering={FadeInDown.duration(400).delay(150)}
+      >
+        <FilterTab
+          label="ALL"
+          isActive={activeFilter === 'all'}
+          onPress={() => setActiveFilter('all')}
+          count={filterCounts.all}
+          themeColors={themeColors}
+        />
+        <FilterTab
+          label="CONFIRMED"
+          isActive={activeFilter === 'confirmed'}
+          onPress={() => setActiveFilter('confirmed')}
+          count={filterCounts.confirmed}
+          themeColors={themeColors}
+        />
+        <FilterTab
+          label="PENDING"
+          isActive={activeFilter === 'pending'}
+          onPress={() => setActiveFilter('pending')}
+          count={filterCounts.pending}
+          themeColors={themeColors}
+        />
+        <FilterTab
+          label="FAILED"
+          isActive={activeFilter === 'failed'}
+          onPress={() => setActiveFilter('failed')}
+          count={filterCounts.failed}
+          themeColors={themeColors}
+        />
+      </Animated.View>
 
-      {transactions.length === 0 && (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIcon}>
-            <Text style={styles.emptyIconText}>—</Text>
-          </View>
-          <Text style={styles.emptyTitle}>No Transactions</Text>
-          <Text style={styles.emptySubtitle}>
-            Your transaction history will appear here
-          </Text>
-        </View>
+      {/* Transaction List */}
+      {filteredTransactions.length > 0 ? (
+        <SectionList
+          sections={groupedTxs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <Animated.View
+              entering={FadeInDown.duration(400).delay(200 + index * 50)}
+            >
+              <TxListItem
+                icon={item.icon}
+                token={item.token}
+                amount={item.amount}
+                status={item.status}
+                timestamp={item.timestampText}
+                onPress={() => handleTxPress(item)}
+                style={styles.txItem}
+              />
+            </Animated.View>
+          )}
+          renderSectionHeader={({ section: { title } }) => (
+            <View
+              style={[
+                styles.sectionHeader,
+                {
+                  backgroundColor: themeColors.surfaceSecondary,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.sectionTitle, { color: themeColors.textSecondary }]}
+              >
+                {title}
+              </Text>
+            </View>
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={themeColors.textPrimary}
+            />
+          }
+        />
+      ) : (
+        <EmptyState
+          icon={<Feather name="activity" size={64} color={themeColors.textTertiary} />}
+          title="No Transactions"
+          description={
+            activeFilter === 'all'
+              ? 'Your transaction history will appear here'
+              : `No ${activeFilter} transactions found`
+          }
+        />
       )}
 
       <TxDetailModal
@@ -238,81 +438,73 @@ const groupTransactionsByDate = (txs: Transaction[]): GroupedTransaction[] => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xxxl,
+    paddingBottom: Spacing.lg,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#000000',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    marginBottom: 4,
+    ...Typography.h1,
+    marginBottom: Spacing.xxs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666666',
-    fontFamily: 'SpaceGrotesk_400Regular',
+    ...Typography.body,
+  },
+  filtersContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  filterTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    borderWidth: Borders.width.thick,
+    gap: Spacing.xxs,
+  },
+  filterLabel: {
+    ...Typography.label,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  filterCount: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xxs,
+  },
+  filterCountText: {
+    ...Typography.caption,
+    fontSize: 10,
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   listContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: 120,
   },
   sectionHeader: {
-    paddingVertical: 8,
-    marginTop: 24,
-    marginBottom: 8,
-    backgroundColor: '#FAFAFA',
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: '#000000',
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
+    borderTopWidth: Borders.width.thick,
+    borderBottomWidth: Borders.width.thick,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#666666',
+    ...Typography.label,
     fontFamily: 'SpaceGrotesk_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
   txItem: {
-    marginBottom: 8,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    gap: 16,
-  },
-  emptyIcon: {
-    width: 120,
-    height: 120,
-    borderWidth: 3,
-    borderColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyIconText: {
-    fontSize: 64,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000000',
-    fontFamily: 'SpaceGrotesk_700Bold',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#666666',
-    fontFamily: 'SpaceGrotesk_400Regular',
-    textAlign: 'center',
+    marginBottom: Spacing.xs,
   },
   bottomSpacer: {
     height: 20,

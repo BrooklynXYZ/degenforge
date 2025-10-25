@@ -20,6 +20,7 @@ import {
   Borders,
   Animations,
 } from '@/constants/designTokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export interface CardProps extends Omit<PressableProps, 'style'> {
   children: React.ReactNode;
@@ -42,6 +43,7 @@ export const Card: React.FC<CardProps> = ({
   onPress,
   ...pressableProps
 }) => {
+  const { colors: themeColors } = useTheme();
   const scale = useSharedValue(1);
   const elevation = useSharedValue(0);
 
@@ -69,7 +71,7 @@ export const Card: React.FC<CardProps> = ({
     }
   };
 
-  const variantStyle = getVariantStyle(variant);
+  const variantStyle = getVariantStyle(variant, themeColors);
   const paddingValue = Spacing[padding];
   const borderRadiusValue = BorderRadius[borderRadius];
 
@@ -106,7 +108,10 @@ export const Card: React.FC<CardProps> = ({
   return <View style={combinedStyle}>{children}</View>;
 };
 
-function getVariantStyle(variant: CardProps['variant']): ViewStyle {
+function getVariantStyle(
+  variant: CardProps['variant'],
+  themeColors: ReturnType<typeof useTheme>['colors']
+): ViewStyle {
   switch (variant) {
     case 'dark':
       return {
@@ -117,24 +122,24 @@ function getVariantStyle(variant: CardProps['variant']): ViewStyle {
       };
     case 'outlined':
       return {
-        backgroundColor: Colors.bg.secondary,
+        backgroundColor: themeColors.surface,
         borderWidth: Borders.width.thick,
-        borderColor: Colors.border.primary,
+        borderColor: themeColors.border,
         ...Shadows.none,
       };
     case 'elevated':
       return {
-        backgroundColor: Colors.bg.secondary,
+        backgroundColor: themeColors.surface,
         borderWidth: Borders.width.thick,
-        borderColor: Colors.border.primary,
+        borderColor: themeColors.border,
         ...Shadows.lg,
       };
     case 'default':
     default:
       return {
-        backgroundColor: Colors.bg.secondary,
+        backgroundColor: themeColors.surface,
         borderWidth: Borders.width.thick,
-        borderColor: Colors.border.primary,
+        borderColor: themeColors.border,
         ...Shadows.sm,
       };
   }

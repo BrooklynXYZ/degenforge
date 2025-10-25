@@ -36,12 +36,14 @@ import {
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface MintScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
+  const { colors: themeColors } = useTheme();
   const [btcAmount, setBtcAmount] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -132,26 +134,29 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
   if (isConfirmed) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        contentContainerStyle={styles.contentContainer}
+      >
         <Animated.View
           entering={FadeInDown.duration(600).delay(100)}
           style={styles.successSection}
         >
           <Animated.View
             entering={FadeInUp.duration(500).delay(200)}
-            style={styles.successIcon}
+            style={[styles.successIcon, { backgroundColor: themeColors.surfaceSecondary }]}
           >
             <Feather name="check" size={64} color={Colors.semantic.success} />
           </Animated.View>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(300)}
-            style={styles.successTitle}
+            style={[styles.successTitle, { color: themeColors.textPrimary }]}
           >
             Mint Successful
           </Animated.Text>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(400)}
-            style={styles.successSubtitle}
+            style={[styles.successSubtitle, { color: themeColors.textSecondary }]}
           >
             Your mUSD has been minted on Mezo
           </Animated.Text>
@@ -161,38 +166,41 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           entering={FadeInDown.duration(600).delay(500)}
         >
           <SectionCard borderRadius="none" padding="xxxl">
-            <Text style={styles.resultLabel}>You Received</Text>
-            <AnimatedCounter value={netMinted} decimals={2} />
-            <Text style={styles.resultUnit}>mUSD</Text>
+            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>You Received</Text>
+            <AnimatedCounter value={netMinted} decimals={2} themeColors={themeColors} />
+            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>mUSD</Text>
           </SectionCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={styles.sectionTitle}>Transaction Details</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Details</Text>
             <DetailRow
               label="Amount Minted"
               value={`${netMinted.toFixed(2)} mUSD`}
               icon="check-circle"
+              themeColors={themeColors}
             />
             <DetailRow
               label="Fee"
               value={`${feeAmount.toFixed(2)} mUSD`}
               icon="info"
+              themeColors={themeColors}
             />
             <DetailRow
               label="BTC Collateral"
               value={`${btcAmount} BTC`}
               icon="lock"
+              themeColors={themeColors}
             />
           </SectionCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={styles.sectionTitle}>Mezo Proof</Text>
-            <ProofBox label="Mint TX Hash" value={mockMintTxHash} />
-            <ProofBox label="Vault ID" value={mockVaultId} />
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Mezo Proof</Text>
+            <ProofBox label="Mint TX Hash" value={mockMintTxHash} themeColors={themeColors} />
+            <ProofBox label="Vault ID" value={mockVaultId} themeColors={themeColors} />
           </SectionCard>
         </Animated.View>
 
@@ -214,23 +222,43 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: themeColors.background }]}
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
-          <Text style={styles.title}>Mint mUSD</Text>
-          <Text style={styles.subtitle}>Deposit BTC collateral to mint stablecoin</Text>
+          <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+            Mint mUSD
+          </Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            Deposit BTC collateral to mint stablecoin
+          </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
           <SectionCard borderRadius="none" padding="xl">
             <View style={styles.inputHeader}>
-              <Text style={styles.inputLabel}>Amount</Text>
-              <TouchableOpacity onPress={handleMaxAmount} style={styles.maxButton}>
-                <Text style={styles.maxButtonText}>MAX</Text>
+              <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
+                Amount
+              </Text>
+              <TouchableOpacity
+                onPress={handleMaxAmount}
+                style={[
+                  styles.maxButton,
+                  {
+                    backgroundColor: themeColors.surfaceSecondary,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.maxButtonText, { color: themeColors.textPrimary }]}>
+                  MAX
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -245,21 +273,25 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
                 style={styles.largeInput}
                 variant="filled"
                 rightElement={
-                  <Text style={styles.inputUnit}>BTC</Text>
+                  <Text style={[styles.inputUnit, { color: themeColors.textSecondary }]}>
+                    BTC
+                  </Text>
                 }
               />
             </View>
 
             <View style={styles.balanceRow}>
               <View style={styles.balanceItem}>
-                <Feather name="wallet" size={14} color={Colors.text.secondary} />
-                <Text style={styles.balanceLabel}>
+                <Feather name="wallet" size={14} color={themeColors.textSecondary} />
+                <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
                   Balance: {walletBalance} BTC
                 </Text>
               </View>
               <View style={styles.balanceItem}>
-                <Feather name="trending-up" size={14} color={Colors.text.secondary} />
-                <Text style={styles.priceLabel}>${btcPrice.toLocaleString()}</Text>
+                <Feather name="trending-up" size={14} color={themeColors.textSecondary} />
+                <Text style={[styles.priceLabel, { color: themeColors.textSecondary }]}>
+                  ${btcPrice.toLocaleString()}
+                </Text>
               </View>
             </View>
           </SectionCard>
@@ -272,15 +304,25 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
               style={styles.statsGrid}
             >
               <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
-                <Feather name="dollar-sign" size={20} color={Colors.text.secondary} />
-                <Text style={styles.statLabel}>USD Value</Text>
-                <Text style={styles.statValue}>${usdValue.toLocaleString()}</Text>
+                <Feather name="dollar-sign" size={20} color={themeColors.textSecondary} />
+                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
+                  USD Value
+                </Text>
+                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
+                  ${usdValue.toLocaleString()}
+                </Text>
               </SectionCard>
               <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
                 <Feather name="arrow-down-circle" size={20} color={Colors.accent.primary} />
-                <Text style={styles.statLabel}>You Receive</Text>
-                <Text style={styles.statValue}>{netMinted.toFixed(2)}</Text>
-                <Text style={styles.statUnit}>mUSD</Text>
+                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
+                  You Receive
+                </Text>
+                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
+                  {netMinted.toFixed(2)}
+                </Text>
+                <Text style={[styles.statUnit, { color: themeColors.textTertiary }]}>
+                  mUSD
+                </Text>
               </SectionCard>
             </Animated.View>
 
@@ -288,15 +330,21 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
               <SectionCard borderRadius="none" padding="xl">
                 <View style={styles.ltvHeader}>
                   <View>
-                    <Text style={styles.ltvLabel}>Loan-to-Value Ratio</Text>
-                    <Text style={styles.ltvDescription}>Safe collateralization</Text>
+                    <Text style={[styles.ltvLabel, { color: themeColors.textPrimary }]}>
+                      Loan-to-Value Ratio
+                    </Text>
+                    <Text style={[styles.ltvDescription, { color: themeColors.textSecondary }]}>
+                      Safe collateralization
+                    </Text>
                   </View>
-                  <Text style={styles.ltvValue}>{(ltvRatio * 100).toFixed(0)}%</Text>
+                  <Text style={[styles.ltvValue, { color: themeColors.textPrimary }]}>
+                    {(ltvRatio * 100).toFixed(0)}%
+                  </Text>
                 </View>
                 <View style={styles.progressBarContainer}>
                   <Animated.View
                     entering={SlideInRight.duration(600).delay(400)}
-                    style={[styles.progressBar]}
+                    style={[styles.progressBar, { backgroundColor: themeColors.surfaceSecondary }]}
                   >
                     <Animated.View
                       style={[styles.progressFill, { width: `${ltvRatio * 100}%` }]}
@@ -306,11 +354,11 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
                 <View style={styles.ltvRange}>
                   <View style={styles.rangeItem}>
                     <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.success }]} />
-                    <Text style={styles.rangeLabel}>Safe</Text>
+                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Safe</Text>
                   </View>
                   <View style={styles.rangeItem}>
                     <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.error }]} />
-                    <Text style={styles.rangeLabel}>Risky</Text>
+                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Risky</Text>
                   </View>
                 </View>
               </SectionCard>
@@ -318,23 +366,26 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
             <Animated.View entering={FadeInDown.duration(500).delay(300)}>
               <SectionCard borderRadius="none" padding="xl">
-                <Text style={styles.sectionTitle}>Fee Breakdown</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Fee Breakdown</Text>
                 <FeeRow
                   label="Mint Amount"
                   value={`${musdMinted.toFixed(2)} mUSD`}
                   icon="plus-circle"
+                  themeColors={themeColors}
                 />
                 <FeeRow
                   label="Protocol Fee (1%)"
                   value={`${feeAmount.toFixed(2)} mUSD`}
                   icon="minus-circle"
+                  themeColors={themeColors}
                 />
-                <View style={styles.feeDivider} />
+                <View style={[styles.feeDivider, { backgroundColor: themeColors.border }]} />
                 <FeeRow
                   label="You Receive"
                   value={`${netMinted.toFixed(2)} mUSD`}
                   icon="check-circle"
                   bold
+                  themeColors={themeColors}
                 />
               </SectionCard>
             </Animated.View>
@@ -369,9 +420,10 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 interface AnimatedCounterProps {
   value: number;
   decimals?: number;
+  themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0 }) => {
+const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0, themeColors }) => {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -398,7 +450,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0 }
   }, [value]);
 
   return (
-    <Text style={styles.resultAmount}>
+    <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
       {displayValue.toFixed(decimals)}
     </Text>
   );
@@ -409,32 +461,39 @@ interface DetailRowProps {
   label: string;
   value: string;
   icon?: string;
+  themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const DetailRow = React.memo<DetailRowProps>(({ label, value, icon }) => (
+const DetailRow = React.memo<DetailRowProps>(({ label, value, icon, themeColors }) => (
   <View style={styles.detailRow}>
     <View style={styles.detailLeft}>
-      {icon && <Feather name={icon as any} size={16} color={Colors.text.secondary} />}
-      <Text style={styles.detailLabel}>{label}</Text>
+      {icon && <Feather name={icon as any} size={16} color={themeColors.textSecondary} />}
+      <Text style={[styles.detailLabel, { color: themeColors.textSecondary }]}>{label}</Text>
     </View>
-    <Text style={styles.detailValue}>{value}</Text>
+    <Text style={[styles.detailValue, { color: themeColors.textPrimary }]}>{value}</Text>
   </View>
 ));
 
 DetailRow.displayName = 'DetailRow';
 
 // Proof Box Component
-const ProofBox = React.memo<{ label: string; value: string }>(({ label, value }) => (
+interface ProofBoxProps {
+  label: string;
+  value: string;
+  themeColors: ReturnType<typeof useTheme>['colors'];
+}
+
+const ProofBox = React.memo<ProofBoxProps>(({ label, value, themeColors }) => (
   <View style={styles.proofRow}>
     <View style={styles.proofLeft}>
-      <Feather name="shield" size={16} color={Colors.text.secondary} />
-      <Text style={styles.proofLabel}>{label}</Text>
+      <Feather name="shield" size={16} color={themeColors.textSecondary} />
+      <Text style={[styles.proofLabel, { color: themeColors.textSecondary }]}>{label}</Text>
     </View>
     <TouchableOpacity style={styles.proofValue}>
-      <Text style={styles.proofText}>
+      <Text style={[styles.proofText, { color: themeColors.textPrimary }]}>
         {value.slice(0, 8)}...{value.slice(-6)}
       </Text>
-      <Feather name="copy" size={14} color={Colors.text.tertiary} />
+      <Feather name="copy" size={14} color={themeColors.textTertiary} />
     </TouchableOpacity>
   </View>
 ));
@@ -447,21 +506,30 @@ interface FeeRowProps {
   value: string;
   icon?: string;
   bold?: boolean;
+  themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const FeeRow = React.memo<FeeRowProps>(({ label, value, icon, bold }) => (
+const FeeRow = React.memo<FeeRowProps>(({ label, value, icon, bold, themeColors }) => (
   <View style={styles.feeRow}>
     <View style={styles.feeLeft}>
       {icon && (
         <Feather
           name={icon as any}
           size={16}
-          color={bold ? Colors.text.primary : Colors.text.secondary}
+          color={bold ? themeColors.textPrimary : themeColors.textSecondary}
         />
       )}
-      <Text style={[styles.feeLabel, bold && styles.feeLabelBold]}>{label}</Text>
+      <Text style={[
+        styles.feeLabel,
+        bold && styles.feeLabelBold,
+        { color: bold ? themeColors.textPrimary : themeColors.textSecondary }
+      ]}>{label}</Text>
     </View>
-    <Text style={[styles.feeValue, bold && styles.feeValueBold]}>{value}</Text>
+    <Text style={[
+      styles.feeValue,
+      bold && styles.feeValueBold,
+      { color: themeColors.textPrimary }
+    ]}>{value}</Text>
   </View>
 ));
 
@@ -470,7 +538,6 @@ FeeRow.displayName = 'FeeRow';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.secondary,
   },
   contentContainer: {
     paddingHorizontal: Layout.screenPadding,
@@ -481,12 +548,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h1,
-    color: Colors.text.primary,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     ...Typography.body,
-    color: Colors.text.secondary,
   },
   inputHeader: {
     flexDirection: 'row',
@@ -496,17 +561,14 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...Typography.labelMedium,
-    color: Colors.text.primary,
   },
   maxButton: {
     borderWidth: Borders.width.regular,
-    borderColor: Colors.border.primary,
     paddingVertical: Spacing.xxs,
     paddingHorizontal: Spacing.sm,
   },
   maxButtonText: {
     ...Typography.label,
-    color: Colors.text.primary,
   },
   largeInputContainer: {
     marginBottom: Spacing.md,
@@ -517,7 +579,6 @@ const styles = StyleSheet.create({
   },
   inputUnit: {
     ...Typography.h3,
-    color: Colors.text.tertiary,
   },
   balanceRow: {
     flexDirection: 'row',
@@ -532,11 +593,9 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     ...Typography.bodySmall,
-    color: Colors.text.secondary,
   },
   priceLabel: {
     ...Typography.bodySmallSemibold,
-    color: Colors.text.primary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -550,22 +609,18 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...Typography.labelSmall,
-    color: Colors.text.secondary,
     textAlign: 'center',
   },
   statValue: {
     ...Typography.h3,
-    color: Colors.text.primary,
     textAlign: 'center',
   },
   statUnit: {
     ...Typography.bodySmall,
-    color: Colors.text.tertiary,
     textAlign: 'center',
   },
   sectionTitle: {
     ...Typography.labelMedium,
-    color: Colors.text.primary,
     marginBottom: Spacing.md,
   },
   ltvHeader: {
@@ -576,23 +631,19 @@ const styles = StyleSheet.create({
   },
   ltvLabel: {
     ...Typography.bodySmallSemibold,
-    color: Colors.text.primary,
     marginBottom: Spacing.xxs,
   },
   ltvDescription: {
     ...Typography.caption,
-    color: Colors.text.secondary,
   },
   ltvValue: {
     ...Typography.h2,
-    color: Colors.text.primary,
   },
   progressBarContainer: {
     marginBottom: Spacing.md,
   },
   progressBar: {
     height: 8,
-    backgroundColor: Colors.neutral[200],
     borderRadius: BorderRadius.sm,
     overflow: 'hidden',
   },
@@ -616,7 +667,6 @@ const styles = StyleSheet.create({
   },
   rangeLabel: {
     ...Typography.caption,
-    color: Colors.text.secondary,
   },
   feeRow: {
     flexDirection: 'row',
@@ -631,23 +681,18 @@ const styles = StyleSheet.create({
   },
   feeLabel: {
     ...Typography.bodySmall,
-    color: Colors.text.secondary,
   },
   feeLabelBold: {
     ...Typography.bodySemibold,
-    color: Colors.text.primary,
   },
   feeValue: {
     ...Typography.bodySmallSemibold,
-    color: Colors.text.primary,
   },
   feeValueBold: {
     ...Typography.h5,
-    color: Colors.text.primary,
   },
   feeDivider: {
     height: Borders.width.thick,
-    backgroundColor: Colors.border.primary,
     marginVertical: Spacing.md,
   },
   actionsSection: {
@@ -669,36 +714,30 @@ const styles = StyleSheet.create({
     height: 120,
     borderWidth: Borders.width.bold,
     borderColor: Colors.semantic.success,
-    backgroundColor: Colors.bg.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.xxl,
   },
   successTitle: {
     ...Typography.h1,
-    color: Colors.text.primary,
     marginBottom: Spacing.sm,
   },
   successSubtitle: {
     ...Typography.body,
-    color: Colors.text.secondary,
     textAlign: 'center',
   },
   resultLabel: {
     ...Typography.labelMedium,
-    color: Colors.text.secondary,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   resultAmount: {
     ...Typography.display.large,
-    color: Colors.text.primary,
     marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   resultUnit: {
     ...Typography.h4,
-    color: Colors.text.tertiary,
     textAlign: 'center',
   },
   detailRow: {
@@ -714,11 +753,9 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     ...Typography.bodySmall,
-    color: Colors.text.secondary,
   },
   detailValue: {
     ...Typography.bodySmallSemibold,
-    color: Colors.text.primary,
   },
   proofRow: {
     flexDirection: 'row',
@@ -733,7 +770,6 @@ const styles = StyleSheet.create({
   },
   proofLabel: {
     ...Typography.bodySmall,
-    color: Colors.text.secondary,
   },
   proofValue: {
     flexDirection: 'row',
@@ -742,6 +778,5 @@ const styles = StyleSheet.create({
   },
   proofText: {
     ...Typography.mono,
-    color: Colors.text.primary,
   },
 });

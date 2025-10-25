@@ -32,12 +32,14 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BalanceCard } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonBalanceCard, SkeletonListItem } from '@/components/ui/Skeleton';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
+  const { colors: themeColors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -87,7 +89,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
   if (isLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        contentContainerStyle={styles.contentContainer}
+      >
         <SkeletonBalanceCard style={styles.cardContainer} />
         <View style={styles.quickSection}>
           <View style={styles.skeletonRow}>
@@ -107,11 +112,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={themeColors.textPrimary}
+        />
       }
     >
       {/* Balance Card */}
@@ -157,14 +166,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         style={styles.quickSection}
       >
         <View style={styles.quickHeader}>
-          <Text style={styles.quickTitle}>Quick Actions</Text>
+          <Text style={[styles.quickTitle, { color: themeColors.textPrimary }]}>
+            Quick Actions
+          </Text>
         </View>
 
         <View style={styles.quickActionsGrid}>
-          <QuickAction icon="plus-circle" label="Mint" delay={250} />
-          <QuickAction icon="send" label="Send" delay={300} />
-          <QuickAction icon="repeat" label="Swap" delay={350} />
-          <QuickAction icon="link" label="Bridge" onPress={() => onNavigate('Bridge')} delay={400} />
+          <QuickAction icon="plus-circle" label="Mint" delay={250} themeColors={themeColors} />
+          <QuickAction icon="send" label="Send" delay={300} themeColors={themeColors} />
+          <QuickAction icon="repeat" label="Swap" delay={350} themeColors={themeColors} />
+          <QuickAction
+            icon="link"
+            label="Bridge"
+            onPress={() => onNavigate('Bridge')}
+            delay={400}
+            themeColors={themeColors}
+          />
         </View>
       </Animated.View>
 
@@ -173,17 +190,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         entering={FadeInDown.duration(500).delay(300)}
         style={styles.activitySection}
       >
-        <View style={styles.activityHeader}>
+        <View
+          style={[
+            styles.activityHeader,
+            { borderBottomColor: themeColors.border },
+          ]}
+        >
           <View>
-            <Text style={styles.activityTitle}>Recent Activity</Text>
-            <Text style={styles.activitySubtitle}>Last 3 transactions</Text>
+            <Text style={[styles.activityTitle, { color: themeColors.textPrimary }]}>
+              Recent Activity
+            </Text>
+            <Text style={[styles.activitySubtitle, { color: themeColors.textSecondary }]}>
+              Last 3 transactions
+            </Text>
           </View>
           <TouchableOpacity
             onPress={() => onNavigate('Activity')}
-            style={styles.viewAllButton}
+            style={[
+              styles.viewAllButton,
+              { borderColor: themeColors.border },
+            ]}
           >
-            <Text style={styles.viewAllText}>View All</Text>
-            <Feather name="arrow-right" size={14} color={Colors.text.primary} />
+            <Text style={[styles.viewAllText, { color: themeColors.textPrimary }]}>
+              View All
+            </Text>
+            <Feather name="arrow-right" size={14} color={themeColors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -203,29 +234,42 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                 <TouchableOpacity
                   style={[
                     styles.activityItem,
+                    { borderBottomColor: themeColors.borderSecondary },
                     index === recentTxs.length - 1 && styles.activityItemLast,
                   ]}
                   onPress={() => console.log('Transaction pressed:', tx.id)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.activityLeft}>
-                    <View style={styles.activityIconWrapper}>
-                      <Feather name={tx.icon as any} size={20} color={Colors.text.primary} />
+                    <View
+                      style={[
+                        styles.activityIconWrapper,
+                        {
+                          borderColor: themeColors.border,
+                          backgroundColor: themeColors.surface,
+                        },
+                      ]}
+                    >
+                      <Feather name={tx.icon as any} size={20} color={themeColors.textPrimary} />
                     </View>
                     <View style={styles.activityInfo}>
-                      <Text style={styles.activityToken}>{tx.type}</Text>
-                      <Text style={styles.activityTime}>{tx.timestamp}</Text>
+                      <Text style={[styles.activityToken, { color: themeColors.textPrimary }]}>
+                        {tx.type}
+                      </Text>
+                      <Text style={[styles.activityTime, { color: themeColors.textTertiary }]}>
+                        {tx.timestamp}
+                      </Text>
                     </View>
                   </View>
 
                   <View style={styles.activityRight}>
-                    <Text style={styles.activityAmount}>
+                    <Text style={[styles.activityAmount, { color: themeColors.textPrimary }]}>
                       {tx.amount.toLocaleString()} {tx.token}
                     </Text>
                     <StatusBadge status={tx.status} size="sm" />
                   </View>
 
-                  <Feather name="chevron-right" size={20} color={Colors.text.tertiary} />
+                  <Feather name="chevron-right" size={20} color={themeColors.textTertiary} />
                 </TouchableOpacity>
               </Animated.View>
             ))}
@@ -244,9 +288,10 @@ interface QuickActionProps {
   label: string;
   onPress?: () => void;
   delay?: number;
+  themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay = 0 }) => {
+const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay = 0, themeColors }) => {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -281,10 +326,21 @@ const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay =
         onPressOut={handlePressOut}
         activeOpacity={1}
       >
-        <Animated.View style={[styles.quickActionIcon, animatedStyle]}>
-          <Feather name={icon as any} size={24} color={Colors.text.primary} />
+        <Animated.View
+          style={[
+            styles.quickActionIcon,
+            animatedStyle,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.borderSecondary,
+            },
+          ]}
+        >
+          <Feather name={icon as any} size={24} color={themeColors.textPrimary} />
         </Animated.View>
-        <Text style={styles.quickActionLabel}>{label}</Text>
+        <Text style={[styles.quickActionLabel, { color: themeColors.textPrimary }]}>
+          {label}
+        </Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -293,7 +349,6 @@ const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
   },
   contentContainer: {
     paddingTop: Spacing.xxxl,
@@ -412,7 +467,6 @@ const styles = StyleSheet.create({
   quickTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000000',
     letterSpacing: -0.3,
     fontFamily: 'SpaceGrotesk_700Bold',
   },
@@ -429,11 +483,9 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -548,7 +600,6 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#000000',
     textAlign: 'center',
     fontFamily: 'SpaceGrotesk_600SemiBold',
   },
@@ -563,19 +614,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 2,
-    borderBottomColor: '#000000',
   },
   activityTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000000',
     letterSpacing: -0.4,
     fontFamily: 'SpaceGrotesk_700Bold',
     marginBottom: 2,
   },
   activitySubtitle: {
     fontSize: 12,
-    color: '#666666',
     fontFamily: 'SpaceGrotesk_400Regular',
     letterSpacing: 0.2,
   },
@@ -586,12 +634,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderWidth: 1.5,
-    borderColor: '#000000',
   },
   viewAllText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#000000',
     fontFamily: 'SpaceGrotesk_700Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -629,7 +675,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
     gap: 12,
   },
   activityItemLast: {
@@ -645,10 +690,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderWidth: 2,
-    borderColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
   activityEmoji: {
     fontSize: 20,
@@ -659,12 +702,10 @@ const styles = StyleSheet.create({
   activityToken: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000000',
     fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   activityTime: {
     fontSize: 11,
-    color: '#999999',
     fontFamily: 'SpaceGrotesk_400Regular',
   },
   activityRight: {
@@ -674,7 +715,6 @@ const styles = StyleSheet.create({
   activityAmount: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000000',
     fontFamily: 'SpaceGrotesk_700Bold',
     fontVariant: ['tabular-nums'],
   },

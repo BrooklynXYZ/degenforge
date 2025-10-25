@@ -11,16 +11,6 @@ import {
 import Animated, {
   FadeInDown,
   FadeInUp,
-  FadeOut,
-  SlideInRight,
-  SlideOutLeft,
-  useAnimatedProps,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolate,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -30,45 +20,48 @@ import {
   BorderRadius,
   Layout,
   Borders,
-  Shadows,
-  Animations,
 } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/contexts/ThemeContext';
 
-interface MintScreenProps {
+interface SendScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
+export const SendScreen: React.FC<SendScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
-  const [btcAmount, setBtcAmount] = useState('');
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [amount, setAmount] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [touched, setTouched] = useState(false);
-
-  const progressValue = useSharedValue(0);
+  const [errors, setErrors] = useState({ recipient: '', amount: '' });
+  const [touched, setTouched] = useState({ recipient: false, amount: false });
 
   // Mock wallet data
-  const walletBalance = 0.5; // BTC
-  const btcPrice = 65000;
-  const ltvRatio = 0.5;
-  const fee = 0.01;
-  const minMintAmount = 0.001; // Minimum BTC to mint
+  const walletBalance = 25000; // mUSD
+  const networkFee = 0.001; // Fixed fee in mUSD
+  const minSendAmount = 1; // Minimum mUSD to send
 
-  const btcValue = parseFloat(btcAmount) || 0;
-  const usdValue = btcValue * btcPrice;
-  const musdMinted = usdValue * ltvRatio;
-  const feeAmount = musdMinted * fee;
-  const netMinted = musdMinted - feeAmount;
-
-  const mockMintTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
-  const mockVaultId = '0x1234567890abcdef1234567890abcdef';
+  const amountValue = parseFloat(amount) || 0;
+  const totalCost = amountValue + networkFee;
+  const mockTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
 
   // Validation
+  const validateRecipient = useCallback((value: string) => {
+    if (!value) {
+      return '';
+    }
+
+    // Simple validation - check if it looks like an address (starts with 0x and has correct length)
+    if (!value.startsWith('0x') || value.length !== 42) {
+      return 'Invalid address format';
+    }
+
+    return '';
+  }, []);
+
   const validateAmount = useCallback((value: string) => {
     const numValue = parseFloat(value);
 
@@ -80,45 +73,49 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       return 'Please enter a valid number';
     }
 
-    if (numValue < minMintAmount) {
-      return `Minimum amount is ${minMintAmount} BTC`;
+    if (numValue < minSendAmount) {
+      return `Minimum amount is ${minSendAmount} mUSD`;
     }
 
-    if (numValue > walletBalance) {
-      return 'Insufficient balance';
+    if (numValue + networkFee > walletBalance) {
+      return 'Insufficient balance (including fee)';
     }
 
     return '';
-  }, [walletBalance, minMintAmount]);
+  }, [walletBalance, minSendAmount, networkFee]);
 
   useEffect(() => {
-    if (touched) {
-      setError(validateAmount(btcAmount));
+    if (touched.recipient) {
+      setErrors(prev => ({ ...prev, recipient: validateRecipient(recipientAddress) }));
     }
-  }, [btcAmount, touched, validateAmount]);
+    if (touched.amount) {
+      setErrors(prev => ({ ...prev, amount: validateAmount(amount) }));
+    }
+  }, [recipientAddress, amount, touched, validateRecipient, validateAmount]);
 
   const handleConfirm = useCallback(async () => {
-    const validationError = validateAmount(btcAmount);
-    if (validationError) {
-      setError(validationError);
-      setTouched(true);
+    const recipientError = validateRecipient(recipientAddress);
+    const amountError = validateAmount(amount);
+
+    if (recipientError || amountError) {
+      setErrors({ recipient: recipientError, amount: amountError });
+      setTouched({ recipient: true, amount: true });
       return;
     }
 
     setIsLoading(true);
-    progressValue.value = 0;
-    progressValue.value = withTiming(1, { duration: 2000 });
 
-    // Simulate minting
+    // Simulate sending
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsLoading(false);
     setIsConfirmed(true);
-  }, [btcAmount, validateAmount, progressValue]);
+  }, [recipientAddress, amount, validateRecipient, validateAmount]);
 
   const handleMaxAmount = useCallback(() => {
-    setBtcAmount(walletBalance.toString());
-    setTouched(true);
-  }, [walletBalance]);
+    const maxSendable = Math.max(0, walletBalance - networkFee);
+    setAmount(maxSendable.toString());
+    setTouched(prev => ({ ...prev, amount: true }));
+  }, [walletBalance, networkFee]);
 
   const handleAmountChange = useCallback((value: string) => {
     // Only allow numbers and decimal point
@@ -127,10 +124,16 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     const parts = cleaned.split('.');
     if (parts.length > 2) return;
 
-    setBtcAmount(cleaned);
+    setAmount(cleaned);
   }, []);
 
-  const isValid = btcValue > 0 && !error && btcValue >= minMintAmount && btcValue <= walletBalance;
+  const isValid =
+    recipientAddress &&
+    amountValue > 0 &&
+    !errors.recipient &&
+    !errors.amount &&
+    amountValue >= minSendAmount &&
+    totalCost <= walletBalance;
 
   if (isConfirmed) {
     return (
@@ -152,22 +155,22 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             entering={FadeInUp.duration(500).delay(300)}
             style={[styles.successTitle, { color: themeColors.textPrimary }]}
           >
-            Mint Successful
+            Transfer Successful
           </Animated.Text>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(400)}
             style={[styles.successSubtitle, { color: themeColors.textSecondary }]}
           >
-            Your mUSD has been minted on Mezo
+            Your mUSD has been sent
           </Animated.Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.duration(600).delay(500)}
-        >
+        <Animated.View entering={FadeInDown.duration(600).delay(500)}>
           <SectionCard borderRadius="none" padding="xxxl">
-            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>You Received</Text>
-            <AnimatedCounter value={netMinted} decimals={2} themeColors={themeColors} />
+            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>Amount Sent</Text>
+            <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
+              {amountValue.toFixed(2)}
+            </Text>
             <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>mUSD</Text>
           </SectionCard>
         </Animated.View>
@@ -176,21 +179,27 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           <SectionCard borderRadius="none" padding="xl">
             <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Details</Text>
             <DetailRow
-              label="Amount Minted"
-              value={`${netMinted.toFixed(2)} mUSD`}
-              icon="check-circle"
+              label="Recipient"
+              value={`${recipientAddress.slice(0, 10)}...${recipientAddress.slice(-8)}`}
+              icon="user"
               themeColors={themeColors}
             />
             <DetailRow
-              label="Fee"
-              value={`${feeAmount.toFixed(2)} mUSD`}
-              icon="info"
+              label="Amount"
+              value={`${amountValue.toFixed(2)} mUSD`}
+              icon="dollar-sign"
               themeColors={themeColors}
             />
             <DetailRow
-              label="BTC Collateral"
-              value={`${btcAmount} BTC`}
-              icon="lock"
+              label="Network Fee"
+              value={`${networkFee.toFixed(3)} mUSD`}
+              icon="zap"
+              themeColors={themeColors}
+            />
+            <DetailRow
+              label="Total Cost"
+              value={`${totalCost.toFixed(2)} mUSD`}
+              icon="credit-card"
               themeColors={themeColors}
             />
           </SectionCard>
@@ -198,9 +207,17 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Mezo Proof</Text>
-            <ProofBox label="Mint TX Hash" value={mockMintTxHash} themeColors={themeColors} />
-            <ProofBox label="Vault ID" value={mockVaultId} themeColors={themeColors} />
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Proof</Text>
+            <TouchableOpacity style={styles.txHashContainer}>
+              <Feather name="shield" size={16} color={themeColors.textSecondary} />
+              <Text style={[styles.txHashLabel, { color: themeColors.textSecondary }]}>TX Hash</Text>
+              <View style={styles.txHashValue}>
+                <Text style={[styles.txHashText, { color: themeColors.textPrimary }]}>
+                  {mockTxHash.slice(0, 10)}...{mockTxHash.slice(-8)}
+                </Text>
+                <Feather name="copy" size={14} color={themeColors.textTertiary} />
+              </View>
+            </TouchableOpacity>
           </SectionCard>
         </Animated.View>
 
@@ -208,8 +225,8 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           entering={FadeInUp.duration(600).delay(800)}
           style={styles.actionsSection}
         >
-          <ActionButton variant="accent" fullWidth onPress={() => onNavigate('Bridge')}>
-            Proceed to Bridge
+          <ActionButton variant="accent" fullWidth onPress={() => onNavigate('Activity')}>
+            View in Activity
           </ActionButton>
           <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Back to Home
@@ -233,14 +250,37 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       >
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
           <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-            Mint mUSD
+            Send mUSD
           </Text>
           <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-            Deposit BTC collateral to mint stablecoin
+            Transfer mUSD to any address
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+          <SectionCard borderRadius="none" padding="xl">
+            <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
+              Recipient Address
+            </Text>
+            <Input
+              value={recipientAddress}
+              onChangeText={setRecipientAddress}
+              placeholder="0x..."
+              error={touched.recipient ? errors.recipient : undefined}
+              onBlur={() => setTouched(prev => ({ ...prev, recipient: true }))}
+              style={styles.addressInput}
+              variant="filled"
+            />
+            <View style={styles.balanceRow}>
+              <Feather name="info" size={14} color={themeColors.textTertiary} />
+              <Text style={[styles.helperText, { color: themeColors.textTertiary }]}>
+                Enter a valid Ethereum address
+              </Text>
+            </View>
+          </SectionCard>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.duration(500).delay(300)}>
           <SectionCard borderRadius="none" padding="xl">
             <View style={styles.inputHeader}>
               <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
@@ -264,17 +304,17 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
             <View style={styles.largeInputContainer}>
               <Input
-                value={btcAmount}
+                value={amount}
                 onChangeText={handleAmountChange}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
-                error={touched ? error : undefined}
-                onBlur={() => setTouched(true)}
+                error={touched.amount ? errors.amount : undefined}
+                onBlur={() => setTouched(prev => ({ ...prev, amount: true }))}
                 style={styles.largeInput}
                 variant="filled"
                 rightElement={
                   <Text style={[styles.inputUnit, { color: themeColors.textSecondary }]}>
-                    BTC
+                    mUSD
                   </Text>
                 }
               />
@@ -284,116 +324,43 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
               <View style={styles.balanceItem}>
                 <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
                 <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
-                  Balance: {walletBalance} BTC
-                </Text>
-              </View>
-              <View style={styles.balanceItem}>
-                <Feather name="trending-up" size={14} color={themeColors.textSecondary} />
-                <Text style={[styles.priceLabel, { color: themeColors.textSecondary }]}>
-                  ${btcPrice.toLocaleString()}
+                  Balance: {walletBalance.toLocaleString()} mUSD
                 </Text>
               </View>
             </View>
           </SectionCard>
         </Animated.View>
 
-        {btcValue > 0 && isValid && (
-          <>
-            <Animated.View
-              entering={FadeInDown.duration(500).delay(100)}
-              style={styles.statsGrid}
-            >
-              <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
-                <Feather name="dollar-sign" size={20} color={themeColors.textSecondary} />
-                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                  USD Value
-                </Text>
-                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
-                  ${usdValue.toLocaleString()}
-                </Text>
-              </SectionCard>
-              <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
-                <Feather name="arrow-down-circle" size={20} color={Colors.accent.primary} />
-                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                  You Receive
-                </Text>
-                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
-                  {netMinted.toFixed(2)}
-                </Text>
-                <Text style={[styles.statUnit, { color: themeColors.textTertiary }]}>
-                  mUSD
-                </Text>
-              </SectionCard>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.duration(500).delay(200)}>
-              <SectionCard borderRadius="none" padding="xl">
-                <View style={styles.ltvHeader}>
-                  <View>
-                    <Text style={[styles.ltvLabel, { color: themeColors.textPrimary }]}>
-                      Loan-to-Value Ratio
-                    </Text>
-                    <Text style={[styles.ltvDescription, { color: themeColors.textSecondary }]}>
-                      Safe collateralization
-                    </Text>
-                  </View>
-                  <Text style={[styles.ltvValue, { color: themeColors.textPrimary }]}>
-                    {(ltvRatio * 100).toFixed(0)}%
-                  </Text>
-                </View>
-                <View style={styles.progressBarContainer}>
-                  <Animated.View
-                    entering={SlideInRight.duration(600).delay(400)}
-                    style={[styles.progressBar, { backgroundColor: themeColors.surfaceSecondary }]}
-                  >
-                    <Animated.View
-                      style={[styles.progressFill, { width: `${ltvRatio * 100}%` }]}
-                    />
-                  </Animated.View>
-                </View>
-                <View style={styles.ltvRange}>
-                  <View style={styles.rangeItem}>
-                    <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.success }]} />
-                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Safe</Text>
-                  </View>
-                  <View style={styles.rangeItem}>
-                    <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.error }]} />
-                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Risky</Text>
-                  </View>
-                </View>
-              </SectionCard>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.duration(500).delay(300)}>
-              <SectionCard borderRadius="none" padding="xl">
-                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Fee Breakdown</Text>
-                <FeeRow
-                  label="Mint Amount"
-                  value={`${musdMinted.toFixed(2)} mUSD`}
-                  icon="plus-circle"
-                  themeColors={themeColors}
-                />
-                <FeeRow
-                  label="Protocol Fee (1%)"
-                  value={`${feeAmount.toFixed(2)} mUSD`}
-                  icon="minus-circle"
-                  themeColors={themeColors}
-                />
-                <View style={[styles.feeDivider, { backgroundColor: themeColors.border }]} />
-                <FeeRow
-                  label="You Receive"
-                  value={`${netMinted.toFixed(2)} mUSD`}
-                  icon="check-circle"
-                  bold
-                  themeColors={themeColors}
-                />
-              </SectionCard>
-            </Animated.View>
-          </>
+        {amountValue > 0 && isValid && (
+          <Animated.View entering={FadeInDown.duration(500).delay(400)}>
+            <SectionCard borderRadius="none" padding="xl">
+              <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Summary</Text>
+              <FeeRow
+                label="Send Amount"
+                value={`${amountValue.toFixed(2)} mUSD`}
+                icon="arrow-up"
+                themeColors={themeColors}
+              />
+              <FeeRow
+                label="Network Fee"
+                value={`${networkFee.toFixed(3)} mUSD`}
+                icon="zap"
+                themeColors={themeColors}
+              />
+              <View style={[styles.feeDivider, { backgroundColor: themeColors.border }]} />
+              <FeeRow
+                label="Total Cost"
+                value={`${totalCost.toFixed(2)} mUSD`}
+                icon="credit-card"
+                bold
+                themeColors={themeColors}
+              />
+            </SectionCard>
+          </Animated.View>
         )}
 
         <Animated.View
-          entering={FadeInUp.duration(500).delay(400)}
+          entering={FadeInUp.duration(500).delay(500)}
           style={styles.actionsSection}
         >
           <ActionButton
@@ -403,7 +370,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             loading={isLoading}
             onPress={handleConfirm}
           >
-            {isLoading ? 'Minting...' : 'Confirm Mint'}
+            {isLoading ? 'Sending...' : 'Confirm Send'}
           </ActionButton>
           <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Cancel
@@ -413,46 +380,6 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-};
-
-// Animated Counter Component
-interface AnimatedCounterProps {
-  value: number;
-  decimals?: number;
-  themeColors: ReturnType<typeof useTheme>['colors'];
-}
-
-const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0, themeColors }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    let startValue = 0;
-    const duration = 1500;
-    const startTime = Date.now();
-
-    const animate = () => {
-      const now = Date.now();
-      const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-      const current = startValue + (value - startValue) * eased;
-
-      setDisplayValue(current);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setDisplayValue(value);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [value]);
-
-  return (
-    <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
-      {displayValue.toFixed(decimals)}
-    </Text>
   );
 };
 
@@ -475,30 +402,6 @@ const DetailRow = React.memo<DetailRowProps>(({ label, value, icon, themeColors 
 ));
 
 DetailRow.displayName = 'DetailRow';
-
-// Proof Box Component
-interface ProofBoxProps {
-  label: string;
-  value: string;
-  themeColors: ReturnType<typeof useTheme>['colors'];
-}
-
-const ProofBox = React.memo<ProofBoxProps>(({ label, value, themeColors }) => (
-  <View style={styles.proofRow}>
-    <View style={styles.proofLeft}>
-      <Feather name="shield" size={16} color={themeColors.textSecondary} />
-      <Text style={[styles.proofLabel, { color: themeColors.textSecondary }]}>{label}</Text>
-    </View>
-    <TouchableOpacity style={styles.proofValue}>
-      <Text style={[styles.proofText, { color: themeColors.textPrimary }]}>
-        {value.slice(0, 8)}...{value.slice(-6)}
-      </Text>
-      <Feather name="copy" size={14} color={themeColors.textTertiary} />
-    </TouchableOpacity>
-  </View>
-));
-
-ProofBox.displayName = 'ProofBox';
 
 // Fee Row Component
 interface FeeRowProps {
@@ -561,6 +464,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...Typography.labelMedium,
+    marginBottom: Spacing.sm,
   },
   maxButton: {
     borderWidth: Borders.width.regular,
@@ -569,6 +473,9 @@ const styles = StyleSheet.create({
   },
   maxButtonText: {
     ...Typography.label,
+  },
+  addressInput: {
+    ...Typography.body,
   },
   largeInputContainer: {
     marginBottom: Spacing.md,
@@ -582,8 +489,8 @@ const styles = StyleSheet.create({
   },
   balanceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.xxs,
     marginTop: Spacing.sm,
   },
   balanceItem: {
@@ -594,79 +501,12 @@ const styles = StyleSheet.create({
   balanceLabel: {
     ...Typography.bodySmall,
   },
-  priceLabel: {
-    ...Typography.bodySmallSemibold,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  statLabel: {
-    ...Typography.labelSmall,
-    textAlign: 'center',
-  },
-  statValue: {
-    ...Typography.h3,
-    textAlign: 'center',
-  },
-  statUnit: {
-    ...Typography.bodySmall,
-    textAlign: 'center',
+  helperText: {
+    ...Typography.caption,
   },
   sectionTitle: {
     ...Typography.labelMedium,
     marginBottom: Spacing.md,
-  },
-  ltvHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  },
-  ltvLabel: {
-    ...Typography.bodySmallSemibold,
-    marginBottom: Spacing.xxs,
-  },
-  ltvDescription: {
-    ...Typography.caption,
-  },
-  ltvValue: {
-    ...Typography.h2,
-  },
-  progressBarContainer: {
-    marginBottom: Spacing.md,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.semantic.success,
-  },
-  ltvRange: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rangeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xxs,
-  },
-  rangeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: BorderRadius.circle,
-  },
-  rangeLabel: {
-    ...Typography.caption,
   },
   feeRow: {
     flexDirection: 'row',
@@ -757,26 +597,23 @@ const styles = StyleSheet.create({
   detailValue: {
     ...Typography.bodySmallSemibold,
   },
-  proofRow: {
+  txHashContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
   },
-  proofLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  proofLabel: {
+  txHashLabel: {
     ...Typography.bodySmall,
   },
-  proofValue: {
+  txHashValue: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  proofText: {
+  txHashText: {
     ...Typography.mono,
   },
 });

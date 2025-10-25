@@ -6,7 +6,9 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '@/constants/designTokens';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Typography, Spacing, BorderRadius, Borders } from '@/constants/designTokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface TxListItemProps {
   icon: string;
@@ -33,33 +35,55 @@ export const TxListItem = React.memo<TxListItemProps>(({
   onPress,
   style,
 }) => {
+  const { colors: themeColors } = useTheme();
   const config = STATUS_CONFIG[status];
 
   return (
     <TouchableOpacity
-      style={[styles.container, style]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: themeColors.surface,
+          borderColor: themeColors.border,
+        },
+        style,
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View style={styles.leftSection}>
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>{icon}</Text>
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: themeColors.surfaceSecondary,
+              borderColor: themeColors.border,
+            },
+          ]}
+        >
+          <Feather name={icon as any} size={24} color={themeColors.textPrimary} />
         </View>
         <View style={styles.details}>
-          <Text style={styles.token}>{token}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
+          <Text style={[styles.token, { color: themeColors.textPrimary }]}>
+            {token}
+          </Text>
+          <Text style={[styles.timestamp, { color: themeColors.textTertiary }]}>
+            {timestamp}
+          </Text>
         </View>
       </View>
 
       <View style={styles.middleSection}>
-        <Text style={styles.amount}>{amount.toLocaleString()}</Text>
+        <Text style={[styles.amount, { color: themeColors.textPrimary }]}>
+          {amount.toLocaleString()}
+        </Text>
         <View style={[styles.statusChip, { backgroundColor: config.bg, borderColor: config.color }]}>
           <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
         </View>
       </View>
 
       <View style={styles.chevron}>
-        <Text style={styles.chevronIcon}>›</Text>
+        <Feather name="chevron-right" size={20} color={themeColors.textTertiary} />
       </View>
     </TouchableOpacity>
   );
@@ -74,10 +98,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.base.white,
     borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.neutral[100],
+    borderWidth: Borders.width.regular,
     marginBottom: Spacing.md,
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -94,23 +116,18 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.bg.secondary,
+    borderWidth: Borders.width.regular,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 24,
   },
   details: {
     gap: Spacing.xs,
   },
   token: {
     ...Typography.bodyMedium,
-    color: Colors.text.primary,
   },
   timestamp: {
     ...Typography.caption,
-    color: Colors.text.tertiary,
   },
   middleSection: {
     alignItems: 'flex-end',
@@ -119,7 +136,6 @@ const styles = StyleSheet.create({
   },
   amount: {
     ...Typography.bodyMedium,
-    color: Colors.text.primary,
     fontWeight: '600',
   },
   statusChip: {
@@ -137,9 +153,5 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  chevronIcon: {
-    fontSize: 20,
-    color: Colors.text.tertiary,
   },
 });

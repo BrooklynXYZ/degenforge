@@ -83,6 +83,34 @@ export const AppNavigator: React.FC = () => {
     }
   }, []);
 
+  const navFunction = handleNavigate as (screen: string) => void;
+
+  // Memoized screen component (must be at top level, not inside renderMainApp)
+  const screenComponent = useMemo(() => {
+    switch (currentScreen) {
+      case 'Home':
+        return <HomeScreen onNavigate={navFunction} />;
+      case 'Create':
+        return <MintScreen onNavigate={navFunction} />;
+      case 'Activity':
+        return <ActivityScreen onNavigate={navFunction} />;
+      case 'Profile':
+        return <ProfileScreen onNavigate={navFunction} />;
+      case 'Mint':
+        return <MintScreen onNavigate={navFunction} />;
+      case 'Bridge':
+        return <BridgeScreen onNavigate={navFunction} />;
+      case 'Send':
+        return <SendScreen onNavigate={navFunction} />;
+      case 'Swap':
+        return <SwapScreen onNavigate={navFunction} />;
+      case 'PoolDetail':
+        return <PoolDetailScreen onNavigate={navFunction} />;
+      default:
+        return <HomeScreen onNavigate={navFunction} />;
+    }
+  }, [currentScreen, navFunction]);
+
   // Auth flow handlers
   const handleSplashComplete = () => {
     if (!hasSeenOnboarding) {
@@ -143,8 +171,6 @@ export const AppNavigator: React.FC = () => {
   const handleRecoveryConnectDifferent = () => {
     setAuthFlow('wallet-connect');
   };
-
-  const navFunction = handleNavigate as (screen: string) => void;
 
   // Render auth flow screens
   const renderAuthFlow = () => {
@@ -207,31 +233,6 @@ export const AppNavigator: React.FC = () => {
 
   // Render main app screens
   const renderMainApp = () => {
-    const screenComponent = useMemo(() => {
-      switch (currentScreen) {
-        case 'Home':
-          return <HomeScreen onNavigate={navFunction} />;
-        case 'Create':
-          return <MintScreen onNavigate={navFunction} />;
-        case 'Activity':
-          return <ActivityScreen onNavigate={navFunction} />;
-        case 'Profile':
-          return <ProfileScreen onNavigate={navFunction} />;
-        case 'Mint':
-          return <MintScreen onNavigate={navFunction} />;
-        case 'Bridge':
-          return <BridgeScreen onNavigate={navFunction} />;
-        case 'Send':
-          return <SendScreen onNavigate={navFunction} />;
-        case 'Swap':
-          return <SwapScreen onNavigate={navFunction} />;
-        case 'PoolDetail':
-          return <PoolDetailScreen onNavigate={navFunction} />;
-        default:
-          return <HomeScreen onNavigate={navFunction} />;
-      }
-    }, [currentScreen, navFunction]);
-
     return (
       <View style={styles.container}>
         <View style={styles.screenContainer}>{screenComponent}</View>

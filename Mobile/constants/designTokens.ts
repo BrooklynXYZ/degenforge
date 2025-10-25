@@ -96,6 +96,7 @@ export const Colors = {
     background: '#0A0A0A',
     surface: '#1A1A1A',
     surfaceVariant: '#262626',
+    elevated: '#262626',
     border: '#404040',
     text: {
       primary: '#FFFFFF',

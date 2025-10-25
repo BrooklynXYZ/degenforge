@@ -59,7 +59,7 @@ export const SESSION_CONFIG = {
 
   // SecureStore keys (encrypted)
   secureKeys: {
-    walletAddress: '@ghala/secure/walletAddress',
-    sessionToken: '@ghala/secure/sessionToken',
+    walletAddress: 'ghala-secure-walletAddress',
+    sessionToken: 'ghala-secure-sessionToken',
   },
 };

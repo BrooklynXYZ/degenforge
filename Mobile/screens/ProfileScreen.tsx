@@ -17,6 +17,8 @@ import { Feather } from '@expo/vector-icons';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { disconnectWallet } from '@/utils/walletConnect';
 import {
   Colors,
   Spacing,
@@ -121,6 +123,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const { themeMode, setThemeMode, colors: themeColors, actualTheme } = useTheme();
+  const { logout } = useAuth();
   const [network, setNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [rpcProvider, setRpcProvider] = useState<'spectrum' | 'custom'>('spectrum');
 
@@ -135,6 +138,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
 
   const copyToClipboard = (text: string) => {
     console.log('Copied:', text);
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      // First disconnect from WalletConnect
+      await disconnectWallet();
+      // Then clear authentication state (this will trigger navigation back to login)
+      await logout();
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+    }
   };
 
   return (
@@ -417,7 +431,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <ActionButton
           variant="primary"
           fullWidth
-          onPress={() => console.log('Logout pressed')}
+          onPress={handleDisconnect}
         >
           Disconnect
         </ActionButton>

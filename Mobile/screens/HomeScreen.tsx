@@ -172,9 +172,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         </View>
 
         <View style={styles.quickActionsGrid}>
-          <QuickAction icon="plus-circle" label="Mint" delay={250} themeColors={themeColors} />
-          <QuickAction icon="send" label="Send" delay={300} themeColors={themeColors} />
-          <QuickAction icon="repeat" label="Swap" delay={350} themeColors={themeColors} />
+          <QuickAction
+            icon="plus-circle"
+            label="Mint"
+            onPress={() => onNavigate('Mint')}
+            delay={250}
+            themeColors={themeColors}
+          />
+          <QuickAction
+            icon="send"
+            label="Send"
+            onPress={() => onNavigate('Send')}
+            delay={300}
+            themeColors={themeColors}
+          />
+          <QuickAction
+            icon="repeat"
+            label="Swap"
+            onPress={() => onNavigate('Swap')}
+            delay={350}
+            themeColors={themeColors}
+          />
           <QuickAction
             icon="link"
             label="Bridge"

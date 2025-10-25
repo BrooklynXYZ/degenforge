@@ -4,6 +4,8 @@ import PillBottomNav from '@/components/nav/PillBottomNav';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { MintScreen } from '@/screens/MintScreen';
 import { BridgeScreen } from '@/screens/BridgeScreen';
+import { SendScreen } from '@/screens/SendScreen';
+import { SwapScreen } from '@/screens/SwapScreen';
 import { PoolDetailScreen } from '@/screens/PoolDetailScreen';
 import { ActivityScreen } from '@/screens/ActivityScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
@@ -15,6 +17,8 @@ type ScreenName =
   | 'Profile'
   | 'Mint'
   | 'Bridge'
+  | 'Send'
+  | 'Swap'
   | 'PoolDetail';
 
 const TAB_SCREENS: ScreenName[] = ['Home', 'Create', 'Activity', 'Profile'];
@@ -52,6 +56,10 @@ export const AppNavigator: React.FC = () => {
         return <MintScreen onNavigate={navFunction} />;
       case 'Bridge':
         return <BridgeScreen onNavigate={navFunction} />;
+      case 'Send':
+        return <SendScreen onNavigate={navFunction} />;
+      case 'Swap':
+        return <SwapScreen onNavigate={navFunction} />;
       case 'PoolDetail':
         return <PoolDetailScreen onNavigate={navFunction} />;
       default:

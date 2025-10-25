@@ -282,7 +282,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
             <View style={styles.balanceRow}>
               <View style={styles.balanceItem}>
-                <Feather name="wallet" size={14} color={themeColors.textSecondary} />
+                <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
                 <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
                   Balance: {walletBalance} BTC
                 </Text>

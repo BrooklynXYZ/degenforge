@@ -1,42 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
-import { Spacing, Layout } from '@/constants/designTokens';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import {
+  Colors,
+  Spacing,
+  Layout,
+  Typography,
+  BorderRadius,
+  Shadows,
+  Borders,
+  Animations,
+} from '@/constants/designTokens';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { BalanceCard } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonBalanceCard, SkeletonListItem } from '@/components/ui/Skeleton';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-const STATUS_CONFIG = {
-  confirmed: {
-    bg: '#F0FFF4',
-    border: '#22C55E',
-    dot: '#22C55E',
-    text: '#22C55E',
-    label: 'Confirmed',
-  },
-  pending: {
-    bg: '#FFFBEB',
-    border: '#F59E0B',
-    dot: '#F59E0B',
-    text: '#F59E0B',
-    label: 'Pending',
-  },
-  failed: {
-    bg: '#FEF2F2',
-    border: '#EF4444',
-    dot: '#EF4444',
-    text: '#EF4444',
-    label: 'Failed',
-  },
-};
-
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const walletData = {
     btcCollateral: 0.5,
     musdBalance: 25000,
@@ -47,46 +51,86 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const recentTxs = [
     {
       id: '1',
-      icon: '📤',
+      icon: 'send',
       token: 'mUSD',
       amount: 1000,
       status: 'confirmed' as const,
       timestamp: '2 hours ago',
+      type: 'Send',
     },
     {
       id: '2',
-      icon: '🌉',
+      icon: 'link',
       token: 'SOL',
       amount: 5.5,
       status: 'confirmed' as const,
       timestamp: '1 day ago',
+      type: 'Bridge',
     },
     {
       id: '3',
-      icon: '💰',
+      icon: 'plus-circle',
       token: 'mUSD',
       amount: 500,
       status: 'pending' as const,
       timestamp: '5 minutes ago',
+      type: 'Mint',
     },
   ];
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    // Simulate refresh
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsRefreshing(false);
+  };
+
+  if (isLoading) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <SkeletonBalanceCard style={styles.cardContainer} />
+        <View style={styles.quickSection}>
+          <View style={styles.skeletonRow}>
+            {[1, 2, 3, 4].map(i => (
+              <View key={i} style={styles.skeletonQuickAction} />
+            ))}
+          </View>
+        </View>
+        <View style={styles.activitySection}>
+          {[1, 2, 3].map(i => (
+            <SkeletonListItem key={i} />
+          ))}
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+      }
     >
-      <View style={styles.cardContainer}>
-        <View style={styles.card}>
+      {/* Balance Card */}
+      <Animated.View
+        entering={FadeInDown.duration(500).delay(100)}
+        style={styles.cardContainer}
+      >
+        <BalanceCard borderRadius="xxl" padding="xl">
           <View style={styles.cardOverlay} />
           <View style={styles.balanceSection}>
             <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
-            <Text style={styles.balanceValue}>
+            <Animated.Text
+              entering={FadeInUp.duration(700).delay(300)}
+              style={styles.balanceValue}
+            >
               ${walletData.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </Text>
+            </Animated.Text>
             <View style={styles.changeContainer}>
-              <View style={styles.changeIndicator} />
+              <Feather name="trending-up" size={16} color={Colors.accent.neon} />
               <Text style={styles.changeText}>
                 +{walletData.portfolioChange}% ($
                 {(walletData.totalValue * walletData.portfolioChange / 100).toFixed(2)})
@@ -104,61 +148,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
               <Text style={styles.assetValue}>${walletData.musdBalance.toLocaleString()}</Text>
             </View>
           </View>
-        </View>
-      </View>
+        </BalanceCard>
+      </Animated.View>
 
       {/* Quick Actions */}
-      <View style={styles.quickSection}>
+      <Animated.View
+        entering={FadeInDown.duration(500).delay(200)}
+        style={styles.quickSection}
+      >
         <View style={styles.quickHeader}>
           <Text style={styles.quickTitle}>Quick Actions</Text>
         </View>
 
         <View style={styles.quickActionsGrid}>
-          <TouchableOpacity style={styles.quickActionItem}>
-            <View style={styles.quickActionIcon}>
-              <View style={styles.iconPlus}>
-                <View style={styles.plusH} />
-                <View style={styles.plusV} />
-              </View>
-            </View>
-            <Text style={styles.quickActionLabel}>Deposit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionItem}>
-            <View style={styles.quickActionIcon}>
-              <View style={styles.iconArrow}>
-                <View style={styles.arrowLine} />
-                <View style={styles.arrowHead} />
-              </View>
-            </View>
-            <Text style={styles.quickActionLabel}>Send</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionItem}>
-            <View style={styles.quickActionIcon}>
-              <View style={styles.iconSwap}>
-                <View style={styles.swapArrow1} />
-                <View style={styles.swapArrow2} />
-              </View>
-            </View>
-            <Text style={styles.quickActionLabel}>Swap</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionItem}>
-            <View style={styles.quickActionIcon}>
-              <View style={styles.iconBridge}>
-                <View style={styles.bridgeLine} />
-                <View style={styles.bridgeDot1} />
-                <View style={styles.bridgeDot2} />
-              </View>
-            </View>
-            <Text style={styles.quickActionLabel}>Bridge</Text>
-          </TouchableOpacity>
+          <QuickAction icon="plus-circle" label="Mint" delay={250} />
+          <QuickAction icon="send" label="Send" delay={300} />
+          <QuickAction icon="repeat" label="Swap" delay={350} />
+          <QuickAction icon="link" label="Bridge" onPress={() => onNavigate('Bridge')} delay={400} />
         </View>
-      </View>
+      </Animated.View>
 
       {/* Recent Activity */}
-      <View style={styles.activitySection}>
+      <Animated.View
+        entering={FadeInDown.duration(500).delay(300)}
+        style={styles.activitySection}
+      >
         <View style={styles.activityHeader}>
           <View>
             <Text style={styles.activityTitle}>Recent Activity</Text>
@@ -169,76 +183,130 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
             style={styles.viewAllButton}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <View style={styles.arrowIcon}>
-              <View style={styles.viewAllArrowLine} />
-              <View style={styles.viewAllArrowHead} />
-            </View>
+            <Feather name="arrow-right" size={14} color={Colors.text.primary} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.activityList}>
-          {recentTxs.map((tx, index) => (
-            <TouchableOpacity
-              key={tx.id}
-              style={[
-                styles.activityItem,
-                index === recentTxs.length - 1 && styles.activityItemLast,
-              ]}
-              onPress={() => console.log('Transaction pressed:', tx.id)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.activityLeft}>
-                <View style={styles.activityIconWrapper}>
-                  <Text style={styles.activityEmoji}>{tx.icon}</Text>
-                </View>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityToken}>{tx.token}</Text>
-                  <Text style={styles.activityTime}>{tx.timestamp}</Text>
-                </View>
-              </View>
+        {recentTxs.length === 0 ? (
+          <EmptyState
+            emoji="📭"
+            title="No transactions yet"
+            description="Your recent transactions will appear here"
+          />
+        ) : (
+          <View style={styles.activityList}>
+            {recentTxs.map((tx, index) => (
+              <Animated.View
+                key={tx.id}
+                entering={FadeInDown.duration(400).delay(350 + index * 50)}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.activityItem,
+                    index === recentTxs.length - 1 && styles.activityItemLast,
+                  ]}
+                  onPress={() => console.log('Transaction pressed:', tx.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.activityLeft}>
+                    <View style={styles.activityIconWrapper}>
+                      <Feather name={tx.icon as any} size={20} color={Colors.text.primary} />
+                    </View>
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityToken}>{tx.type}</Text>
+                      <Text style={styles.activityTime}>{tx.timestamp}</Text>
+                    </View>
+                  </View>
 
-              <View style={styles.activityRight}>
-                <Text style={styles.activityAmount}>{tx.amount.toLocaleString()}</Text>
-                <View style={[
-                  styles.activityStatus,
-                  {
-                    backgroundColor: STATUS_CONFIG[tx.status].bg,
-                    borderColor: STATUS_CONFIG[tx.status].border,
-                  },
-                ]}>
-                  <View style={[
-                    styles.statusDot,
-                    { backgroundColor: STATUS_CONFIG[tx.status].dot },
-                  ]} />
-                  <Text style={[
-                    styles.statusText,
-                    { color: STATUS_CONFIG[tx.status].text },
-                  ]}>
-                    {STATUS_CONFIG[tx.status].label}
-                  </Text>
-                </View>
-              </View>
+                  <View style={styles.activityRight}>
+                    <Text style={styles.activityAmount}>
+                      {tx.amount.toLocaleString()} {tx.token}
+                    </Text>
+                    <StatusBadge status={tx.status} size="sm" />
+                  </View>
 
-              <View style={styles.activityChevron}>
-                <View style={styles.chevronShape} />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+                  <Feather name="chevron-right" size={20} color={Colors.text.tertiary} />
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
+          </View>
+        )}
+      </Animated.View>
 
       <View style={styles.bottomSpacer} />
     </ScrollView>
   );
 };
 
+// Quick Action Component
+interface QuickActionProps {
+  icon: string;
+  label: string;
+  onPress?: () => void;
+  delay?: number;
+}
+
+const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay = 0 }) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.9, {
+      damping: 15,
+      stiffness: 200,
+    });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, {
+      damping: 15,
+      stiffness: 200,
+    });
+  };
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(delay)}
+      style={{ flex: 1 }}
+    >
+      <TouchableOpacity
+        style={styles.quickActionItem}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
+        <Animated.View style={[styles.quickActionIcon, animatedStyle]}>
+          <Feather name={icon as any} size={24} color={Colors.text.primary} />
+        </Animated.View>
+        <Text style={styles.quickActionLabel}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: Colors.bg.primary,
   },
   contentContainer: {
     paddingTop: Spacing.xxxl,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  skeletonQuickAction: {
+    flex: 1,
+    height: 80,
+    backgroundColor: Colors.neutral[200],
+    borderRadius: BorderRadius.lg,
   },
   cardContainer: {
     paddingHorizontal: Layout.screenPadding,

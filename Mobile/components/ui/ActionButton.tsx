@@ -6,11 +6,26 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  View,
 } from 'react-native';
-import { Colors, Spacing } from '@/constants/designTokens';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import {
+  Colors,
+  Spacing,
+  Typography,
+  Layout,
+  Borders,
+  Animations,
+  Opacity,
+} from '@/constants/designTokens';
 
 interface ActionButtonProps {
-  variant?: 'primary' | 'secondary' | 'accent';
+  variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'outline' | 'danger';
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
@@ -18,7 +33,11 @@ interface ActionButtonProps {
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  iconPosition?: 'left' | 'right';
+  style?: ViewStyle;
 }
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export const ActionButton: React.FC<ActionButtonProps> = ({
   variant = 'primary',
@@ -29,124 +48,201 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   size = 'md',
   fullWidth = false,
   icon,
+  iconPosition = 'left',
+  style,
 }) => {
-  const [isPressed, setIsPressed] = React.useState(false);
-
-  const isPrimary = variant === 'primary';
-  const isAccent = variant === 'accent';
+  const scale = useSharedValue(1);
   const isDisabled = disabled || loading;
 
-  const containerStyle: ViewStyle[] = [
-    styles.container,
-    fullWidth ? styles.fullWidth : undefined,
-    size === 'sm' ? styles.sizeSm : undefined,
-    size === 'md' ? styles.sizeMd : undefined,
-    size === 'lg' ? styles.sizeLg : undefined,
-    isPrimary ? styles.primaryContainer : isAccent ? styles.accentContainer : styles.secondaryContainer,
-    isDisabled ? styles.disabled : undefined,
-    isPressed ? styles.pressed : undefined,
-  ].filter(Boolean) as ViewStyle[];
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
 
-  const textStyle: TextStyle[] = [
-    styles.text,
-    isPrimary ? styles.primaryText : isAccent ? styles.accentText : styles.secondaryText,
-    isDisabled ? styles.disabledText : undefined,
-  ].filter(Boolean) as TextStyle[];
+  const handlePressIn = () => {
+    if (!isDisabled) {
+      scale.value = withSpring(0.96, {
+        damping: 15,
+        stiffness: 200,
+      });
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!isDisabled) {
+      scale.value = withSpring(1, {
+        damping: 15,
+        stiffness: 200,
+      });
+    }
+  };
+
+  const variantStyle = getVariantStyle(variant);
+  const sizeStyle = getSizeStyle(size);
+  const textStyle = getTextStyle(variant, size);
+  const spinnerColor = getSpinnerColor(variant);
 
   return (
-    <TouchableOpacity
-      style={containerStyle}
+    <AnimatedTouchable
+      style={[
+        styles.container,
+        variantStyle,
+        sizeStyle,
+        fullWidth && styles.fullWidth,
+        isDisabled && styles.disabled,
+        animatedStyle,
+        style,
+      ]}
       onPress={onPress}
       disabled={isDisabled}
-      onPressIn={() => setIsPressed(true)}
-      onPressOut={() => setIsPressed(false)}
-      activeOpacity={0.7}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator
-          color={isPrimary || isAccent ? '#FFFFFF' : '#000000'}
-          size="small"
-        />
+        <ActivityIndicator color={spinnerColor} size="small" />
       ) : (
-        <>
-          {icon && icon}
+        <View style={[styles.content, iconPosition === 'right' && styles.contentReverse]}>
+          {icon && <View style={styles.icon}>{icon}</View>}
           <Text style={textStyle}>{children}</Text>
-        </>
+        </View>
       )}
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 };
+
+function getVariantStyle(variant: ActionButtonProps['variant']): ViewStyle {
+  switch (variant) {
+    case 'primary':
+      return {
+        backgroundColor: Colors.base.black,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.base.black,
+      };
+    case 'accent':
+      return {
+        backgroundColor: Colors.accent.primary,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.accent.primary,
+      };
+    case 'secondary':
+      return {
+        backgroundColor: Colors.bg.secondary,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.border.primary,
+      };
+    case 'outline':
+      return {
+        backgroundColor: Colors.base.transparent,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.border.primary,
+      };
+    case 'ghost':
+      return {
+        backgroundColor: Colors.base.transparent,
+        borderWidth: 0,
+      };
+    case 'danger':
+      return {
+        backgroundColor: Colors.semantic.error,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.semantic.error,
+      };
+    default:
+      return {
+        backgroundColor: Colors.base.black,
+        borderWidth: Borders.width.thick,
+        borderColor: Colors.base.black,
+      };
+  }
+}
+
+function getSizeStyle(size: ActionButtonProps['size']): ViewStyle {
+  switch (size) {
+    case 'sm':
+      return {
+        height: Layout.buttonHeight.sm,
+        paddingHorizontal: Spacing.md,
+      };
+    case 'lg':
+      return {
+        height: Layout.buttonHeight.lg,
+        paddingHorizontal: Spacing.xl,
+      };
+    case 'md':
+    default:
+      return {
+        height: Layout.buttonHeight.md,
+        paddingHorizontal: Spacing.lg,
+      };
+  }
+}
+
+function getTextStyle(variant: ActionButtonProps['variant'], size: ActionButtonProps['size']): TextStyle {
+  const baseStyle = size === 'sm' ? Typography.buttonSmall : Typography.button;
+
+  const colorStyle: TextStyle = (() => {
+    switch (variant) {
+      case 'primary':
+      case 'accent':
+      case 'danger':
+        return { color: Colors.text.inverse };
+      case 'secondary':
+      case 'outline':
+      case 'ghost':
+        return { color: Colors.text.primary };
+      default:
+        return { color: Colors.text.inverse };
+    }
+  })();
+
+  return {
+    ...baseStyle,
+    ...colorStyle,
+    textTransform: 'uppercase',
+  };
+}
+
+function getSpinnerColor(variant: ActionButtonProps['variant']): string {
+  switch (variant) {
+    case 'primary':
+    case 'accent':
+    case 'danger':
+      return Colors.text.inverse;
+    case 'secondary':
+    case 'outline':
+    case 'ghost':
+      return Colors.text.primary;
+    default:
+      return Colors.text.inverse;
+  }
+}
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 0,
-    gap: Spacing.sm,
+    borderRadius: Layout.buttonBorderRadius,
+    overflow: 'hidden',
   },
   fullWidth: {
     width: '100%',
   },
-  sizeSm: {
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.md,
-  },
-  sizeMd: {
-    paddingVertical: 16,
-    paddingHorizontal: Spacing.lg,
-  },
-  sizeLg: {
-    paddingVertical: 20,
-    paddingHorizontal: Spacing.xl,
-  },
-  primaryContainer: {
-    backgroundColor: '#000000',
-    borderWidth: 0,
-  },
-  accentContainer: {
-    backgroundColor: '#000000',
-    borderWidth: 0,
-  },
-  secondaryContainer: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#000000',
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  accentText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  secondaryText: {
-    color: '#000000',
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
   disabled: {
-    opacity: 0.5,
+    opacity: Opacity.disabled,
   },
-  disabledText: {
-    color: Colors.text.tertiary,
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
-  pressed: {
-    transform: [{ scale: 0.95 }],
+  contentReverse: {
+    flexDirection: 'row-reverse',
   },
-  text: {
-    fontWeight: '600',
+  icon: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

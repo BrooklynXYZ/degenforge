@@ -17,6 +17,7 @@ import 'react-native-reanimated';
 
 import { AppNavigator } from '@/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,7 +48,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ThemedApp />
+        <AuthProvider>
+          <ThemedApp />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

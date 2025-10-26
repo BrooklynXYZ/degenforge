@@ -143,9 +143,23 @@ function getVariantStyle(
 
 // Specialized Card variants for common use cases
 
-export const BalanceCard: React.FC<Omit<CardProps, 'variant'>> = (props) => (
-  <Card variant="dark" {...props} />
-);
+export const BalanceCard: React.FC<Omit<CardProps, 'variant'>> = (props) => {
+  const { actualTheme } = useTheme();
+  const isDark = actualTheme === 'dark';
+
+  const glassyStyle: ViewStyle = isDark ? {
+    backgroundColor: 'rgba(26, 26, 26, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  } : {};
+
+  return <Card variant="dark" {...props} style={[glassyStyle, props.style]} />;
+};
 
 export const SectionCard: React.FC<Omit<CardProps, 'variant'>> = (props) => (
   <Card variant="outlined" {...props} />

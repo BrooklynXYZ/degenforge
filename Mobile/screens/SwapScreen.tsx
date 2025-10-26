@@ -13,8 +13,13 @@ import Animated, {
   FadeInUp,
   useSharedValue,
   withSpring,
+  withSequence,
+  withRepeat,
+  withTiming,
   useAnimatedStyle,
+  Easing,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import {
   Colors,
@@ -177,17 +182,11 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(500)}>
-          <SectionCard borderRadius="none" padding="xxxl">
-            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
-              You Received
-            </Text>
-            <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="middle">
-              {toValue.toFixed(8)}
-            </Text>
-            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]} numberOfLines={1}>
-              {toToken.symbol}
-            </Text>
-          </SectionCard>
+          <PremiumResultCard
+            value={toValue.toFixed(8)}
+            unit={toToken.symbol}
+            themeColors={themeColors}
+          />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
@@ -472,6 +471,73 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
   );
 };
 
+const PremiumResultCard: React.FC<{
+  value: string;
+  unit: string;
+  themeColors: ReturnType<typeof useTheme>['colors'];
+}> = ({ value, unit, themeColors }) => {
+  const shimmerTranslateX = useSharedValue(-300);
+  const scale = useSharedValue(0.95);
+
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    shimmerTranslateX.value = withRepeat(
+      withTiming(300, { duration: 2000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    scale.value = withSpring(1, { damping: 15, stiffness: 100 });
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerTranslateX.value }],
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={cardStyle}>
+      <View
+        style={[
+          styles.premiumCard,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
+        <View style={styles.shimmerContainer}>
+          <Animated.View style={[styles.shimmer, shimmerStyle]} />
+        </View>
+
+        <Text style={[styles.premiumLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+          You Received
+        </Text>
+
+        <Text
+          style={[styles.premiumAmount, { color: themeColors.textPrimary }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {value}
+        </Text>
+
+        <View style={styles.unitContainer}>
+          <View style={[styles.unitBadge, { borderColor: Colors.accent.primary }]}>
+            <Text style={[styles.premiumUnit, { color: Colors.accent.primary }]} numberOfLines={1}>
+              {unit}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
 interface DetailRowProps {
   label: string;
   value: string;
@@ -701,6 +767,68 @@ const styles = StyleSheet.create({
   successSubtitle: {
     ...Typography.body,
     textAlign: 'center',
+  },
+  premiumCard: {
+    borderWidth: 2,
+    paddingVertical: Spacing.xxxxl,
+    paddingHorizontal: Spacing.xl,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  shimmerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  shimmer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ skewX: '-20deg' }],
+  },
+  premiumLabel: {
+    ...Typography.labelMedium,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    fontWeight: '600',
+  },
+  premiumAmount: {
+    fontSize: 56,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: -2,
+    lineHeight: 64,
+  },
+  unitContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  unitBadge: {
+    borderWidth: 2,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(234, 193, 25, 0.05)',
+  },
+  premiumUnit: {
+    ...Typography.h4,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   resultLabel: {
     ...Typography.labelMedium,

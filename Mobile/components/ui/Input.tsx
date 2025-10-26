@@ -95,8 +95,8 @@ export const Input: React.FC<InputProps> = ({
           style={[
             styles.input,
             style,
-            leftElement && styles.inputWithLeft,
-            rightElement && styles.inputWithRight,
+            leftElement ? styles.inputWithLeft : undefined,
+            rightElement ? styles.inputWithRight : undefined,
           ]}
           placeholderTextColor={Colors.text.tertiary}
           onFocus={handleFocus}

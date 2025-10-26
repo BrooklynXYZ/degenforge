@@ -35,19 +35,39 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
     useEffect(() => {
         if (!fontsLoaded) return;
 
-        const animConfig = {
-            duration: 2400,
-            easing: Easing.bezier(0.33, 0, 0.67, 1),
-        };
+        const typingDuration = 200;
+        const letterDelay = 180;
+        const typingEasing = Easing.out(Easing.cubic);
 
-        letterG.value = withTiming(1, animConfig);
-        letterH.value = withTiming(1, animConfig);
-        letterA1.value = withTiming(1, animConfig);
-        letterL.value = withTiming(1, animConfig);
-        letterA2.value = withTiming(1, animConfig);
+        letterG.value = withDelay(
+            0,
+            withTiming(1, { duration: typingDuration, easing: typingEasing })
+        );
+
+        letterH.value = withDelay(
+            letterDelay * 1,
+            withTiming(1, { duration: typingDuration, easing: typingEasing })
+        );
+
+        letterA1.value = withDelay(
+            letterDelay * 2,
+            withTiming(1, { duration: typingDuration, easing: typingEasing })
+        );
+
+        letterL.value = withDelay(
+            letterDelay * 3,
+            withTiming(1, { duration: typingDuration, easing: typingEasing })
+        );
+
+        letterA2.value = withDelay(
+            letterDelay * 4,
+            withTiming(1, { duration: typingDuration, easing: typingEasing })
+        );
+
+        const totalTypingTime = letterDelay * 4 + typingDuration;
 
         progress.value = withSequence(
-            withTiming(1, { duration: 2400, easing: Easing.out(Easing.ease) }),
+            withTiming(1, { duration: totalTypingTime, easing: Easing.linear }),
             withDelay(600, withTiming(2, { duration: 0 }))
         );
 
@@ -65,49 +85,44 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
                         runOnJS(onAnimationComplete)();
                     }
                 });
-            }, 3000);
+            }, totalTypingTime + 800);
 
             return () => clearTimeout(timer);
         }
     }, [fontsLoaded, letterG, letterH, letterA1, letterL, letterA2, progress, translateY, scale, onAnimationComplete]);
 
     const styleG = useAnimatedStyle(() => ({
-        opacity: letterG.value,
+        opacity: letterG.value > 0.1 ? 1 : 0,
         transform: [
-            { translateY: (1 - letterG.value) * 30 },
-            { scale: 0.8 + letterG.value * 0.2 },
+            { scale: letterG.value < 0.5 ? 0 : 0.5 + letterG.value * 0.5 },
         ],
     }));
 
     const styleH = useAnimatedStyle(() => ({
-        opacity: letterH.value,
+        opacity: letterH.value > 0.1 ? 1 : 0,
         transform: [
-            { translateY: (1 - letterH.value) * 30 },
-            { scale: 0.8 + letterH.value * 0.2 },
+            { scale: letterH.value < 0.5 ? 0 : 0.5 + letterH.value * 0.5 },
         ],
     }));
 
     const styleA1 = useAnimatedStyle(() => ({
-        opacity: letterA1.value,
+        opacity: letterA1.value > 0.1 ? 1 : 0,
         transform: [
-            { translateY: (1 - letterA1.value) * 30 },
-            { scale: 0.8 + letterA1.value * 0.2 },
+            { scale: letterA1.value < 0.5 ? 0 : 0.5 + letterA1.value * 0.5 },
         ],
     }));
 
     const styleL = useAnimatedStyle(() => ({
-        opacity: letterL.value,
+        opacity: letterL.value > 0.1 ? 1 : 0,
         transform: [
-            { translateY: (1 - letterL.value) * 30 },
-            { scale: 0.8 + letterL.value * 0.2 },
+            { scale: letterL.value < 0.5 ? 0 : 0.5 + letterL.value * 0.5 },
         ],
     }));
 
     const styleA2 = useAnimatedStyle(() => ({
-        opacity: letterA2.value,
+        opacity: letterA2.value > 0.1 ? 1 : 0,
         transform: [
-            { translateY: (1 - letterA2.value) * 30 },
-            { scale: 0.8 + letterA2.value * 0.2 },
+            { scale: letterA2.value < 0.5 ? 0 : 0.5 + letterA2.value * 0.5 },
         ],
     }));
 
@@ -125,7 +140,7 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
 
     return (
         <View style={styles.container}>
-            <Animated.View style={[styles.textContainer, containerStyle]}>
+            <Animated.View style={[styles.wordContainer, containerStyle]}>
                 <Animated.Text style={[styles.letter, styleG]}>G</Animated.Text>
                 <Animated.Text style={[styles.letter, styleH]}>H</Animated.Text>
                 <Animated.Text style={[styles.letter, styleA1]}>A</Animated.Text>
@@ -143,17 +158,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    textContainer: {
+    wordContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
     },
     letter: {
         fontFamily: 'PlayfairDisplay_900Black',
-        fontSize: 68,
+        fontSize: 72,
         color: '#000000',
-        letterSpacing: 4,
+        letterSpacing: -2,
         fontWeight: '900',
-        marginHorizontal: 2,
+        marginHorizontal: -1,
     },
 });

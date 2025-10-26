@@ -9,6 +9,7 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold
 } from '@expo-google-fonts/space-grotesk';
+import { PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
@@ -33,6 +34,7 @@ export default function RootLayout() {
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
+    PlayfairDisplay_900Black,
     ...Feather.font,
   });
 

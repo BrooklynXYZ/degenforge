@@ -235,9 +235,9 @@ const styles = StyleSheet.create({
   },
   ghalaText: {
     fontFamily: 'PlayfairDisplay_900Black',
-    fontSize: 42,
+    fontSize: 48,
     color: '#000000',
-    letterSpacing: 3,
+    letterSpacing: -1,
     fontWeight: '900',
   },
   titleContainer: {

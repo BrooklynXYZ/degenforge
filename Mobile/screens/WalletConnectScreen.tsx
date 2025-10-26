@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Colors, Typography, Spacing, FontFamily, Shadows } from '../constants/designTokens';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { Typography, Spacing, Layout, Borders } from '../constants/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
-import { connectWallet, initializeWalletConnect } from '../utils/walletConnect';
+import { initializeWalletConnect } from '../utils/walletConnect';
 
 interface WalletConnectScreenProps {
   onConnectSuccess: (walletAddress: string) => void;
@@ -14,20 +25,22 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
   onConnectSuccess,
   onNeedHelp,
 }) => {
-  const { colors } = useTheme();
+  const { colors, actualTheme } = useTheme();
   const [isConnecting, setIsConnecting] = useState(false);
+
+  const isDark = actualTheme === 'dark';
+  const borderColor = isDark ? '#FFFFFF' : '#000000';
+  const buttonBg = isDark ? '#000000' : '#000000';
+  const buttonText = isDark ? '#FFFFFF' : '#FFFFFF';
 
   const handleConnectWallet = async () => {
     try {
       setIsConnecting(true);
 
-      // Initialize WalletConnect if not already initialized
       await initializeWalletConnect();
 
-      // For demo purposes, we'll simulate a wallet connection
-      // In production, this would open the WalletConnect modal
       Alert.alert(
-        'WalletConnect Demo',
+        'WalletConnect',
         'In production, this would open the WalletConnect modal to select and connect your wallet.\n\nFor demo: Enter a test wallet address',
         [
           {
@@ -38,7 +51,6 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
           {
             text: 'Use Demo Address',
             onPress: () => {
-              // Use a demo wallet address
               const demoAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
               onConnectSuccess(demoAddress);
               setIsConnecting(false);
@@ -46,10 +58,6 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
           },
         ]
       );
-
-      // TODO: Replace with actual WalletConnect integration
-      // const result = await connectWallet();
-      // onConnectSuccess(result.address);
     } catch (error: any) {
       console.error('Error connecting wallet:', error);
       Alert.alert(
@@ -63,126 +71,96 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View
-        entering={FadeInDown.duration(500).delay(100)}
+        entering={FadeInDown.duration(600).delay(100)}
         style={styles.content}
       >
-        {/* Logo/Icon */}
-        <View style={styles.logoContainer}>
-          <Text style={[styles.logo, { color: Colors.accent.ghalaGold }]}>₿</Text>
+        <View style={styles.header}>
+          <Animated.Text
+            entering={FadeInUp.duration(600).delay(200)}
+            style={[styles.brand, { color: colors.textPrimary }]}
+            numberOfLines={1}
+          >
+            GHALA
+          </Animated.Text>
+          <Animated.View
+            entering={FadeInUp.duration(600).delay(300)}
+            style={[styles.brandUnderline, { backgroundColor: borderColor }]}
+          />
         </View>
 
-        {/* Title */}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Connect Your Wallet
-        </Text>
+        <Animated.View
+          entering={FadeInDown.duration(600).delay(400)}
+          style={styles.titleSection}
+        >
+          <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
+            Connect Your Wallet
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={3}>
+            Connect your Web3 wallet to access Bitcoin-backed DeFi
+          </Text>
+        </Animated.View>
 
-        {/* Subtitle */}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Connect your Web3 wallet to start using Ghala and unlock Bitcoin-backed DeFi
-        </Text>
-
-        {/* Connect Button */}
-        <View style={styles.buttonContainer}>
+        <Animated.View
+          entering={FadeInDown.duration(600).delay(500)}
+          style={styles.buttonSection}
+        >
           <Pressable
             onPress={handleConnectWallet}
             disabled={isConnecting}
             style={({ pressed }) => [
               styles.connectButton,
               {
-                backgroundColor: Colors.accent.ghalaGold,
-                borderColor: Colors.base.black,
-                opacity: pressed ? 0.8 : isConnecting ? 0.7 : 1,
+                backgroundColor: buttonBg,
+                borderColor: borderColor,
+                opacity: pressed ? 0.85 : isConnecting ? 0.7 : 1,
               },
             ]}
+            android_ripple={{ color: 'transparent' }}
           >
             {isConnecting ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color={Colors.base.black} size="small" />
-                <Text style={[styles.buttonText, { marginLeft: Spacing.sm }]}>
-                  Connecting...
+                <ActivityIndicator color={buttonText} size="small" />
+                <Text
+                  style={[styles.buttonText, { color: buttonText, marginLeft: Spacing.md }]}
+                  numberOfLines={1}
+                >
+                  CONNECTING
                 </Text>
               </View>
             ) : (
-              <>
-                <Text style={styles.walletIcon}>🔗</Text>
-                <Text style={styles.buttonText}>Connect Wallet</Text>
-              </>
+              <View style={styles.buttonContent}>
+                <Feather name="link" size={22} color={buttonText} />
+                <Text style={[styles.buttonText, { color: buttonText }]} numberOfLines={1}>
+                  CONNECT WALLET
+                </Text>
+              </View>
             )}
           </Pressable>
+        </Animated.View>
 
-          {/* Info Text */}
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Supports MetaMask, Rainbow, Coinbase Wallet, and more
-          </Text>
-        </View>
-
-        {/* Features */}
-        <View style={styles.features}>
-          <FeatureItem
-            icon="🔐"
-            title="Secure"
-            description="Your keys, your crypto"
-            color={colors.textPrimary}
-            secondaryColor={colors.textSecondary}
-          />
-          <FeatureItem
-            icon="⚡"
-            title="Fast"
-            description="Quick connection via QR"
-            color={colors.textPrimary}
-            secondaryColor={colors.textSecondary}
-          />
-          <FeatureItem
-            icon="🌐"
-            title="Compatible"
-            description="Works with all major wallets"
-            color={colors.textPrimary}
-            secondaryColor={colors.textSecondary}
-          />
-        </View>
-
-        {/* Help Link */}
-        <Pressable
-          onPress={onNeedHelp}
-          style={({ pressed }) => [
-            styles.helpButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
+        <Animated.View
+          entering={FadeInUp.duration(600).delay(600)}
+          style={styles.footer}
         >
-          <Text style={[styles.helpText, { color: Colors.accent.ghalaGold }]}>
-            Need help connecting?
-          </Text>
-        </Pressable>
+          <Pressable
+            onPress={onNeedHelp}
+            style={({ pressed }) => [
+              styles.helpButton,
+              { borderColor, opacity: pressed ? 0.6 : 1 },
+            ]}
+            android_ripple={{ color: 'transparent' }}
+          >
+            <Text style={[styles.helpText, { color: colors.textSecondary }]} numberOfLines={1}>
+              Need help connecting?
+            </Text>
+            <Feather name="arrow-right" size={16} color={colors.textSecondary} />
+          </Pressable>
+        </Animated.View>
       </Animated.View>
     </View>
   );
 };
 
-interface FeatureItemProps {
-  icon: string;
-  title: string;
-  description: string;
-  color: string;
-  secondaryColor: string;
-}
-
-const FeatureItem: React.FC<FeatureItemProps> = ({
-  icon,
-  title,
-  description,
-  color,
-  secondaryColor,
-}) => {
-  return (
-    <View style={styles.featureItem}>
-      <Text style={styles.featureIcon}>{icon}</Text>
-      <Text style={[styles.featureTitle, { color }]}>{title}</Text>
-      <Text style={[styles.featureDescription, { color: secondaryColor }]}>
-        {description}
-      </Text>
-    </View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -190,103 +168,89 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: 80,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: Spacing.xxxxl + Spacing.xl,
     paddingBottom: Spacing.xxxl,
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-    borderWidth: 2,
-    borderColor: Colors.accent.ghalaGold,
     justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: Spacing.xxxl,
   },
-  logo: {
-    fontSize: 64,
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xxxxl + Spacing.xxl,
+  },
+  brand: {
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 48,
+    fontWeight: '700',
+    letterSpacing: 6,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.lg,
+  },
+  brandUnderline: {
+    width: 140,
+    height: 4,
+  },
+  titleSection: {
+    marginBottom: Spacing.xxxxl + Spacing.xl,
+    alignItems: 'center',
   },
   title: {
     ...Typography.h1,
-    fontFamily: FontFamily.bold,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 32,
     textAlign: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...Typography.body,
-    fontFamily: FontFamily.regular,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: Spacing.xxxl,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    opacity: 0.8,
   },
-  buttonContainer: {
-    marginBottom: Spacing.xxxl,
+  buttonSection: {
+    marginBottom: Spacing.xxxxl + Spacing.xl,
   },
   connectButton: {
-    height: 56,
-    borderRadius: 0,
-    borderWidth: 2,
-    flexDirection: 'row',
+    height: 68,
+    borderWidth: Borders.width.thick,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  walletIcon: {
-    fontSize: 24,
-    marginRight: Spacing.sm,
-  },
   buttonText: {
-    ...Typography.button,
-    fontFamily: FontFamily.bold,
-    color: Colors.base.black,
-    textTransform: 'uppercase',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    fontSize: 16,
+    letterSpacing: 2,
+    fontWeight: '700',
   },
-  infoText: {
-    ...Typography.caption,
-    fontFamily: FontFamily.regular,
-    textAlign: 'center',
-  },
-  features: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xxxl,
-  },
-  featureItem: {
-    flex: 1,
+  footer: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.xs,
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.sm,
-  },
-  featureTitle: {
-    ...Typography.labelMedium,
-    fontFamily: FontFamily.semibold,
-    marginBottom: Spacing.xxs,
-  },
-  featureDescription: {
-    ...Typography.caption,
-    fontFamily: FontFamily.regular,
-    textAlign: 'center',
   },
   helpButton: {
-    paddingVertical: Spacing.md,
-    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    borderWidth: Borders.width.regular,
   },
   helpText: {
-    ...Typography.bodyMedium,
-    fontFamily: FontFamily.semibold,
-    textDecorationLine: 'underline',
+    fontFamily: 'SpaceGrotesk_500Medium',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });
 
 export default WalletConnectScreen;
+

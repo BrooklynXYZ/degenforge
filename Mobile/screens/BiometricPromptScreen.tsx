@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { View, Text, StyleSheet, Pressable, Alert, Dimensions } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
+import { useFonts, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 import { Colors, Typography, Spacing, FontFamily, BorderRadius } from '../constants/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
 import {
@@ -10,36 +17,61 @@ import {
   getBiometricIcon,
 } from '../utils/biometric';
 
+const { width } = Dimensions.get('window');
+
 interface BiometricPromptScreenProps {
   onAuthSuccess: () => void;
   onUseWalletConnect: () => void;
   onCancel?: () => void;
+  transitionComplete?: boolean;
 }
 
 const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
   onAuthSuccess,
   onUseWalletConnect,
   onCancel,
+  transitionComplete = false,
 }) => {
   const { colors } = useTheme();
   const [biometricType, setBiometricType] = useState('Biometric');
   const [biometricIcon, setBiometricIcon] = useState('🔐');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
+  const [fontsLoaded] = useFonts({
+    PlayfairDisplay_900Black,
+  });
+
+  const ghalaOpacity = useSharedValue(0);
+  const welcomeY = useSharedValue(40);
+  const welcomeOpacity = useSharedValue(0);
+  const subtitleY = useSharedValue(40);
+  const subtitleOpacity = useSharedValue(0);
+  const buttonsY = useSharedValue(40);
+  const buttonsOpacity = useSharedValue(0);
+
   useEffect(() => {
     initializeBiometric();
   }, []);
+
+  useEffect(() => {
+    if (transitionComplete && fontsLoaded) {
+      ghalaOpacity.value = withDelay(200, withTiming(1, { duration: 600 }));
+      welcomeY.value = withDelay(400, withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) }));
+      welcomeOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
+      subtitleY.value = withDelay(600, withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) }));
+      subtitleOpacity.value = withDelay(600, withTiming(1, { duration: 600 }));
+      buttonsY.value = withDelay(800, withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) }));
+      buttonsOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
+    }
+  }, [transitionComplete, fontsLoaded]);
 
   const initializeBiometric = async () => {
     const capability = await checkBiometricCapability();
     setBiometricType(getBiometricTypeName(capability.biometricType));
     setBiometricIcon(getBiometricIcon(capability.biometricType));
 
-    // Auto-trigger biometric prompt on mount
     if (capability.isAvailable) {
-      setTimeout(() => {
-        handleBiometricAuth();
-      }, 500);
+      setTimeout(() => handleBiometricAuth(), 1800);
     }
   };
 
@@ -53,7 +85,7 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
       } else {
         Alert.alert(
           'Authentication Failed',
-          result.error || 'Failed to authenticate. Please try again or use wallet connection.',
+          result.error || 'Please try again or use wallet connection.',
           [
             {
               text: 'Try Again',
@@ -70,52 +102,58 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
         );
       }
     } catch (error: any) {
-      console.error('Biometric auth error:', error);
-      Alert.alert(
-        'Error',
-        'An error occurred during authentication',
-        [
-          {
-            text: 'OK',
-            onPress: () => setIsAuthenticating(false),
-          },
-        ]
-      );
+      Alert.alert('Error', 'Authentication error occurred', [
+        {
+          text: 'OK',
+          onPress: () => setIsAuthenticating(false),
+        },
+      ]);
     }
   };
 
+  const ghalaStyle = useAnimatedStyle(() => ({
+    opacity: ghalaOpacity.value,
+  }));
+
+  const welcomeStyle = useAnimatedStyle(() => ({
+    opacity: welcomeOpacity.value,
+    transform: [{ translateY: welcomeY.value }],
+  }));
+
+  const subtitleStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
+    transform: [{ translateY: subtitleY.value }],
+  }));
+
+  const buttonsStyle = useAnimatedStyle(() => ({
+    opacity: buttonsOpacity.value,
+    transform: [{ translateY: buttonsY.value }],
+  }));
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Animated.View
-        entering={FadeInDown.duration(500).delay(100)}
-        style={styles.content}
-      >
-        {/* Biometric Icon */}
-        <Animated.View
-          entering={FadeIn.duration(800).delay(300)}
-          style={[
-            styles.iconContainer,
-            {
-              backgroundColor: 'rgba(212, 175, 55, 0.1)',
-              borderColor: Colors.accent.ghalaGold,
-            },
-          ]}
-        >
-          <Text style={styles.icon}>{biometricIcon}</Text>
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <Animated.View style={[styles.ghalaContainer, ghalaStyle]}>
+            <Text style={styles.ghalaText}>GHALA</Text>
+          </Animated.View>
+        </View>
+
+        <Animated.View style={[styles.titleContainer, welcomeStyle]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome Back</Text>
         </Animated.View>
 
-        {/* Title */}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Welcome Back
-        </Text>
+        <Animated.View style={[styles.subtitleContainer, subtitleStyle]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Use {biometricType} to unlock
+          </Text>
+        </Animated.View>
 
-        {/* Subtitle */}
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Use {biometricType} to unlock Ghala
-        </Text>
-
-        {/* Authenticate Button */}
-        <View style={styles.buttonContainer}>
+        <Animated.View style={[styles.buttonContainer, buttonsStyle]}>
           <Pressable
             onPress={handleBiometricAuth}
             disabled={isAuthenticating}
@@ -130,27 +168,26 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
           >
             <Text style={styles.buttonIcon}>{biometricIcon}</Text>
             <Text style={styles.buttonText}>
-              {isAuthenticating ? 'Authenticating...' : `Use ${biometricType}`}
+              {isAuthenticating ? 'AUTHENTICATING...' : `USE ${biometricType.toUpperCase()}`}
             </Text>
           </Pressable>
 
-          {/* Alternative: Connect with Wallet */}
           <Pressable
             onPress={onUseWalletConnect}
             style={({ pressed }) => [
               styles.walletButton,
               {
                 borderColor: colors.border,
+                backgroundColor: colors.surface,
                 opacity: pressed ? 0.6 : 1,
               },
             ]}
           >
             <Text style={[styles.walletButtonText, { color: colors.textPrimary }]}>
-              Connect with Wallet Instead
+              Connect with Wallet
             </Text>
           </Pressable>
 
-          {/* Cancel Option */}
           {onCancel && (
             <Pressable
               onPress={onCancel}
@@ -159,18 +196,17 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
                 { opacity: pressed ? 0.6 : 1 },
               ]}
             >
-              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>
-                Cancel
-              </Text>
+              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
             </Pressable>
           )}
-        </View>
+        </Animated.View>
 
-        {/* Info Text */}
-        <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Your biometric data never leaves your device
-        </Text>
-      </Animated.View>
+        <Animated.View style={[styles.infoContainer, buttonsStyle]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+            Your biometric data never leaves your device
+          </Text>
+        </Animated.View>
+      </View>
     </View>
   );
 };
@@ -182,33 +218,44 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.xl,
-    paddingTop: 100,
+    paddingTop: 80,
     paddingBottom: Spacing.xxxl,
     alignItems: 'center',
   },
-  iconContainer: {
-    width: 140,
+  logoContainer: {
     height: 140,
-    borderRadius: 70,
-    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.xxxl,
+    marginBottom: 48,
   },
-  icon: {
-    fontSize: 72,
+  ghalaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    ...Typography.h1,
-    fontFamily: FontFamily.bold,
-    textAlign: 'center',
+  ghalaText: {
+    fontFamily: 'PlayfairDisplay_900Black',
+    fontSize: 48,
+    color: '#000000',
+    letterSpacing: -1,
+    fontWeight: '900',
+  },
+  titleContainer: {
     marginBottom: Spacing.sm,
   },
-  subtitle: {
-    ...Typography.body,
-    fontFamily: FontFamily.regular,
+  title: {
+    fontFamily: FontFamily.bold,
+    fontSize: 28,
     textAlign: 'center',
-    marginBottom: Spacing.xxxl,
+    letterSpacing: -0.5,
+  },
+  subtitleContainer: {
+    marginBottom: 48,
+  },
+  subtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: 16,
+    textAlign: 'center',
   },
   buttonContainer: {
     width: '100%',
@@ -228,10 +275,10 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   buttonText: {
-    ...Typography.button,
     fontFamily: FontFamily.bold,
+    fontSize: 15,
     color: Colors.base.black,
-    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   walletButton: {
     height: 56,
@@ -240,23 +287,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
-    backgroundColor: 'transparent',
   },
   walletButtonText: {
-    ...Typography.bodyMedium,
     fontFamily: FontFamily.semibold,
+    fontSize: 15,
   },
   cancelButton: {
     paddingVertical: Spacing.md,
     alignSelf: 'center',
   },
   cancelText: {
-    ...Typography.bodySmall,
     fontFamily: FontFamily.regular,
+    fontSize: 14,
+  },
+  infoContainer: {
+    marginTop: 'auto',
   },
   infoText: {
-    ...Typography.caption,
     fontFamily: FontFamily.regular,
+    fontSize: 12,
     textAlign: 'center',
   },
 });

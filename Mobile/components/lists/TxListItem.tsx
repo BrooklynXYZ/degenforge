@@ -64,21 +64,21 @@ export const TxListItem = React.memo<TxListItemProps>(({
           <Feather name={icon as any} size={24} color={themeColors.textPrimary} />
         </View>
         <View style={styles.details}>
-          <Text style={[styles.token, { color: themeColors.textPrimary }]}>
+          <Text style={[styles.token, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
             {token}
           </Text>
-          <Text style={[styles.timestamp, { color: themeColors.textTertiary }]}>
+          <Text style={[styles.timestamp, { color: themeColors.textTertiary }]} numberOfLines={1} ellipsizeMode="tail">
             {timestamp}
           </Text>
         </View>
       </View>
 
       <View style={styles.middleSection}>
-        <Text style={[styles.amount, { color: themeColors.textPrimary }]}>
+        <Text style={[styles.amount, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
           {amount.toLocaleString()}
         </Text>
         <View style={[styles.statusChip, { backgroundColor: config.bg, borderColor: config.color }]}>
-          <Text style={[styles.statusLabel, { color: config.color }]}>{config.label}</Text>
+          <Text style={[styles.statusLabel, { color: config.color }]} numberOfLines={1}>{config.label}</Text>
         </View>
       </View>
 
@@ -122,6 +122,8 @@ const styles = StyleSheet.create({
   },
   details: {
     gap: Spacing.xs,
+    flexShrink: 1,
+    flex: 1,
   },
   token: {
     ...Typography.bodyMedium,
@@ -133,6 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: Spacing.sm,
     marginHorizontal: Spacing.md,
+    flexShrink: 0,
   },
   amount: {
     ...Typography.bodyMedium,

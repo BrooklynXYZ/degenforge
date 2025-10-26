@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   View,
-  StyleSheet,
   ViewStyle,
   Pressable,
   PressableProps,
@@ -10,7 +9,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import {
   Colors,
@@ -18,7 +16,6 @@ import {
   Spacing,
   Shadows,
   Borders,
-  Animations,
 } from '@/constants/designTokens';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -45,7 +42,6 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const { colors: themeColors } = useTheme();
   const scale = useSharedValue(1);
-  const elevation = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -147,9 +143,23 @@ function getVariantStyle(
 
 // Specialized Card variants for common use cases
 
-export const BalanceCard: React.FC<Omit<CardProps, 'variant'>> = (props) => (
-  <Card variant="dark" {...props} />
-);
+export const BalanceCard: React.FC<Omit<CardProps, 'variant'>> = (props) => {
+  const { actualTheme } = useTheme();
+  const isDark = actualTheme === 'dark';
+
+  const glassyStyle: ViewStyle = isDark ? {
+    backgroundColor: 'rgba(26, 26, 26, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  } : {};
+
+  return <Card variant="dark" {...props} style={[glassyStyle, props.style]} />;
+};
 
 export const SectionCard: React.FC<Omit<CardProps, 'variant'>> = (props) => (
   <Card variant="outlined" {...props} />

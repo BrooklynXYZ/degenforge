@@ -42,16 +42,16 @@ export const StatCard = React.memo<StatCardProps>(({
     <>
       <View style={styles.header}>
         {icon && <View style={styles.icon}>{icon}</View>}
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.valueContainer}>
-          <Text style={styles.value}>{value}</Text>
-          {unit && <Text style={styles.unit}>{unit}</Text>}
+          <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">{value}</Text>
+          {unit && <Text style={styles.unit} numberOfLines={1}>{unit}</Text>}
         </View>
         {change && (
-          <Text style={[styles.change, { color: changeColor }]}>{change}</Text>
+          <Text style={[styles.change, { color: changeColor }]} numberOfLines={1}>{change}</Text>
         )}
       </View>
     </>
@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.text.secondary,
     flex: 1,
+    flexShrink: 1,
   },
   content: {
     gap: Spacing.sm,
@@ -107,15 +108,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: Spacing.sm,
+    flexWrap: 'wrap',
   },
   value: {
     ...Typography.h3,
     color: Colors.text.primary,
     fontWeight: '700',
+    flexShrink: 1,
   },
   unit: {
     ...Typography.bodySmall,
     color: Colors.text.secondary,
+    flexShrink: 0,
   },
   change: {
     ...Typography.caption,

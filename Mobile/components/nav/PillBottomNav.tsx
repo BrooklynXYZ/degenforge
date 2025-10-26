@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface PillBottomNavProps {
   activeIndex: number;
@@ -19,8 +20,16 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChange }) => {
   const insets = useSafeAreaInsets();
+  const { actualTheme } = useTheme();
   const [tooltipIndex, setTooltipIndex] = useState<number | null>(null);
   const tooltipTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isDark = actualTheme === 'dark';
+  const bgColor = isDark ? '#000000' : '#FFFFFF';
+  const borderColor = isDark ? '#FFFFFF' : '#000000';
+  const activeColor = isDark ? '#FFFFFF' : '#000000';
+  const inactiveColor = isDark ? '#737373' : '#737373';
+  const activeBgColor = isDark ? '#1A1A1A' : '#FAFAFA';
 
   const handlePress = (index: number) => {
     onIndexChange(index);
@@ -45,8 +54,8 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
   }, []);
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <View style={[styles.navWrapper, { width: SCREEN_WIDTH }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: bgColor }]}>
+      <View style={[styles.navWrapper, { width: SCREEN_WIDTH, backgroundColor: bgColor, borderColor }]}>
         {ICON_NAMES.map((name, index) => {
           const isActive = activeIndex === index;
 
@@ -55,21 +64,21 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
               key={index}
               style={({ pressed }) => [
                 styles.navItem,
-                isActive && styles.navItemActive,
+                isActive && { backgroundColor: activeBgColor },
               ]}
               onPress={() => handlePress(index)}
               onLongPress={() => handleLongPress(index)}
               android_ripple={{ color: 'transparent' }}
             >
               {tooltipIndex === index && (
-                <View style={styles.tooltip}>
-                  <Text style={styles.tooltipText}>{name}</Text>
+                <View style={[styles.tooltip, { backgroundColor: isDark ? '#FFFFFF' : '#000000', borderColor }]}>
+                  <Text style={[styles.tooltipText, { color: isDark ? '#000000' : '#FFFFFF' }]}>{name}</Text>
                 </View>
               )}
               <View style={styles.iconContainer}>
-                <NavIcon name={name} active={isActive} />
+                <NavIcon name={name} active={isActive} activeColor={activeColor} inactiveColor={inactiveColor} />
               </View>
-              {isActive && <View style={styles.activeIndicator} />}
+              {isActive && <View style={[styles.activeIndicator, { backgroundColor: borderColor }]} />}
             </Pressable>
           );
         })}
@@ -81,10 +90,12 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
 interface NavIconProps {
   name: string;
   active: boolean;
+  activeColor: string;
+  inactiveColor: string;
 }
 
-const NavIcon = React.memo<NavIconProps>(({ name, active }) => {
-  const iconColor = active ? '#000000' : '#737373';
+const NavIcon = React.memo<NavIconProps>(({ name, active, activeColor, inactiveColor }) => {
+  const iconColor = active ? activeColor : inactiveColor;
 
   switch (name) {
     case 'Home':
@@ -110,18 +121,15 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 1000,
     pointerEvents: 'box-none',
-    backgroundColor: '#FFFFFF',
   },
   navWrapper: {
     flexDirection: 'row',
     height: 60,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 0,
     paddingVertical: 0,
     borderTopWidth: 2,
-    borderColor: '#000000',
   },
   navItem: {
     flex: 1,
@@ -130,9 +138,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
     position: 'relative',
-  },
-  navItemActive: {
-    backgroundColor: '#FAFAFA',
   },
   iconContainer: {
     alignItems: 'center',
@@ -147,20 +152,16 @@ const styles = StyleSheet.create({
     marginLeft: -16,
     width: 32,
     height: 3,
-    backgroundColor: '#000000',
   },
   tooltip: {
     position: 'absolute',
     bottom: 65,
-    backgroundColor: '#000000',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderWidth: 2,
-    borderColor: '#000000',
     zIndex: 1000,
   },
   tooltipText: {
-    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
     fontFamily: 'SpaceGrotesk_600SemiBold',

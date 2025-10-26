@@ -56,24 +56,22 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
-  const [slippage, setSlippage] = useState(0.5); // 0.5%
+  const [slippage, setSlippage] = useState(0.5);
 
   const swapIconRotation = useSharedValue(0);
 
-  // Mock exchange rates (fromToken to toToken)
-  const exchangeRate = 0.000015; // Example: 1 mUSD = 0.000015 BTC
-  const swapFee = 0.003; // 0.3%
+  const exchangeRate = 0.000015;
+  const swapFee = 0.003;
   const minSwapAmount = 1;
 
   const fromValue = parseFloat(fromAmount) || 0;
   const toValue = fromValue * exchangeRate;
   const feeAmount = fromValue * swapFee;
-  const priceImpact = fromValue > 10000 ? 0.5 : 0.1; // Simplified price impact
+  const priceImpact = fromValue > 10000 ? 0.5 : 0.1;
   const minimumReceived = toValue * (1 - slippage / 100);
 
   const mockTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
 
-  // Validation
   const validateAmount = useCallback((value: string) => {
     const numValue = parseFloat(value);
 
@@ -111,8 +109,6 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
     }
 
     setIsLoading(true);
-
-    // Simulate swapping
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsLoading(false);
     setIsConfirmed(true);
@@ -124,9 +120,7 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
   }, [fromToken.balance]);
 
   const handleAmountChange = useCallback((value: string) => {
-    // Only allow numbers and decimal point
     const cleaned = value.replace(/[^0-9.]/g, '');
-    // Only allow one decimal point
     const parts = cleaned.split('.');
     if (parts.length > 2) return;
 
@@ -167,12 +161,16 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
           <Animated.Text
             entering={FadeInUp.duration(500).delay(300)}
             style={[styles.successTitle, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             Swap Successful
           </Animated.Text>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(400)}
             style={[styles.successSubtitle, { color: themeColors.textSecondary }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
           >
             Your tokens have been swapped
           </Animated.Text>
@@ -180,17 +178,23 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
 
         <Animated.View entering={FadeInDown.duration(600).delay(500)}>
           <SectionCard borderRadius="none" padding="xxxl">
-            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>You Received</Text>
-            <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
+            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+              You Received
+            </Text>
+            <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="middle">
               {toValue.toFixed(8)}
             </Text>
-            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>{toToken.symbol}</Text>
+            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]} numberOfLines={1}>
+              {toToken.symbol}
+            </Text>
           </SectionCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Swap Details</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+              Swap Details
+            </Text>
             <DetailRow
               label="From Amount"
               value={`${fromValue.toFixed(2)} ${fromToken.symbol}`}
@@ -220,12 +224,16 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
 
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Proof</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+              Transaction Proof
+            </Text>
             <TouchableOpacity style={styles.txHashContainer}>
               <Feather name="shield" size={16} color={themeColors.textSecondary} />
-              <Text style={[styles.txHashLabel, { color: themeColors.textSecondary }]}>TX Hash</Text>
+              <Text style={[styles.txHashLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                TX Hash
+              </Text>
               <View style={styles.txHashValue}>
-                <Text style={[styles.txHashText, { color: themeColors.textPrimary }]}>
+                <Text style={[styles.txHashText, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="middle">
                   {mockTxHash.slice(0, 10)}...{mockTxHash.slice(-8)}
                 </Text>
                 <Feather name="copy" size={14} color={themeColors.textTertiary} />
@@ -262,19 +270,18 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
-          <Text style={[styles.title, { color: themeColors.textPrimary }]}>
+          <Text style={[styles.title, { color: themeColors.textPrimary }]} numberOfLines={1}>
             Swap Tokens
           </Text>
-          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]} numberOfLines={2}>
             Exchange tokens at the best rate
           </Text>
         </Animated.View>
 
-        {/* From Token */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
           <SectionCard borderRadius="none" padding="xl">
             <View style={styles.tokenHeader}>
-              <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
+              <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]} numberOfLines={1}>
                 From
               </Text>
               <TouchableOpacity
@@ -314,7 +321,7 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
                 ]}
               >
                 <Feather name={fromToken.icon as any} size={20} color={themeColors.textPrimary} />
-                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]}>
+                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]} numberOfLines={1}>
                   {fromToken.symbol}
                 </Text>
               </View>
@@ -322,14 +329,13 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
 
             <View style={styles.balanceRow}>
               <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
-              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
                 Balance: {fromToken.balance.toLocaleString()} {fromToken.symbol}
               </Text>
             </View>
           </SectionCard>
         </Animated.View>
 
-        {/* Swap Button */}
         <Animated.View
           entering={FadeInDown.duration(500).delay(300)}
           style={styles.swapButtonContainer}
@@ -350,16 +356,15 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* To Token */}
         <Animated.View entering={FadeInDown.duration(500).delay(400)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
+            <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]} numberOfLines={1}>
               To (estimated)
             </Text>
 
             <View style={styles.tokenInputRow}>
               <View style={styles.estimatedAmountContainer}>
-                <Text style={[styles.estimatedAmount, { color: themeColors.textPrimary }]}>
+                <Text style={[styles.estimatedAmount, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
                   {fromValue > 0 ? toValue.toFixed(8) : '0.00'}
                 </Text>
               </View>
@@ -373,7 +378,7 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
                 ]}
               >
                 <Feather name={toToken.icon as any} size={20} color={themeColors.textPrimary} />
-                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]}>
+                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]} numberOfLines={1}>
                   {toToken.symbol}
                 </Text>
               </View>
@@ -381,7 +386,7 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
 
             <View style={styles.balanceRow}>
               <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
-              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
                 Balance: {toToken.balance.toLocaleString()} {toToken.symbol}
               </Text>
             </View>
@@ -390,27 +395,27 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
 
         {fromValue > 0 && isValid && (
           <>
-            {/* Exchange Rate */}
             <Animated.View entering={FadeInDown.duration(500).delay(500)}>
               <SectionCard borderRadius="none" padding="xl">
                 <View style={styles.rateRow}>
                   <View style={styles.rateLeft}>
                     <Feather name="refresh-cw" size={16} color={themeColors.textSecondary} />
-                    <Text style={[styles.rateLabel, { color: themeColors.textSecondary }]}>
+                    <Text style={[styles.rateLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
                       Exchange Rate
                     </Text>
                   </View>
-                  <Text style={[styles.rateValue, { color: themeColors.textPrimary }]}>
+                  <Text style={[styles.rateValue, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
                     1 {fromToken.symbol} = {exchangeRate.toFixed(8)} {toToken.symbol}
                   </Text>
                 </View>
               </SectionCard>
             </Animated.View>
 
-            {/* Swap Details */}
             <Animated.View entering={FadeInDown.duration(500).delay(600)}>
               <SectionCard borderRadius="none" padding="xl">
-                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Swap Details</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                  Swap Details
+                </Text>
                 <FeeRow
                   label="Price Impact"
                   value={`${priceImpact.toFixed(2)}%`}
@@ -467,7 +472,6 @@ export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
   );
 };
 
-// Detail Row Component
 interface DetailRowProps {
   label: string;
   value: string;
@@ -479,15 +483,18 @@ const DetailRow = React.memo<DetailRowProps>(({ label, value, icon, themeColors 
   <View style={styles.detailRow}>
     <View style={styles.detailLeft}>
       {icon && <Feather name={icon as any} size={16} color={themeColors.textSecondary} />}
-      <Text style={[styles.detailLabel, { color: themeColors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.detailLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
-    <Text style={[styles.detailValue, { color: themeColors.textPrimary }]}>{value}</Text>
+    <Text style={[styles.detailValue, { color: themeColors.textPrimary }]} numberOfLines={1} ellipsizeMode="tail">
+      {value}
+    </Text>
   </View>
 ));
 
 DetailRow.displayName = 'DetailRow';
 
-// Fee Row Component
 interface FeeRowProps {
   label: string;
   value: string;
@@ -511,13 +518,13 @@ const FeeRow = React.memo<FeeRowProps>(({ label, value, icon, bold, warning, the
         styles.feeLabel,
         bold && styles.feeLabelBold,
         { color: warning ? Colors.semantic.warning : bold ? themeColors.textPrimary : themeColors.textSecondary }
-      ]}>{label}</Text>
+      ]} numberOfLines={1}>{label}</Text>
     </View>
     <Text style={[
       styles.feeValue,
       bold && styles.feeValueBold,
       { color: warning ? Colors.semantic.warning : themeColors.textPrimary }
-    ]}>{value}</Text>
+    ]} numberOfLines={1} ellipsizeMode="tail">{value}</Text>
   </View>
 ));
 
@@ -583,9 +590,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xxs,
+    flexShrink: 1,
   },
   balanceLabel: {
     ...Typography.bodySmall,
+    flexShrink: 1,
   },
   swapButtonContainer: {
     alignItems: 'center',
@@ -611,17 +620,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.md,
   },
   rateLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    flexShrink: 1,
   },
   rateLabel: {
     ...Typography.bodySmall,
+    flexShrink: 1,
   },
   rateValue: {
     ...Typography.bodySmallSemibold,
+    flexShrink: 1,
   },
   sectionTitle: {
     ...Typography.labelMedium,
@@ -632,20 +645,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
+    gap: Spacing.md,
   },
   feeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    flex: 1,
   },
   feeLabel: {
     ...Typography.bodySmall,
+    flexShrink: 1,
   },
   feeLabelBold: {
     ...Typography.bodySemibold,
   },
   feeValue: {
     ...Typography.bodySmallSemibold,
+    flexShrink: 1,
   },
   feeValueBold: {
     ...Typography.h5,
@@ -704,17 +721,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
+    gap: Spacing.md,
   },
   detailLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    flex: 1,
   },
   detailLabel: {
     ...Typography.bodySmall,
+    flexShrink: 1,
   },
   detailValue: {
     ...Typography.bodySmallSemibold,
+    flexShrink: 1,
   },
   txHashContainer: {
     flexDirection: 'row',
@@ -734,5 +755,6 @@ const styles = StyleSheet.create({
   },
   txHashText: {
     ...Typography.mono,
+    flexShrink: 1,
   },
 });

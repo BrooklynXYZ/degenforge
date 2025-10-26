@@ -18,6 +18,7 @@ import 'react-native-reanimated';
 import { AppNavigator } from '@/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { AnimatedSplashScreen } from '@/components/AnimatedSplashScreen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,34 +36,48 @@ export default function RootLayout() {
     ...Feather.font,
   });
 
+  const [showCustomSplash, setShowCustomSplash] = React.useState(true);
+  const [transitionComplete, setTransitionComplete] = React.useState(false);
+
   React.useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null;
+  const handleSplashComplete = () => {
+    setTimeout(() => {
+      setShowCustomSplash(false);
+      setTransitionComplete(true);
+    }, 100);
+  };
+
+  if (!fontsLoaded || showCustomSplash) {
+    return fontsLoaded ? (
+      <AnimatedSplashScreen
+        onAnimationComplete={handleSplashComplete}
+      />
+    ) : null;
   }
 
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <ThemedApp />
+          <ThemedApp transitionComplete={transitionComplete} />
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-function ThemedApp() {
-  const { actualTheme, colors } = useTheme();
+function ThemedApp({ transitionComplete }: { transitionComplete: boolean }) {
+  const { actualTheme } = useTheme();
 
   return (
     <NavigationThemeProvider value={actualTheme === 'dark' ? DarkTheme : DefaultTheme}>
       <ThemedPaperProvider>
-        <AppNavigator />
+        <AppNavigator splashTransitionComplete={transitionComplete} />
         <StatusBar style={actualTheme === 'dark' ? 'light' : 'dark'} />
       </ThemedPaperProvider>
     </NavigationThemeProvider>

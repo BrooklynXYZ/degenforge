@@ -9,13 +9,13 @@ import { SwapScreen } from '@/screens/SwapScreen';
 import { PoolDetailScreen } from '@/screens/PoolDetailScreen';
 import { ActivityScreen } from '@/screens/ActivityScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
-import SplashScreen from '@/screens/SplashScreen';
 import OnboardingScreen from '@/screens/OnboardingScreen';
 import WalletConnectScreen from '@/screens/WalletConnectScreen';
 import SignUpScreen from '@/screens/SignUpScreen';
 import BiometricPromptScreen from '@/screens/BiometricPromptScreen';
 import WalletRecoveryScreen from '@/screens/WalletRecoveryScreen';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 type ScreenName =
   | 'Home'
@@ -39,7 +39,9 @@ type AuthFlow =
 
 const TAB_SCREENS: ScreenName[] = ['Home', 'Create', 'Activity', 'Profile'];
 
-export const AppNavigator: React.FC = () => {
+export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
+  splashTransitionComplete = false,
+}) => {
   const {
     isAuthenticated,
     isLoading,
@@ -50,12 +52,13 @@ export const AppNavigator: React.FC = () => {
     enableBiometric,
   } = useAuth();
 
+  const { colors } = useTheme();
+
   const [activeTab, setActiveTab] = useState(0);
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Home');
   const [authFlow, setAuthFlow] = useState<AuthFlow>('splash');
   const [tempWalletAddress, setTempWalletAddress] = useState<string | null>(null);
 
-  // Determine initial auth flow based on auth state
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
@@ -111,18 +114,6 @@ export const AppNavigator: React.FC = () => {
     }
   }, [currentScreen, navFunction]);
 
-  // Auth flow handlers
-  const handleSplashComplete = () => {
-    if (!hasSeenOnboarding) {
-      setAuthFlow('onboarding');
-    } else if (biometricEnabled && !isAuthenticated) {
-      setAuthFlow('biometric-prompt');
-    } else if (!isAuthenticated) {
-      setAuthFlow('wallet-connect');
-    } else {
-      setAuthFlow('authenticated');
-    }
-  };
 
   const handleOnboardingComplete = async () => {
     await markOnboardingSeen();
@@ -172,11 +163,10 @@ export const AppNavigator: React.FC = () => {
     setAuthFlow('wallet-connect');
   };
 
-  // Render auth flow screens
   const renderAuthFlow = () => {
     switch (authFlow) {
       case 'splash':
-        return <SplashScreen onAnimationComplete={handleSplashComplete} />;
+        return null;
 
       case 'onboarding':
         return (
@@ -191,6 +181,7 @@ export const AppNavigator: React.FC = () => {
           <BiometricPromptScreen
             onAuthSuccess={handleBiometricSuccess}
             onUseWalletConnect={handleBiometricUseWallet}
+            transitionComplete={splashTransitionComplete}
           />
         );
 
@@ -227,27 +218,26 @@ export const AppNavigator: React.FC = () => {
         return renderMainApp();
 
       default:
-        return <SplashScreen onAnimationComplete={handleSplashComplete} />;
+        return null;
     }
   };
 
   // Render main app screens
   const renderMainApp = () => {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.screenContainer}>{screenComponent}</View>
         <PillBottomNav activeIndex={activeTab} onIndexChange={handleTabChange} />
       </View>
     );
   };
 
-  return <View style={styles.container}>{renderAuthFlow()}</View>;
+  return <View style={[styles.container, { backgroundColor: colors.background }]}>{renderAuthFlow()}</View>;
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   screenContainer: {
     flex: 1,

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   View,
-  StyleSheet,
   ViewStyle,
   Pressable,
   PressableProps,
@@ -10,7 +9,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import {
   Colors,
@@ -18,7 +16,6 @@ import {
   Spacing,
   Shadows,
   Borders,
-  Animations,
 } from '@/constants/designTokens';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -45,7 +42,6 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const { colors: themeColors } = useTheme();
   const scale = useSharedValue(1);
-  const elevation = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

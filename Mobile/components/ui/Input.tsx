@@ -7,7 +7,6 @@ import {
   TextInputProps,
   TouchableOpacity,
   ViewStyle,
-  TextStyle,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,

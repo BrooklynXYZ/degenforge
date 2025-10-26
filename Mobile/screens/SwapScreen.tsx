@@ -11,16 +11,9 @@ import {
 import Animated, {
   FadeInDown,
   FadeInUp,
-  FadeOut,
-  SlideInRight,
-  SlideOutLeft,
-  useAnimatedProps,
   useSharedValue,
   withSpring,
-  withTiming,
   useAnimatedStyle,
-  interpolate,
-  Extrapolate,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -30,43 +23,55 @@ import {
   BorderRadius,
   Layout,
   Borders,
-  Shadows,
-  Animations,
 } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/contexts/ThemeContext';
 
-interface MintScreenProps {
+interface SwapScreenProps {
   onNavigate: (screen: string) => void;
 }
 
-export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
+type Token = {
+  symbol: string;
+  name: string;
+  balance: number;
+  icon: string;
+};
+
+const TOKENS: Token[] = [
+  { symbol: 'mUSD', name: 'Mezo USD', balance: 25000, icon: 'dollar-sign' },
+  { symbol: 'BTC', name: 'Bitcoin', balance: 0.5, icon: 'circle' },
+  { symbol: 'ETH', name: 'Ethereum', balance: 2.3, icon: 'hexagon' },
+  { symbol: 'SOL', name: 'Solana', balance: 50, icon: 'zap' },
+];
+
+export const SwapScreen: React.FC<SwapScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
-  const [btcAmount, setBtcAmount] = useState('');
+  const [fromToken, setFromToken] = useState<Token>(TOKENS[0]);
+  const [toToken, setToToken] = useState<Token>(TOKENS[1]);
+  const [fromAmount, setFromAmount] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
+  const [slippage, setSlippage] = useState(0.5); // 0.5%
 
-  const progressValue = useSharedValue(0);
+  const swapIconRotation = useSharedValue(0);
 
-  // Mock wallet data
-  const walletBalance = 0.5; // BTC
-  const btcPrice = 65000;
-  const ltvRatio = 0.5;
-  const fee = 0.01;
-  const minMintAmount = 0.001; // Minimum BTC to mint
+  // Mock exchange rates (fromToken to toToken)
+  const exchangeRate = 0.000015; // Example: 1 mUSD = 0.000015 BTC
+  const swapFee = 0.003; // 0.3%
+  const minSwapAmount = 1;
 
-  const btcValue = parseFloat(btcAmount) || 0;
-  const usdValue = btcValue * btcPrice;
-  const musdMinted = usdValue * ltvRatio;
-  const feeAmount = musdMinted * fee;
-  const netMinted = musdMinted - feeAmount;
+  const fromValue = parseFloat(fromAmount) || 0;
+  const toValue = fromValue * exchangeRate;
+  const feeAmount = fromValue * swapFee;
+  const priceImpact = fromValue > 10000 ? 0.5 : 0.1; // Simplified price impact
+  const minimumReceived = toValue * (1 - slippage / 100);
 
-  const mockMintTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
-  const mockVaultId = '0x1234567890abcdef1234567890abcdef';
+  const mockTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
 
   // Validation
   const validateAmount = useCallback((value: string) => {
@@ -80,25 +85,25 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       return 'Please enter a valid number';
     }
 
-    if (numValue < minMintAmount) {
-      return `Minimum amount is ${minMintAmount} BTC`;
+    if (numValue < minSwapAmount) {
+      return `Minimum amount is ${minSwapAmount} ${fromToken.symbol}`;
     }
 
-    if (numValue > walletBalance) {
+    if (numValue > fromToken.balance) {
       return 'Insufficient balance';
     }
 
     return '';
-  }, [walletBalance, minMintAmount]);
+  }, [fromToken, minSwapAmount]);
 
   useEffect(() => {
     if (touched) {
-      setError(validateAmount(btcAmount));
+      setError(validateAmount(fromAmount));
     }
-  }, [btcAmount, touched, validateAmount]);
+  }, [fromAmount, touched, validateAmount]);
 
   const handleConfirm = useCallback(async () => {
-    const validationError = validateAmount(btcAmount);
+    const validationError = validateAmount(fromAmount);
     if (validationError) {
       setError(validationError);
       setTouched(true);
@@ -106,19 +111,17 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     }
 
     setIsLoading(true);
-    progressValue.value = 0;
-    progressValue.value = withTiming(1, { duration: 2000 });
 
-    // Simulate minting
+    // Simulate swapping
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsLoading(false);
     setIsConfirmed(true);
-  }, [btcAmount, validateAmount, progressValue]);
+  }, [fromAmount, validateAmount]);
 
   const handleMaxAmount = useCallback(() => {
-    setBtcAmount(walletBalance.toString());
+    setFromAmount(fromToken.balance.toString());
     setTouched(true);
-  }, [walletBalance]);
+  }, [fromToken.balance]);
 
   const handleAmountChange = useCallback((value: string) => {
     // Only allow numbers and decimal point
@@ -127,10 +130,23 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     const parts = cleaned.split('.');
     if (parts.length > 2) return;
 
-    setBtcAmount(cleaned);
+    setFromAmount(cleaned);
   }, []);
 
-  const isValid = btcValue > 0 && !error && btcValue >= minMintAmount && btcValue <= walletBalance;
+  const handleSwapTokens = useCallback(() => {
+    swapIconRotation.value = withSpring(swapIconRotation.value + 180);
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setFromAmount('');
+    setTouched(false);
+    setError('');
+  }, [fromToken, toToken, swapIconRotation]);
+
+  const swapIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${swapIconRotation.value}deg` }],
+  }));
+
+  const isValid = fromValue > 0 && !error && fromValue >= minSwapAmount && fromValue <= fromToken.balance;
 
   if (isConfirmed) {
     return (
@@ -152,45 +168,51 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             entering={FadeInUp.duration(500).delay(300)}
             style={[styles.successTitle, { color: themeColors.textPrimary }]}
           >
-            Mint Successful
+            Swap Successful
           </Animated.Text>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(400)}
             style={[styles.successSubtitle, { color: themeColors.textSecondary }]}
           >
-            Your mUSD has been minted on Mezo
+            Your tokens have been swapped
           </Animated.Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.duration(600).delay(500)}
-        >
+        <Animated.View entering={FadeInDown.duration(600).delay(500)}>
           <SectionCard borderRadius="none" padding="xxxl">
             <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>You Received</Text>
-            <AnimatedCounter value={netMinted} decimals={2} themeColors={themeColors} />
-            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>mUSD</Text>
+            <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
+              {toValue.toFixed(8)}
+            </Text>
+            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>{toToken.symbol}</Text>
           </SectionCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Details</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Swap Details</Text>
             <DetailRow
-              label="Amount Minted"
-              value={`${netMinted.toFixed(2)} mUSD`}
-              icon="check-circle"
+              label="From Amount"
+              value={`${fromValue.toFixed(2)} ${fromToken.symbol}`}
+              icon="arrow-up"
               themeColors={themeColors}
             />
             <DetailRow
-              label="Fee"
-              value={`${feeAmount.toFixed(2)} mUSD`}
-              icon="info"
+              label="To Amount"
+              value={`${toValue.toFixed(8)} ${toToken.symbol}`}
+              icon="arrow-down"
               themeColors={themeColors}
             />
             <DetailRow
-              label="BTC Collateral"
-              value={`${btcAmount} BTC`}
-              icon="lock"
+              label="Exchange Rate"
+              value={`1 ${fromToken.symbol} = ${exchangeRate.toFixed(8)} ${toToken.symbol}`}
+              icon="refresh-cw"
+              themeColors={themeColors}
+            />
+            <DetailRow
+              label="Swap Fee"
+              value={`${feeAmount.toFixed(2)} ${fromToken.symbol}`}
+              icon="percent"
               themeColors={themeColors}
             />
           </SectionCard>
@@ -198,9 +220,17 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Mezo Proof</Text>
-            <ProofBox label="Mint TX Hash" value={mockMintTxHash} themeColors={themeColors} />
-            <ProofBox label="Vault ID" value={mockVaultId} themeColors={themeColors} />
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Proof</Text>
+            <TouchableOpacity style={styles.txHashContainer}>
+              <Feather name="shield" size={16} color={themeColors.textSecondary} />
+              <Text style={[styles.txHashLabel, { color: themeColors.textSecondary }]}>TX Hash</Text>
+              <View style={styles.txHashValue}>
+                <Text style={[styles.txHashText, { color: themeColors.textPrimary }]}>
+                  {mockTxHash.slice(0, 10)}...{mockTxHash.slice(-8)}
+                </Text>
+                <Feather name="copy" size={14} color={themeColors.textTertiary} />
+              </View>
+            </TouchableOpacity>
           </SectionCard>
         </Animated.View>
 
@@ -208,8 +238,8 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           entering={FadeInUp.duration(600).delay(800)}
           style={styles.actionsSection}
         >
-          <ActionButton variant="accent" fullWidth onPress={() => onNavigate('Bridge')}>
-            Proceed to Bridge
+          <ActionButton variant="accent" fullWidth onPress={() => onNavigate('Activity')}>
+            View in Activity
           </ActionButton>
           <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Back to Home
@@ -233,18 +263,19 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       >
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
           <Text style={[styles.title, { color: themeColors.textPrimary }]}>
-            Mint mUSD
+            Swap Tokens
           </Text>
           <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-            Deposit BTC collateral to mint stablecoin
+            Exchange tokens at the best rate
           </Text>
         </Animated.View>
 
+        {/* From Token */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
           <SectionCard borderRadius="none" padding="xl">
-            <View style={styles.inputHeader}>
+            <View style={styles.tokenHeader}>
               <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
-                Amount
+                From
               </Text>
               <TouchableOpacity
                 onPress={handleMaxAmount}
@@ -262,127 +293,147 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.largeInputContainer}>
+            <View style={styles.tokenInputRow}>
               <Input
-                value={btcAmount}
+                value={fromAmount}
                 onChangeText={handleAmountChange}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
                 error={touched ? error : undefined}
                 onBlur={() => setTouched(true)}
-                style={styles.largeInput}
+                style={styles.tokenInput}
                 variant="filled"
-                rightElement={
-                  <Text style={[styles.inputUnit, { color: themeColors.textSecondary }]}>
-                    BTC
-                  </Text>
-                }
               />
+              <View
+                style={[
+                  styles.tokenSelector,
+                  {
+                    backgroundColor: themeColors.surfaceSecondary,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Feather name={fromToken.icon as any} size={20} color={themeColors.textPrimary} />
+                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]}>
+                  {fromToken.symbol}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.balanceRow}>
-              <View style={styles.balanceItem}>
-                <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
-                <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
-                  Balance: {walletBalance} BTC
-                </Text>
-              </View>
-              <View style={styles.balanceItem}>
-                <Feather name="trending-up" size={14} color={themeColors.textSecondary} />
-                <Text style={[styles.priceLabel, { color: themeColors.textSecondary }]}>
-                  ${btcPrice.toLocaleString()}
-                </Text>
-              </View>
+              <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
+              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
+                Balance: {fromToken.balance.toLocaleString()} {fromToken.symbol}
+              </Text>
             </View>
           </SectionCard>
         </Animated.View>
 
-        {btcValue > 0 && isValid && (
-          <>
-            <Animated.View
-              entering={FadeInDown.duration(500).delay(100)}
-              style={styles.statsGrid}
-            >
-              <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
-                <Feather name="dollar-sign" size={20} color={themeColors.textSecondary} />
-                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                  USD Value
-                </Text>
-                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
-                  ${usdValue.toLocaleString()}
-                </Text>
-              </SectionCard>
-              <SectionCard borderRadius="none" padding="lg" style={styles.statBox}>
-                <Feather name="arrow-down-circle" size={20} color={Colors.accent.primary} />
-                <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>
-                  You Receive
-                </Text>
-                <Text style={[styles.statValue, { color: themeColors.textPrimary }]}>
-                  {netMinted.toFixed(2)}
-                </Text>
-                <Text style={[styles.statUnit, { color: themeColors.textTertiary }]}>
-                  mUSD
-                </Text>
-              </SectionCard>
+        {/* Swap Button */}
+        <Animated.View
+          entering={FadeInDown.duration(500).delay(300)}
+          style={styles.swapButtonContainer}
+        >
+          <TouchableOpacity
+            onPress={handleSwapTokens}
+            style={[
+              styles.swapButton,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
+            ]}
+          >
+            <Animated.View style={swapIconStyle}>
+              <Feather name="repeat" size={24} color={themeColors.textPrimary} />
             </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
 
-            <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+        {/* To Token */}
+        <Animated.View entering={FadeInDown.duration(500).delay(400)}>
+          <SectionCard borderRadius="none" padding="xl">
+            <Text style={[styles.inputLabel, { color: themeColors.textPrimary }]}>
+              To (estimated)
+            </Text>
+
+            <View style={styles.tokenInputRow}>
+              <View style={styles.estimatedAmountContainer}>
+                <Text style={[styles.estimatedAmount, { color: themeColors.textPrimary }]}>
+                  {fromValue > 0 ? toValue.toFixed(8) : '0.00'}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.tokenSelector,
+                  {
+                    backgroundColor: themeColors.surfaceSecondary,
+                    borderColor: themeColors.border,
+                  },
+                ]}
+              >
+                <Feather name={toToken.icon as any} size={20} color={themeColors.textPrimary} />
+                <Text style={[styles.tokenSymbol, { color: themeColors.textPrimary }]}>
+                  {toToken.symbol}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.balanceRow}>
+              <Feather name="briefcase" size={14} color={themeColors.textSecondary} />
+              <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
+                Balance: {toToken.balance.toLocaleString()} {toToken.symbol}
+              </Text>
+            </View>
+          </SectionCard>
+        </Animated.View>
+
+        {fromValue > 0 && isValid && (
+          <>
+            {/* Exchange Rate */}
+            <Animated.View entering={FadeInDown.duration(500).delay(500)}>
               <SectionCard borderRadius="none" padding="xl">
-                <View style={styles.ltvHeader}>
-                  <View>
-                    <Text style={[styles.ltvLabel, { color: themeColors.textPrimary }]}>
-                      Loan-to-Value Ratio
-                    </Text>
-                    <Text style={[styles.ltvDescription, { color: themeColors.textSecondary }]}>
-                      Safe collateralization
+                <View style={styles.rateRow}>
+                  <View style={styles.rateLeft}>
+                    <Feather name="refresh-cw" size={16} color={themeColors.textSecondary} />
+                    <Text style={[styles.rateLabel, { color: themeColors.textSecondary }]}>
+                      Exchange Rate
                     </Text>
                   </View>
-                  <Text style={[styles.ltvValue, { color: themeColors.textPrimary }]}>
-                    {(ltvRatio * 100).toFixed(0)}%
+                  <Text style={[styles.rateValue, { color: themeColors.textPrimary }]}>
+                    1 {fromToken.symbol} = {exchangeRate.toFixed(8)} {toToken.symbol}
                   </Text>
                 </View>
-                <View style={styles.progressBarContainer}>
-                  <Animated.View
-                    entering={SlideInRight.duration(600).delay(400)}
-                    style={[styles.progressBar, { backgroundColor: themeColors.surfaceSecondary }]}
-                  >
-                    <Animated.View
-                      style={[styles.progressFill, { width: `${ltvRatio * 100}%` }]}
-                    />
-                  </Animated.View>
-                </View>
-                <View style={styles.ltvRange}>
-                  <View style={styles.rangeItem}>
-                    <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.success }]} />
-                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Safe</Text>
-                  </View>
-                  <View style={styles.rangeItem}>
-                    <View style={[styles.rangeDot, { backgroundColor: Colors.semantic.error }]} />
-                    <Text style={[styles.rangeLabel, { color: themeColors.textSecondary }]}>Risky</Text>
-                  </View>
-                </View>
               </SectionCard>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+            {/* Swap Details */}
+            <Animated.View entering={FadeInDown.duration(500).delay(600)}>
               <SectionCard borderRadius="none" padding="xl">
-                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Fee Breakdown</Text>
+                <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Swap Details</Text>
                 <FeeRow
-                  label="Mint Amount"
-                  value={`${musdMinted.toFixed(2)} mUSD`}
-                  icon="plus-circle"
+                  label="Price Impact"
+                  value={`${priceImpact.toFixed(2)}%`}
+                  icon="trending-down"
+                  themeColors={themeColors}
+                  warning={priceImpact > 1}
+                />
+                <FeeRow
+                  label="Swap Fee (0.3%)"
+                  value={`${feeAmount.toFixed(2)} ${fromToken.symbol}`}
+                  icon="percent"
                   themeColors={themeColors}
                 />
                 <FeeRow
-                  label="Protocol Fee (1%)"
-                  value={`${feeAmount.toFixed(2)} mUSD`}
-                  icon="minus-circle"
+                  label="Slippage Tolerance"
+                  value={`${slippage}%`}
+                  icon="alert-circle"
                   themeColors={themeColors}
                 />
                 <View style={[styles.feeDivider, { backgroundColor: themeColors.border }]} />
                 <FeeRow
-                  label="You Receive"
-                  value={`${netMinted.toFixed(2)} mUSD`}
+                  label="Minimum Received"
+                  value={`${minimumReceived.toFixed(8)} ${toToken.symbol}`}
                   icon="check-circle"
                   bold
                   themeColors={themeColors}
@@ -393,7 +444,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         )}
 
         <Animated.View
-          entering={FadeInUp.duration(500).delay(400)}
+          entering={FadeInUp.duration(500).delay(700)}
           style={styles.actionsSection}
         >
           <ActionButton
@@ -403,7 +454,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             loading={isLoading}
             onPress={handleConfirm}
           >
-            {isLoading ? 'Minting...' : 'Confirm Mint'}
+            {isLoading ? 'Swapping...' : 'Confirm Swap'}
           </ActionButton>
           <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Cancel
@@ -413,46 +464,6 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-};
-
-// Animated Counter Component
-interface AnimatedCounterProps {
-  value: number;
-  decimals?: number;
-  themeColors: ReturnType<typeof useTheme>['colors'];
-}
-
-const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0, themeColors }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    let startValue = 0;
-    const duration = 1500;
-    const startTime = Date.now();
-
-    const animate = () => {
-      const now = Date.now();
-      const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-      const current = startValue + (value - startValue) * eased;
-
-      setDisplayValue(current);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setDisplayValue(value);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [value]);
-
-  return (
-    <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
-      {displayValue.toFixed(decimals)}
-    </Text>
   );
 };
 
@@ -476,59 +487,36 @@ const DetailRow = React.memo<DetailRowProps>(({ label, value, icon, themeColors 
 
 DetailRow.displayName = 'DetailRow';
 
-// Proof Box Component
-interface ProofBoxProps {
-  label: string;
-  value: string;
-  themeColors: ReturnType<typeof useTheme>['colors'];
-}
-
-const ProofBox = React.memo<ProofBoxProps>(({ label, value, themeColors }) => (
-  <View style={styles.proofRow}>
-    <View style={styles.proofLeft}>
-      <Feather name="shield" size={16} color={themeColors.textSecondary} />
-      <Text style={[styles.proofLabel, { color: themeColors.textSecondary }]}>{label}</Text>
-    </View>
-    <TouchableOpacity style={styles.proofValue}>
-      <Text style={[styles.proofText, { color: themeColors.textPrimary }]}>
-        {value.slice(0, 8)}...{value.slice(-6)}
-      </Text>
-      <Feather name="copy" size={14} color={themeColors.textTertiary} />
-    </TouchableOpacity>
-  </View>
-));
-
-ProofBox.displayName = 'ProofBox';
-
 // Fee Row Component
 interface FeeRowProps {
   label: string;
   value: string;
   icon?: string;
   bold?: boolean;
+  warning?: boolean;
   themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const FeeRow = React.memo<FeeRowProps>(({ label, value, icon, bold, themeColors }) => (
+const FeeRow = React.memo<FeeRowProps>(({ label, value, icon, bold, warning, themeColors }) => (
   <View style={styles.feeRow}>
     <View style={styles.feeLeft}>
       {icon && (
         <Feather
           name={icon as any}
           size={16}
-          color={bold ? themeColors.textPrimary : themeColors.textSecondary}
+          color={warning ? Colors.semantic.warning : bold ? themeColors.textPrimary : themeColors.textSecondary}
         />
       )}
       <Text style={[
         styles.feeLabel,
         bold && styles.feeLabelBold,
-        { color: bold ? themeColors.textPrimary : themeColors.textSecondary }
+        { color: warning ? Colors.semantic.warning : bold ? themeColors.textPrimary : themeColors.textSecondary }
       ]}>{label}</Text>
     </View>
     <Text style={[
       styles.feeValue,
       bold && styles.feeValueBold,
-      { color: themeColors.textPrimary }
+      { color: warning ? Colors.semantic.warning : themeColors.textPrimary }
     ]}>{value}</Text>
   </View>
 ));
@@ -553,7 +541,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.body,
   },
-  inputHeader: {
+  tokenHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -570,23 +558,28 @@ const styles = StyleSheet.create({
   maxButtonText: {
     ...Typography.label,
   },
-  largeInputContainer: {
+  tokenInputRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
     marginBottom: Spacing.md,
   },
-  largeInput: {
-    ...Typography.display.small,
-    height: 80,
-  },
-  inputUnit: {
+  tokenInput: {
+    flex: 1,
     ...Typography.h3,
   },
-  balanceRow: {
+  tokenSelector: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: Borders.width.regular,
+    borderRadius: BorderRadius.md,
   },
-  balanceItem: {
+  tokenSymbol: {
+    ...Typography.bodySemibold,
+  },
+  balanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xxs,
@@ -594,79 +587,45 @@ const styles = StyleSheet.create({
   balanceLabel: {
     ...Typography.bodySmall,
   },
-  priceLabel: {
-    ...Typography.bodySmallSemibold,
+  swapButtonContainer: {
+    alignItems: 'center',
+    marginVertical: Spacing.md,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
+  swapButton: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.circle,
+    borderWidth: Borders.width.thick,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  statBox: {
+  estimatedAmountContainer: {
     flex: 1,
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+  },
+  estimatedAmount: {
+    ...Typography.h3,
+  },
+  rateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rateLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
   },
-  statLabel: {
-    ...Typography.labelSmall,
-    textAlign: 'center',
-  },
-  statValue: {
-    ...Typography.h3,
-    textAlign: 'center',
-  },
-  statUnit: {
+  rateLabel: {
     ...Typography.bodySmall,
-    textAlign: 'center',
+  },
+  rateValue: {
+    ...Typography.bodySmallSemibold,
   },
   sectionTitle: {
     ...Typography.labelMedium,
     marginBottom: Spacing.md,
-  },
-  ltvHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  },
-  ltvLabel: {
-    ...Typography.bodySmallSemibold,
-    marginBottom: Spacing.xxs,
-  },
-  ltvDescription: {
-    ...Typography.caption,
-  },
-  ltvValue: {
-    ...Typography.h2,
-  },
-  progressBarContainer: {
-    marginBottom: Spacing.md,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: BorderRadius.sm,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.semantic.success,
-  },
-  ltvRange: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rangeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xxs,
-  },
-  rangeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: BorderRadius.circle,
-  },
-  rangeLabel: {
-    ...Typography.caption,
   },
   feeRow: {
     flexDirection: 'row',
@@ -757,26 +716,23 @@ const styles = StyleSheet.create({
   detailValue: {
     ...Typography.bodySmallSemibold,
   },
-  proofRow: {
+  txHashContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
   },
-  proofLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  proofLabel: {
+  txHashLabel: {
     ...Typography.bodySmall,
   },
-  proofValue: {
+  txHashValue: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  proofText: {
+  txHashText: {
     ...Typography.mono,
   },
 });

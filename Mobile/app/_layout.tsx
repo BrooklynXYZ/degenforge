@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
@@ -15,14 +15,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppNavigator } from '@/navigation/AppNavigator';
-import { ModernThemeProvider, useModernTheme } from '@/components/providers/ModernThemeProvider';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -48,32 +47,41 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ModernThemeProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <ThemedPaperProvider>
-            <AppNavigator />
-            <StatusBar style="auto" />
-          </ThemedPaperProvider>
-        </ThemeProvider>
-      </ModernThemeProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ThemedApp />
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
+function ThemedApp() {
+  const { actualTheme, colors } = useTheme();
+
+  return (
+    <NavigationThemeProvider value={actualTheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemedPaperProvider>
+        <AppNavigator />
+        <StatusBar style={actualTheme === 'dark' ? 'light' : 'dark'} />
+      </ThemedPaperProvider>
+    </NavigationThemeProvider>
+  );
+}
+
 function ThemedPaperProvider({ children }: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
-  const base = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-  const { colors } = useModernTheme();
+  const { actualTheme, colors } = useTheme();
+  const base = actualTheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
 
   const theme = {
     ...base,
     colors: {
       ...base.colors,
-      primary: '#EAC119',
-      background: colors.light.background,
-      surface: colors.light.surface,
-      onSurface: colors.light.onSurface,
-      outline: colors.neutral[200],
+      primary: colors.accent,
+      background: colors.background,
+      surface: colors.surface,
+      onSurface: colors.textPrimary,
+      outline: colors.border,
     },
     fonts: {
       ...base.fonts,

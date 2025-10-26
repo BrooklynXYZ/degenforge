@@ -12,7 +12,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import {
   Colors,
@@ -20,7 +19,6 @@ import {
   Typography,
   Layout,
   Borders,
-  Animations,
   Opacity,
 } from '@/constants/designTokens';
 

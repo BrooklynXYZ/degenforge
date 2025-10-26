@@ -11,17 +11,16 @@ import {
 import Animated, {
   FadeInDown,
   FadeInUp,
-  FadeOut,
   SlideInRight,
-  SlideOutLeft,
-  useAnimatedProps,
   useSharedValue,
   withSpring,
   withTiming,
+  withSequence,
+  withRepeat,
   useAnimatedStyle,
-  interpolate,
-  Extrapolate,
+  Easing,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import {
   Colors,
@@ -30,8 +29,6 @@ import {
   BorderRadius,
   Layout,
   Borders,
-  Shadows,
-  Animations,
 } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
@@ -142,34 +139,25 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           entering={FadeInDown.duration(600).delay(100)}
           style={styles.successSection}
         >
-          <Animated.View
-            entering={FadeInUp.duration(500).delay(200)}
-            style={[styles.successIcon, { backgroundColor: themeColors.surfaceSecondary }]}
-          >
-            <Feather name="check" size={64} color={Colors.semantic.success} />
-          </Animated.View>
+          <SuccessIcon />
           <Animated.Text
             entering={FadeInUp.duration(500).delay(300)}
             style={[styles.successTitle, { color: themeColors.textPrimary }]}
+            numberOfLines={1}
           >
             Mint Successful
           </Animated.Text>
           <Animated.Text
             entering={FadeInUp.duration(500).delay(400)}
             style={[styles.successSubtitle, { color: themeColors.textSecondary }]}
+            numberOfLines={2}
           >
             Your mUSD has been minted on Mezo
           </Animated.Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.duration(600).delay(500)}
-        >
-          <SectionCard borderRadius="none" padding="xxxl">
-            <Text style={[styles.resultLabel, { color: themeColors.textSecondary }]}>You Received</Text>
-            <AnimatedCounter value={netMinted} decimals={2} themeColors={themeColors} />
-            <Text style={[styles.resultUnit, { color: themeColors.textTertiary }]}>mUSD</Text>
-          </SectionCard>
+        <Animated.View entering={FadeInDown.duration(600).delay(500)}>
+          <PremiumAmountCard value={netMinted} themeColors={themeColors} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
@@ -416,43 +404,204 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   );
 };
 
-// Animated Counter Component
+const SuccessIcon: React.FC = () => {
+  const scale = useSharedValue(0);
+  const rotation = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    scale.value = withSequence(
+      withSpring(1.2, { damping: 8, stiffness: 100 }),
+      withSpring(1, { damping: 12, stiffness: 150 })
+    );
+
+    rotation.value = withSequence(
+      withTiming(10, { duration: 100 }),
+      withTiming(-10, { duration: 100 }),
+      withTiming(0, { duration: 100 })
+    );
+
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  const { colors: themeColors } = useTheme();
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Animated.View
+        style={[
+          styles.successIcon,
+          {
+            backgroundColor: themeColors.surfaceSecondary,
+            borderColor: Colors.semantic.success,
+          },
+          pulseStyle,
+        ]}
+      >
+        <Feather name="check" size={64} color={Colors.semantic.success} />
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
+const PremiumAmountCard: React.FC<{ value: number; themeColors: ReturnType<typeof useTheme>['colors'] }> = ({
+  value,
+  themeColors
+}) => {
+  const shimmerTranslateX = useSharedValue(-300);
+  const cardScale = useSharedValue(0.95);
+
+  useEffect(() => {
+    shimmerTranslateX.value = withRepeat(
+      withTiming(300, { duration: 2000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    cardScale.value = withSpring(1, {
+      damping: 15,
+      stiffness: 100,
+    });
+
+    const timer = setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerTranslateX.value }],
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
+
+  return (
+    <Animated.View style={cardStyle}>
+      <View
+        style={[
+          styles.premiumCard,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border,
+          },
+        ]}
+      >
+        <View style={styles.shimmerContainer}>
+          <Animated.View style={[styles.shimmer, shimmerStyle]} />
+        </View>
+
+        <Text style={[styles.premiumLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+          You Received
+        </Text>
+
+        <AnimatedCounter value={value} decimals={2} themeColors={themeColors} />
+
+        <View style={styles.unitContainer}>
+          <View style={[styles.unitBadge, { borderColor: Colors.accent.primary }]}>
+            <Text style={[styles.premiumUnit, { color: Colors.accent.primary }]} numberOfLines={1}>
+              mUSD
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.decorativeElements}>
+          <View style={[styles.decorativeDot, { backgroundColor: Colors.accent.primary }]} />
+          <View style={[styles.decorativeDot, { backgroundColor: Colors.accent.primary }]} />
+          <View style={[styles.decorativeDot, { backgroundColor: Colors.accent.primary }]} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
 interface AnimatedCounterProps {
   value: number;
   decimals?: number;
   themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 0, themeColors }) => {
+const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 2, themeColors }) => {
   const [displayValue, setDisplayValue] = useState(0);
+  const textScale = useSharedValue(1);
 
   useEffect(() => {
     let startValue = 0;
-    const duration = 1500;
+    const duration = 1800;
     const startTime = Date.now();
+    let lastHapticValue = 0;
 
     const animate = () => {
       const now = Date.now();
       const progress = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 4);
       const current = startValue + (value - startValue) * eased;
 
       setDisplayValue(current);
+
+      if (Math.floor(current / 1000) > lastHapticValue) {
+        lastHapticValue = Math.floor(current / 1000);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
 
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         setDisplayValue(value);
+        textScale.value = withSequence(
+          withSpring(1.1, { damping: 8 }),
+          withSpring(1, { damping: 10 })
+        );
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       }
     };
 
     requestAnimationFrame(animate);
   }, [value]);
 
+  const animatedTextStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: textScale.value }],
+  }));
+
+  const formattedValue = displayValue.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+
   return (
-    <Text style={[styles.resultAmount, { color: themeColors.textPrimary }]}>
-      {displayValue.toFixed(decimals)}
-    </Text>
+    <Animated.Text
+      style={[
+        styles.premiumAmount,
+        { color: themeColors.textPrimary },
+        animatedTextStyle,
+      ]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+    >
+      {formattedValue}
+    </Animated.Text>
   );
 };
 
@@ -712,19 +861,103 @@ const styles = StyleSheet.create({
   successIcon: {
     width: 120,
     height: 120,
-    borderWidth: Borders.width.bold,
+    borderWidth: 3,
     borderColor: Colors.semantic.success,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.xxl,
+    shadowColor: Colors.semantic.success,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   successTitle: {
     ...Typography.h1,
     marginBottom: Spacing.sm,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   successSubtitle: {
     ...Typography.body,
     textAlign: 'center',
+    opacity: 0.8,
+  },
+  premiumCard: {
+    borderWidth: 2,
+    paddingVertical: Spacing.xxxxl,
+    paddingHorizontal: Spacing.xl,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  shimmerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  shimmer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ skewX: '-20deg' }],
+  },
+  premiumLabel: {
+    ...Typography.labelMedium,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    fontWeight: '600',
+  },
+  premiumAmount: {
+    fontSize: 56,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+    fontFamily: 'SpaceGrotesk_700Bold',
+    letterSpacing: -2,
+    lineHeight: 64,
+  },
+  unitContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  unitBadge: {
+    borderWidth: 2,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(234, 193, 25, 0.05)',
+  },
+  premiumUnit: {
+    ...Typography.h4,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  decorativeElements: {
+    position: 'absolute',
+    bottom: Spacing.lg,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  decorativeDot: {
+    width: 4,
+    height: 4,
+    opacity: 0.3,
   },
   resultLabel: {
     ...Typography.labelMedium,

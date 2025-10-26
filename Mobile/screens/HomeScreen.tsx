@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,28 +10,19 @@ import {
 import Animated, {
   FadeInDown,
   FadeInUp,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
-  Easing,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import {
   Colors,
   Spacing,
   Layout,
-  Typography,
-  BorderRadius,
-  Shadows,
-  Borders,
-  Animations,
 } from '@/constants/designTokens';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BalanceCard } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SkeletonBalanceCard, SkeletonListItem } from '@/components/ui/Skeleton';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface HomeScreenProps {
@@ -40,7 +31,6 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
-  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const walletData = {
@@ -82,33 +72,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsRefreshing(false);
   };
-
-  if (isLoading) {
-    return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: themeColors.background }]}
-        contentContainerStyle={styles.contentContainer}
-      >
-        <SkeletonBalanceCard style={styles.cardContainer} />
-        <View style={styles.quickSection}>
-          <View style={styles.skeletonRow}>
-            {[1, 2, 3, 4].map(i => (
-              <View key={i} style={styles.skeletonQuickAction} />
-            ))}
-          </View>
-        </View>
-        <View style={styles.activitySection}>
-          {[1, 2, 3].map(i => (
-            <SkeletonListItem key={i} />
-          ))}
-        </View>
-      </ScrollView>
-    );
-  }
 
   return (
     <ScrollView
@@ -309,14 +275,12 @@ interface QuickActionProps {
   themeColors: ReturnType<typeof useTheme>['colors'];
 }
 
-const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay = 0, themeColors }) => {
+const QuickAction = React.memo<QuickActionProps>(({ icon, label, onPress, delay = 0, themeColors }) => {
   const scale = useSharedValue(1);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const handlePressIn = () => {
     scale.value = withSpring(0.9, {
@@ -362,7 +326,9 @@ const QuickAction: React.FC<QuickActionProps> = ({ icon, label, onPress, delay =
       </TouchableOpacity>
     </Animated.View>
   );
-};
+});
+
+QuickAction.displayName = 'QuickAction';
 
 const styles = StyleSheet.create({
   container: {
@@ -370,16 +336,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: Spacing.xxxl,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  skeletonQuickAction: {
-    flex: 1,
-    height: 80,
-    backgroundColor: Colors.neutral[200],
-    borderRadius: BorderRadius.lg,
   },
   cardContainer: {
     paddingHorizontal: Layout.screenPadding,

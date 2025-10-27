@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   estimateBox: {
-    backgroundColor: Colors.accent.light,
+    backgroundColor: Colors.neutral[100],
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   estimateLabel: {
     ...Typography.caption,
-    color: Colors.accent.dark,
+    color: Colors.neutral[600],
   },
   estimateValue: {
     ...Typography.bodyMedium,

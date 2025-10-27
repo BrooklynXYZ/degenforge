@@ -10,15 +10,10 @@ import Animated, {
   FadeInDown,
   FadeInUp,
   FadeIn,
-  FadeOut,
   SlideInRight,
-  SlideOutLeft,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
-  withDelay,
-  Easing,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -28,8 +23,6 @@ import {
   BorderRadius,
   Layout,
   Borders,
-  Shadows,
-  Animations,
 } from '@/constants/designTokens';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard, InteractiveCard } from '@/components/ui/Card';
@@ -95,14 +88,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const bridgeAmount = 25000; // mUSD
 
   useEffect(() => {
-    // Simulate automatic progression
     if (currentStep === 0 && steps[0].status === 'confirmed') {
-      // Auto-advance to wrapping step
       setTimeout(() => {
         setCurrentStep(1);
       }, 1000);
     }
-  }, [steps]);
+  }, [steps, currentStep]);
 
   const handleContinue = async () => {
     if (currentStep >= steps.length - 1) return;
@@ -280,8 +271,8 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
             {isProcessing
               ? `Processing Step ${currentStep + 1}...`
               : currentStep === steps.length - 1
-              ? 'Deposit to Pool'
-              : 'Continue Bridge'}
+                ? 'Deposit to Pool'
+                : 'Continue Bridge'}
           </ActionButton>
         ) : (
           <ActionButton
@@ -323,6 +314,7 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
 
   useEffect(() => {
     scale.value = withSpring(isActive ? 1.02 : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -363,10 +355,10 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
       <SectionCard
         borderRadius="none"
         padding="lg"
-        style={[
-          styles.stepCard,
-          isActive && styles.stepCardActive,
-        ]}
+        style={{
+          ...styles.stepCard,
+          ...(isActive ? styles.stepCardActive : {}),
+        }}
       >
         <View style={styles.stepRow}>
           <View style={styles.stepLeft}>
@@ -400,7 +392,10 @@ const AnimatedStepCard: React.FC<AnimatedStepCardProps> = ({
               )}
             </View>
           </View>
-          <StatusBadge status={step.status} size="sm" />
+          <StatusBadge
+            status={step.status === 'in_progress' ? 'pending' : step.status}
+            size="sm"
+          />
         </View>
       </SectionCard>
     </Animated.View>

@@ -23,7 +23,6 @@ import {
   Colors,
   Spacing,
   Typography,
-  Layout,
   Borders,
 } from '@/constants/designTokens';
 
@@ -122,7 +121,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
-  const { themeMode, setThemeMode, colors: themeColors, actualTheme } = useTheme();
+  const { themeMode, setThemeMode, colors: themeColors } = useTheme();
   const { logout } = useAuth();
   const [network, setNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [rpcProvider, setRpcProvider] = useState<'spectrum' | 'custom'>('spectrum');
@@ -375,47 +374,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
           <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
         </TouchableOpacity>
       </Animated.View>
-
-      {/* About Section */}
-      <Animated.View
-        style={styles.section}
-        entering={FadeInDown.duration(400).delay(300)}
-      >
-        <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
-          About
-        </Text>
-        <SectionCard borderRadius="none" style={{ marginBottom: Spacing.xs }}>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>
-              Version
-            </Text>
-            <Text style={[styles.infoValue, { color: themeColors.textPrimary }]}>
-              1.0.0
-            </Text>
-          </View>
-        </SectionCard>
-        <SectionCard borderRadius="none" style={{ marginBottom: Spacing.xs }}>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>
-              Build
-            </Text>
-            <Text style={[styles.infoValue, { color: themeColors.textPrimary }]}>
-              2024.01.15
-            </Text>
-          </View>
-        </SectionCard>
-        <SectionCard borderRadius="none">
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: themeColors.textSecondary }]}>
-              Network
-            </Text>
-            <Text style={[styles.infoValue, { color: themeColors.textPrimary }]}>
-              Solana Mainnet
-            </Text>
-          </View>
-        </SectionCard>
-      </Animated.View>
-
       {/* Action Buttons */}
       <Animated.View
         style={styles.actionsSection}

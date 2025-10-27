@@ -137,25 +137,6 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
             )}
           </Pressable>
         </Animated.View>
-
-        <Animated.View
-          entering={FadeInUp.duration(600).delay(600)}
-          style={styles.footer}
-        >
-          <Pressable
-            onPress={onNeedHelp}
-            style={({ pressed }) => [
-              styles.helpButton,
-              { borderColor, opacity: pressed ? 0.6 : 1 },
-            ]}
-            android_ripple={{ color: 'transparent' }}
-          >
-            <Text style={[styles.helpText, { color: colors.textSecondary }]} numberOfLines={1}>
-              Need help connecting?
-            </Text>
-            <Feather name="arrow-right" size={16} color={colors.textSecondary} />
-          </Pressable>
-        </Animated.View>
       </Animated.View>
     </View>
   );

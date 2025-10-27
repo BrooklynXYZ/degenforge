@@ -17,11 +17,9 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { TxListItem } from '@/components/lists/TxListItem';
 import { TxDetailModal } from '@/components/modals/TxDetailModal';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
-  Colors,
   Spacing,
   Typography,
   Borders,
@@ -137,14 +135,14 @@ const FilterTab: React.FC<FilterTabProps> = ({
 };
 
 export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) => {
-  const { colors: themeColors, actualTheme } = useTheme();
+  const { colors: themeColors } = useTheme();
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const transactions: Transaction[] = [
+  const transactions: Transaction[] = useMemo(() => [
     {
       id: '1',
       icon: 'arrow-up',
@@ -212,7 +210,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
       mezoTxHash: '0xfedcba9876543210fedcba9876543210',
       date: Date.now() - 7 * 24 * 60 * 60 * 1000,
     },
-  ];
+  ], []);
 
   // Filter transactions based on active filter and search query
   const filteredTransactions = useMemo(() => {
@@ -239,7 +237,7 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     }
 
     return filtered;
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, searchQuery, transactions]);
 
   const groupedTxs = useMemo(
     () => groupTransactionsByDate(filteredTransactions),

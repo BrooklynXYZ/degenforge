@@ -1,30 +1,21 @@
-type SolanaAccount = record {
-    pubkey : text;
-    derivation_path : vec blob;
+type CanisterStats = record {
+  network : text;
+  rpc_endpoint : text;
+  total_addresses_generated : nat64;
 };
-
-type SolanaBalance = record {
-    lamports : nat64;
-    sol : text;
-};
-
+type SolanaBalance = record { sol : text; lamports : nat64 };
 type TransactionResult = record {
-    signature : text;
-    status : text;
-    message : text;
+  status : text;
+  signature : text;
+  message : text;
 };
-
-service : {
-    "generate_solana_address" : () -> (text);
-    "get_my_solana_address" : () -> (text) query;
-    "get_solana_balance" : (text) -> (SolanaBalance);
-    "get_recent_blockhash" : () -> (text);
-    "send_sol" : (text, nat64) -> (TransactionResult);
-    "request_airdrop" : (text, nat64) -> (TransactionResult);
-    "get_canister_stats" : () -> (record {
-        total_addresses_generated : nat64;
-        network : text;
-        rpc_endpoint : text;
-    }) query;
+service : () -> {
+  generate_solana_address : () -> (text);
+  get_canister_stats : () -> (CanisterStats) query;
+  get_my_solana_address : () -> (text) query;
+  get_recent_blockhash : () -> (text);
+  get_solana_balance : (text) -> (SolanaBalance);
+  request_airdrop : (text, nat64) -> (TransactionResult);
+  send_sol : (text, nat64) -> (TransactionResult);
 }
 

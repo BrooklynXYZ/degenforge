@@ -38,6 +38,14 @@ class MintResponse(Record):
     new_ltv: str
     status: str
 
+class BridgeStats(Record):
+    total_positions: nat64
+    total_btc_collateral: nat64
+    total_musd_minted: nat64
+    total_sol_deployed: nat64
+    max_ltv: nat64
+    interest_rate: nat64
+
 # Store active positions
 positions = StableBTreeMap[Principal, BridgePosition](
     memory_id=1, max_key_size=100, max_value_size=500
@@ -305,26 +313,26 @@ def calculate_max_mintable(btc_collateral: nat64) -> nat64:
     return (btc_collateral * MAX_LTV) // 100
 
 @query
-def get_bridge_stats() -> Record:
+def get_bridge_stats() -> BridgeStats:
     """Get bridge statistics"""
-    total_positions = len(positions.items())
-    total_btc = 0
-    total_musd = 0
-    total_sol_deployed = 0
+    total_positions = nat64(len(positions.items()))
+    total_btc = nat64(0)
+    total_musd = nat64(0)
+    total_sol_deployed = nat64(0)
     
     for _, position in positions.items():
         total_btc += position["btc_collateral"]
         total_musd += position["musd_minted"]
         total_sol_deployed += position["sol_deployed"]
     
-    return {
-        "total_positions": total_positions,
-        "total_btc_collateral": total_btc,
-        "total_musd_minted": total_musd,
-        "total_sol_deployed": total_sol_deployed,
-        "max_ltv": MAX_LTV,
-        "interest_rate": INTEREST_RATE
-    }
+    return BridgeStats(
+        total_positions=total_positions,
+        total_btc_collateral=total_btc,
+        total_musd_minted=total_musd,
+        total_sol_deployed=total_sol_deployed,
+        max_ltv=nat64(MAX_LTV),
+        interest_rate=nat64(INTEREST_RATE)
+    )
 
 # Helper functions
 def encode_mint_musd_call(musd_amount: nat64) -> str:

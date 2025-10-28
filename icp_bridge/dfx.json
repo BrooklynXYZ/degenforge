@@ -4,21 +4,21 @@
     "btc_handler": {
       "type": "custom",
       "candid": "src/btc_canister/btc_handler.did",
-      "wasm": "target/wasm32-unknown-unknown/release/btc_handler.wasm",
+      "wasm": ".kybra/btc_handler/btc_handler.wasm",
       "build": "python -m kybra btc_handler src/btc_canister/main.py",
       "main": "src/btc_canister/main.py"
     },
     "bridge_orchestrator": {
       "type": "custom",
       "candid": "src/bridge_canister/bridge.did",
-      "wasm": "target/wasm32-unknown-unknown/release/bridge.wasm",
+      "wasm": ".kybra/bridge_orchestrator/bridge_orchestrator.wasm",
       "build": "python -m kybra bridge_orchestrator src/bridge_canister/main.py",
       "main": "src/bridge_canister/main.py"
     },
     "solana_canister": {
       "type": "custom",
       "candid": "src/solana_canister/solana_rpc.did",
-      "wasm": "target/wasm32-unknown-unknown/release/solana_canister.wasm",
+      "wasm": ".kybra/solana_canister/solana_canister.wasm",
       "build": "python -m kybra solana_canister src/solana_canister/main.py",
       "main": "src/solana_canister/main.py"
     }

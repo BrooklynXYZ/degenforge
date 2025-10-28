@@ -16,6 +16,11 @@ SOL_RPC_CANISTER_ID = "titvo-eiaaa-aaaar-qaogq-cai"
 # Threshold Schnorr key for Ed25519 (Solana uses Ed25519)
 KEY_NAME = "test_key_1"
 
+class CanisterStats(Record):
+    total_addresses_generated: nat64
+    network: str
+    rpc_endpoint: str
+
 # Type definitions
 class SolanaAccount(Record):
     pubkey: str
@@ -297,7 +302,7 @@ def request_airdrop(address: str, lamports: nat64) -> TransactionResult:
         )
 
 @query
-def get_canister_stats() -> Record:
+def get_canister_stats() -> CanisterStats:
     """Get canister statistics"""
     return {
         "total_addresses_generated": len(solana_addresses.items()),

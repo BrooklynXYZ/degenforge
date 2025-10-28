@@ -1,25 +1,15 @@
-type BitcoinAddress = record {
-    address : text;
-    derivation_path : vec blob;
+type CanisterStats = record {
+  network : text;
+  key_name : text;
+  total_addresses_generated : nat64;
 };
-
-type UTXOInfo = record {
-    outpoint : blob;
-    value : nat64;
-    height : nat64;
-};
-
-service : {
-    "generate_btc_address" : () -> (text);
-    "get_my_btc_address" : () -> (text) query;
-    "get_btc_balance" : (text) -> (nat64);
-    "get_utxos" : (text) -> (vec UTXOInfo);
-    "sign_transaction" : (blob) -> (blob);
-    "send_btc" : (text, nat64) -> (text);
-    "get_canister_stats" : () -> (record {
-        total_addresses_generated : nat64;
-        network : text;
-        key_name : text;
-    }) query;
+type UTXOInfo = record { height : nat64; value : nat64; outpoint : blob };
+service : () -> {
+  generate_btc_address : () -> (text);
+  get_btc_balance : (text) -> (nat64);
+  get_canister_stats : () -> (CanisterStats) query;
+  get_my_btc_address : () -> (text) query;
+  get_utxos : (text) -> (vec UTXOInfo);
+  send_btc : (text, nat64) -> (text);
+  sign_transaction : (blob) -> (blob);
 }
-

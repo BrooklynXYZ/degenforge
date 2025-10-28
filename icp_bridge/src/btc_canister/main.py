@@ -11,22 +11,24 @@ BTC_NETWORK = "testnet"
 KEY_NAME = "test_key_1"  # Test key for Bitcoin testnet
 
 # Type definitions
-class BitcoinAddress(Record):
-    address: str
-    derivation_path: Vec[blob]
-
 class UTXOInfo(Record):
     outpoint: blob
     value: nat64
     height: nat64
 
-class BitcoinNetwork(Variant, total=False):
-    mainnet: None
-    testnet: None
+class CanisterStats(Record):
+    total_addresses_generated: nat64
+    network: str
+    key_name: str
+
 
 # Store generated BTC addresses
-btc_addresses = StableBTreeMap[Principal, BitcoinAddress](
-    memory_id=0, max_key_size=100, max_value_size=1000
+btc_addresses = StableBTreeMap[Principal, str](
+    memory_id=0, max_key_size=100, max_value_size=100
+)
+
+derivation_paths = StableBTreeMap[Principal, Vec[blob]](
+    memory_id=1, max_key_size=100, max_value_size=1000
 )
 
 @update
@@ -37,7 +39,7 @@ def generate_btc_address() -> str:
     # Check if address already exists
     existing = btc_addresses.get(caller)
     if existing is not None:
-        return existing["address"]
+        return existing
     
     # Derive unique path for this caller
     derivation_path = [caller.bytes]
@@ -62,10 +64,8 @@ def generate_btc_address() -> str:
         btc_address = public_key_to_p2pkh(public_key, BTC_NETWORK)
         
         # Store mapping
-        btc_addresses.insert(caller, BitcoinAddress(
-            address=btc_address,
-            derivation_path=derivation_path
-        ))
+        btc_addresses.insert(caller, btc_address)
+        derivation_paths.insert(caller, derivation_path)
         
         return btc_address
     except Exception as e:
@@ -75,12 +75,12 @@ def generate_btc_address() -> str:
 def get_my_btc_address() -> str:
     """Get caller's BTC address"""
     caller = ic.caller()
-    addr_info = btc_addresses.get(caller)
+    addr = btc_addresses.get(caller)
     
-    if addr_info is None:
+    if addr is None:
         return ""
     
-    return addr_info["address"]
+    return addr
 
 @update
 def get_btc_balance(address: str) -> nat64:
@@ -132,11 +132,9 @@ def sign_transaction(message_hash: blob) -> blob:
     caller = ic.caller()
     
     # Get caller's derivation path
-    addr_info = btc_addresses.get(caller)
-    if addr_info is None:
+    derivation_path = derivation_paths.get(caller)
+    if derivation_path is None:
         ic.trap("No BTC address found for caller")
-    
-    derivation_path = addr_info["derivation_path"]
     
     try:
         result: CallResult[any] = yield management_canister.sign_with_ecdsa({
@@ -160,12 +158,9 @@ def send_btc(to_address: str, amount_satoshis: nat64) -> str:
     """Send Bitcoin on testnet"""
     caller = ic.caller()
     
-    # Get caller's address info
-    addr_info = btc_addresses.get(caller)
-    if addr_info is None:
+    from_address = btc_addresses.get(caller)
+    if from_address is None:
         ic.trap("No BTC address found for caller")
-    
-    from_address = addr_info["address"]
     
     try:
         # Fetch UTXOs
@@ -276,11 +271,11 @@ def finalize_transaction(tx_bytes: blob, signature: blob) -> blob:
     return tx_bytes + signature
 
 @query
-def get_canister_stats() -> Record:
+def get_canister_stats() -> CanisterStats:
     """Get canister statistics"""
-    return {
-        "total_addresses_generated": len(btc_addresses.items()),
-        "network": BTC_NETWORK,
-        "key_name": KEY_NAME
-    }
+    return CanisterStats(
+        total_addresses_generated=len(btc_addresses.items()),
+        network=BTC_NETWORK,
+        key_name=KEY_NAME
+    )
 

@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import PillBottomNav from '@/components/nav/PillBottomNav';
+import { SwipeableScreens } from '@/components/nav/SwipeableScreens';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { MintScreen } from '@/screens/MintScreen';
 import { BridgeScreen } from '@/screens/BridgeScreen';
@@ -58,6 +60,7 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Home');
   const [authFlow, setAuthFlow] = useState<AuthFlow>('splash');
   const [tempWalletAddress, setTempWalletAddress] = useState<string | null>(null);
+  const [screenKeys, setScreenKeys] = useState([0, 0, 0, 0]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -76,6 +79,16 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
   const handleTabChange = useCallback((index: number) => {
     setActiveTab(index);
     setCurrentScreen(TAB_SCREENS[index]);
+    setScreenKeys(prev => {
+      const newKeys = [...prev];
+      newKeys[index] = newKeys[index] + 1;
+      return newKeys;
+    });
+  }, []);
+
+  const handlePageChange = useCallback((index: number) => {
+    setActiveTab(index);
+    setCurrentScreen(TAB_SCREENS[index]);
   }, []);
 
   const handleNavigate = useCallback((screen: ScreenName) => {
@@ -88,17 +101,23 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
 
   const navFunction = handleNavigate as (screen: string) => void;
 
-  // Memoized screen component (must be at top level, not inside renderMainApp)
-  const screenComponent = useMemo(() => {
+  const tabScreens = useMemo(() => [
+    <View key={`home-${screenKeys[0]}`} style={styles.pageContainer}>
+      <HomeScreen onNavigate={navFunction} />
+    </View>,
+    <View key={`create-${screenKeys[1]}`} style={styles.pageContainer}>
+      <MintScreen onNavigate={navFunction} />
+    </View>,
+    <View key={`activity-${screenKeys[2]}`} style={styles.pageContainer}>
+      <ActivityScreen onNavigate={navFunction} />
+    </View>,
+    <View key={`profile-${screenKeys[3]}`} style={styles.pageContainer}>
+      <ProfileScreen onNavigate={navFunction} />
+    </View>,
+  ], [navFunction, screenKeys]);
+
+  const nonTabScreen = useMemo(() => {
     switch (currentScreen) {
-      case 'Home':
-        return <HomeScreen onNavigate={navFunction} />;
-      case 'Create':
-        return <MintScreen onNavigate={navFunction} />;
-      case 'Activity':
-        return <ActivityScreen onNavigate={navFunction} />;
-      case 'Profile':
-        return <ProfileScreen onNavigate={navFunction} />;
       case 'Mint':
         return <MintScreen onNavigate={navFunction} />;
       case 'Bridge':
@@ -110,7 +129,7 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
       case 'PoolDetail':
         return <PoolDetailScreen onNavigate={navFunction} />;
       default:
-        return <HomeScreen onNavigate={navFunction} />;
+        return null;
     }
   }, [currentScreen, navFunction]);
 
@@ -222,17 +241,33 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
     }
   };
 
-  // Render main app screens
   const renderMainApp = () => {
+    const isTabScreen = TAB_SCREENS.includes(currentScreen);
+
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.screenContainer}>{screenComponent}</View>
+        <View style={styles.screenContainer}>
+          {isTabScreen ? (
+            <SwipeableScreens
+              currentIndex={activeTab}
+              onPageChange={handlePageChange}
+            >
+              {tabScreens}
+            </SwipeableScreens>
+          ) : (
+            nonTabScreen
+          )}
+        </View>
         <PillBottomNav activeIndex={activeTab} onIndexChange={handleTabChange} />
       </View>
     );
   };
 
-  return <View style={[styles.container, { backgroundColor: colors.background }]}>{renderAuthFlow()}</View>;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>{renderAuthFlow()}</View>
+    </GestureHandlerRootView>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -240,6 +275,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   screenContainer: {
+    flex: 1,
+  },
+  pageContainer: {
     flex: 1,
   },
 });

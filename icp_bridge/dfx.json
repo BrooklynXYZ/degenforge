@@ -30,6 +30,9 @@
     "bitcoin": {
       "enabled": true,
       "network": "testnet"
+    },
+    "schnorr": {
+      "enabled": true
     }
   },
   "networks": {

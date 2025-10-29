@@ -87,7 +87,7 @@ BTC_ID=$(dfx canister id btc_handler)
 SOL_ID=$(dfx canister id solana_canister)
 
 # Set in bridge orchestrator
-dfx canister call bridge_orchestrator set_canister_ids "($BTC_ID, $SOL_ID)"
+dfx canister call bridge_orchestrator set_canister_ids "(\"$BTC_ID\", \"$SOL_ID\")"
 ```
 
 ### 4. Test Bitcoin Integration

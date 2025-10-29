@@ -216,6 +216,7 @@ node_modules/
 
 # ICP Canister Development
 icp_bridge/.dfx/
+icp_bridge/.kybra/
 icp_bridge/target/
 icp_bridge/.env
 icp_bridge/.env.local
@@ -243,3 +244,5 @@ backend/.env.local
 .DS_Store
 .vscode/
 .idea/
+
+.kybra/

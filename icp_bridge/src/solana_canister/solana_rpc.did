@@ -18,4 +18,3 @@ service : () -> {
   request_airdrop : (text, nat64) -> (TransactionResult);
   send_sol : (text, nat64) -> (TransactionResult);
 }
-

@@ -18,24 +18,26 @@ interface PillBottomNavProps {
 const ICON_NAMES = ['Home', 'Create', 'Activity', 'Profile'];
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChange }) => {
+const PillBottomNav: React.FC<PillBottomNavProps> = React.memo(({ activeIndex, onIndexChange }) => {
   const insets = useSafeAreaInsets();
   const { actualTheme } = useTheme();
   const [tooltipIndex, setTooltipIndex] = useState<number | null>(null);
   const tooltipTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isDark = actualTheme === 'dark';
-  const bgColor = isDark ? '#000000' : '#FFFFFF';
-  const borderColor = isDark ? '#FFFFFF' : '#000000';
-  const activeColor = isDark ? '#FFFFFF' : '#000000';
-  const inactiveColor = isDark ? '#737373' : '#737373';
-  const activeBgColor = isDark ? '#1A1A1A' : '#FAFAFA';
+  const isDark = React.useMemo(() => actualTheme === 'dark', [actualTheme]);
+  const colors = React.useMemo(() => ({
+    bgColor: isDark ? '#000000' : '#FFFFFF',
+    borderColor: isDark ? '#FFFFFF' : '#000000',
+    activeColor: isDark ? '#FFFFFF' : '#000000',
+    inactiveColor: '#737373',
+    activeBgColor: isDark ? '#1A1A1A' : '#FAFAFA',
+  }), [isDark]);
 
-  const handlePress = (index: number) => {
+  const handlePress = React.useCallback((index: number) => {
     onIndexChange(index);
-  };
+  }, [onIndexChange]);
 
-  const handleLongPress = (index: number) => {
+  const handleLongPress = React.useCallback((index: number) => {
     setTooltipIndex(index);
     if (tooltipTimeout.current) {
       clearTimeout(tooltipTimeout.current);
@@ -43,7 +45,7 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
     tooltipTimeout.current = setTimeout(() => {
       setTooltipIndex(null);
     }, 2000);
-  };
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -54,8 +56,8 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
   }, []);
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: bgColor }]}>
-      <View style={[styles.navWrapper, { width: SCREEN_WIDTH, backgroundColor: bgColor, borderColor }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: colors.bgColor }]}>
+      <View style={[styles.navWrapper, { width: SCREEN_WIDTH, backgroundColor: colors.bgColor, borderColor: colors.borderColor }]}>
         {ICON_NAMES.map((name, index) => {
           const isActive = activeIndex === index;
 
@@ -64,28 +66,30 @@ const PillBottomNav: React.FC<PillBottomNavProps> = ({ activeIndex, onIndexChang
               key={index}
               style={({ pressed }) => [
                 styles.navItem,
-                isActive && { backgroundColor: activeBgColor },
+                isActive && { backgroundColor: colors.activeBgColor },
               ]}
               onPress={() => handlePress(index)}
               onLongPress={() => handleLongPress(index)}
               android_ripple={{ color: 'transparent' }}
             >
               {tooltipIndex === index && (
-                <View style={[styles.tooltip, { backgroundColor: isDark ? '#FFFFFF' : '#000000', borderColor }]}>
+                <View style={[styles.tooltip, { backgroundColor: isDark ? '#FFFFFF' : '#000000', borderColor: colors.borderColor }]}>
                   <Text style={[styles.tooltipText, { color: isDark ? '#000000' : '#FFFFFF' }]}>{name}</Text>
                 </View>
               )}
               <View style={styles.iconContainer}>
-                <NavIcon name={name} active={isActive} activeColor={activeColor} inactiveColor={inactiveColor} />
+                <NavIcon name={name} active={isActive} activeColor={colors.activeColor} inactiveColor={colors.inactiveColor} />
               </View>
-              {isActive && <View style={[styles.activeIndicator, { backgroundColor: borderColor }]} />}
+              {isActive && <View style={[styles.activeIndicator, { backgroundColor: colors.borderColor }]} />}
             </Pressable>
           );
         })}
       </View>
     </View>
   );
-};
+});
+
+PillBottomNav.displayName = 'PillBottomNav';
 
 interface NavIconProps {
   name: string;

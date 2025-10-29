@@ -18,7 +18,7 @@ export interface EmptyStateProps {
   style?: ViewStyle;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({
+export const EmptyState: React.FC<EmptyStateProps> = React.memo(({
   icon,
   emoji,
   title,
@@ -52,7 +52,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
     </View>
   );
-};
+});
+
+EmptyState.displayName = 'EmptyState';
 
 const styles = StyleSheet.create({
   container: {

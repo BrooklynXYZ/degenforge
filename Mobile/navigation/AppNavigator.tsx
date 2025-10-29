@@ -101,20 +101,20 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
 
   const navFunction = handleNavigate as (screen: string) => void;
 
-  const tabScreens = useMemo(() => [
-    <View key={`home-${screenKeys[0]}`} style={styles.pageContainer}>
-      <HomeScreen onNavigate={navFunction} />
-    </View>,
-    <View key={`create-${screenKeys[1]}`} style={styles.pageContainer}>
-      <MintScreen onNavigate={navFunction} />
-    </View>,
-    <View key={`activity-${screenKeys[2]}`} style={styles.pageContainer}>
-      <ActivityScreen onNavigate={navFunction} />
-    </View>,
-    <View key={`profile-${screenKeys[3]}`} style={styles.pageContainer}>
-      <ProfileScreen onNavigate={navFunction} />
-    </View>,
-  ], [navFunction, screenKeys]);
+  const tabScreens = useMemo(() => {
+    const screens = [
+      { Component: HomeScreen, key: screenKeys[0] },
+      { Component: MintScreen, key: screenKeys[1] },
+      { Component: ActivityScreen, key: screenKeys[2] },
+      { Component: ProfileScreen, key: screenKeys[3] },
+    ];
+
+    return screens.map(({ Component, key }, index) => (
+      <View key={`${index}-${key}`} style={styles.pageContainer}>
+        <Component onNavigate={navFunction} />
+      </View>
+    ));
+  }, [navFunction, screenKeys]);
 
   const nonTabScreen = useMemo(() => {
     switch (currentScreen) {

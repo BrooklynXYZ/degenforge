@@ -18,7 +18,7 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { disconnectWallet } from '@/utils/walletConnect';
+import { useWallet } from '@/contexts/WalletProvider';
 import {
   Colors,
   Spacing,
@@ -123,11 +123,11 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const { themeMode, setThemeMode, colors: themeColors } = useTheme();
   const { logout } = useAuth();
+  const { address, close } = useWallet();
   const [network, setNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [rpcProvider, setRpcProvider] = useState<'spectrum' | 'custom'>('spectrum');
 
-  // Mock data
-  const walletAddress = '0x1234567890abcdef1234567890abcdef12345678';
+  const walletAddress = address || '0x1234567890abcdef1234567890abcdef12345678';
   const mezoRpcEndpoint = 'https://mezo-rpc.example.com';
   const spectrumEndpoint = 'https://spectrum.example.com';
 
@@ -141,9 +141,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
 
   const handleDisconnect = async () => {
     try {
-      // First disconnect from WalletConnect
-      await disconnectWallet();
-      // Then clear authentication state (this will trigger navigation back to login)
+      close();
       await logout();
     } catch (error) {
       console.error('Error during disconnect:', error);

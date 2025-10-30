@@ -8,6 +8,9 @@
     "scheme": "ghala",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "queries": {
+      "schemes": ["phantom", "solflare", "trust", "rainbow"]
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ghala.app",

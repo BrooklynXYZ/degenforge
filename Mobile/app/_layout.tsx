@@ -1,3 +1,6 @@
+import '@walletconnect/react-native-compat';
+import 'react-native-get-random-values';
+
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
@@ -20,6 +23,7 @@ import { AppNavigator } from '@/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AnimatedSplashScreen } from '@/components/AnimatedSplashScreen';
+import { WalletProvider } from '@/contexts/WalletProvider';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -65,9 +69,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <ThemedApp transitionComplete={transitionComplete} />
-        </AuthProvider>
+        <WalletProvider>
+          <AuthProvider>
+            <ThemedApp transitionComplete={transitionComplete} />
+          </AuthProvider>
+        </WalletProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

@@ -53,7 +53,6 @@ export const appKit = createAppKit({
         icons: ['https://ghala.app/icon.png'],
         redirect: {
             native: 'ghala://',
-            universal: 'https://ghala.app',
         },
     },
     adapters: [solanaAdapter],

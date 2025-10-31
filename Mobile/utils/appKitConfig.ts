@@ -59,8 +59,12 @@ export const appKit = createAppKit({
     networks: [solanaMainnet, solanaDevnet],
     defaultNetwork: solanaMainnet,
     extraConnectors: [
-        new PhantomConnector({ cluster: 'mainnet-beta' }),
-        new SolflareConnector({ cluster: 'mainnet-beta' }),
+        new PhantomConnector({
+            cluster: 'mainnet-beta',
+        }),
+        new SolflareConnector({
+            cluster: 'mainnet-beta',
+        }),
     ],
     featuredWalletIds: ['a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393'],
     enableAnalytics: true,

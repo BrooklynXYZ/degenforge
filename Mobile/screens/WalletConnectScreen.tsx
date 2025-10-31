@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -14,7 +12,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { Typography, Spacing, Layout, Borders } from '../constants/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
-import { initializeWalletConnect } from '../utils/walletConnect';
+import { useWallet } from '../contexts/WalletProvider';
 
 interface WalletConnectScreenProps {
   onConnectSuccess: (walletAddress: string) => void;
@@ -26,46 +24,21 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
   onNeedHelp,
 }) => {
   const { colors, actualTheme } = useTheme();
-  const [isConnecting, setIsConnecting] = useState(false);
+  const { address, isConnected, open } = useWallet();
 
   const isDark = actualTheme === 'dark';
   const borderColor = isDark ? '#FFFFFF' : '#000000';
   const buttonBg = isDark ? '#000000' : '#000000';
   const buttonText = isDark ? '#FFFFFF' : '#FFFFFF';
 
-  const handleConnectWallet = async () => {
-    try {
-      setIsConnecting(true);
-
-      await initializeWalletConnect();
-
-      Alert.alert(
-        'WalletConnect',
-        'In production, this would open the WalletConnect modal to select and connect your wallet.\n\nFor demo: Enter a test wallet address',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setIsConnecting(false),
-          },
-          {
-            text: 'Use Demo Address',
-            onPress: () => {
-              const demoAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb';
-              onConnectSuccess(demoAddress);
-              setIsConnecting(false);
-            },
-          },
-        ]
-      );
-    } catch (error: any) {
-      console.error('Error connecting wallet:', error);
-      Alert.alert(
-        'Connection Failed',
-        error.message || 'Failed to connect wallet. Please try again.',
-        [{ text: 'OK', onPress: () => setIsConnecting(false) }]
-      );
+  useEffect(() => {
+    if (isConnected && address) {
+      onConnectSuccess(address);
     }
+  }, [isConnected, address, onConnectSuccess]);
+
+  const handleConnectWallet = () => {
+    open();
   };
 
   return (
@@ -106,42 +79,28 @@ const WalletConnectScreen: React.FC<WalletConnectScreenProps> = ({
         >
           <Pressable
             onPress={handleConnectWallet}
-            disabled={isConnecting}
             style={({ pressed }) => [
               styles.connectButton,
               {
                 backgroundColor: buttonBg,
                 borderColor: borderColor,
-                opacity: pressed ? 0.85 : isConnecting ? 0.7 : 1,
+                opacity: pressed ? 0.85 : 1,
               },
             ]}
             android_ripple={{ color: 'transparent' }}
           >
-            {isConnecting ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color={buttonText} size="small" />
-                <Text
-                  style={[styles.buttonText, { color: buttonText, marginLeft: Spacing.md }]}
-                  numberOfLines={1}
-                >
-                  CONNECTING
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.buttonContent}>
-                <Feather name="link" size={22} color={buttonText} />
-                <Text style={[styles.buttonText, { color: buttonText }]} numberOfLines={1}>
-                  CONNECT WALLET
-                </Text>
-              </View>
-            )}
+            <View style={styles.buttonContent}>
+              <Feather name="link" size={22} color={buttonText} />
+              <Text style={[styles.buttonText, { color: buttonText }]} numberOfLines={1}>
+                CONNECT WALLET
+              </Text>
+            </View>
           </Pressable>
         </Animated.View>
       </Animated.View>
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -205,33 +164,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   buttonText: {
     fontFamily: 'SpaceGrotesk_700Bold',
     fontSize: 16,
     letterSpacing: 2,
     fontWeight: '700',
   },
-  footer: {
-    alignItems: 'center',
-  },
-  helpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    borderWidth: Borders.width.regular,
-  },
-  helpText: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
 });
 
 export default WalletConnectScreen;
-

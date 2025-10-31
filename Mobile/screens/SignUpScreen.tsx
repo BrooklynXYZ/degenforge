@@ -14,7 +14,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Typography, Spacing, FontFamily, BorderRadius } from '../constants/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
 import { checkBiometricCapability, getBiometricTypeName } from '../utils/biometric';
-import { formatAddress } from '../utils/walletConnect';
+import { formatAddress } from '../utils/addressFormatter';
 
 interface SignUpScreenProps {
   walletAddress: string;

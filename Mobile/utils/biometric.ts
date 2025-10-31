@@ -1,8 +1,3 @@
-/**
- * Biometric authentication utility
- * Handles Face ID / Touch ID authentication
- */
-
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
 

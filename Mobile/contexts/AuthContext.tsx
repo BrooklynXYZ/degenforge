@@ -10,26 +10,17 @@ export interface UserProfile {
 }
 
 interface AuthContextType {
-  // State
   isAuthenticated: boolean;
   isLoading: boolean;
   user: UserProfile | null;
   walletAddress: string | null;
   hasSeenOnboarding: boolean;
   biometricEnabled: boolean;
-
-  // Auth actions
   login: (walletAddress: string, profile?: Partial<UserProfile>) => Promise<void>;
   logout: () => Promise<void>;
-
-  // Onboarding
   markOnboardingSeen: () => Promise<void>;
-
-  // Biometric
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
-
-  // User profile
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
 }
 
@@ -43,7 +34,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  // Initialize auth state on mount
   useEffect(() => {
     initializeAuth();
   }, []);
@@ -52,19 +42,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      // Check if user has seen onboarding
       const onboardingSeen = await AsyncStorage.getItem(
         SESSION_CONFIG.storageKeys.hasSeenOnboarding
       );
       setHasSeenOnboarding(onboardingSeen === 'true');
 
-      // Check biometric preference
       const biometricPref = await AsyncStorage.getItem(
         SESSION_CONFIG.storageKeys.biometricEnabled
       );
       setBiometricEnabled(biometricPref === 'true');
 
-      // Check if user has active session
       const rememberMe = await AsyncStorage.getItem(
         SESSION_CONFIG.storageKeys.rememberMe
       );
@@ -78,7 +65,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const sessionExpired = now - lastLoginTime > SESSION_CONFIG.sessionDuration;
 
         if (!sessionExpired) {
-          // Restore session
           const storedAddress = await SecureStore.getItemAsync(
             SESSION_CONFIG.secureKeys.walletAddress
           );
@@ -92,7 +78,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsAuthenticated(true);
           }
         } else {
-          // Session expired, clear data
           await logout();
         }
       }
@@ -107,10 +92,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      // Store wallet address securely
       await SecureStore.setItemAsync(SESSION_CONFIG.secureKeys.walletAddress, address);
 
-      // Create or update user profile
       const userProfile: UserProfile = {
         walletAddress: address,
         username: profile?.username,
@@ -122,7 +105,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         JSON.stringify(userProfile)
       );
 
-      // Update session info
       await AsyncStorage.setItem(SESSION_CONFIG.storageKeys.rememberMe, 'true');
       await AsyncStorage.setItem(
         SESSION_CONFIG.storageKeys.lastLoginTimestamp,
@@ -144,10 +126,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      // Clear secure storage
       await SecureStore.deleteItemAsync(SESSION_CONFIG.secureKeys.walletAddress);
 
-      // Clear async storage (except onboarding flag)
       await AsyncStorage.multiRemove([
         SESSION_CONFIG.storageKeys.rememberMe,
         SESSION_CONFIG.storageKeys.lastLoginTimestamp,

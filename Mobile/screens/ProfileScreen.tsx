@@ -4,8 +4,9 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Switch,
   TouchableOpacity,
+  Alert,
+  Clipboard,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -121,30 +122,72 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
-  const { themeMode, setThemeMode, colors: themeColors } = useTheme();
-  const { logout } = useAuth();
-  const { address, close } = useWallet();
-  const [network, setNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
-  const [rpcProvider, setRpcProvider] = useState<'spectrum' | 'custom'>('spectrum');
+  const { themeMode, setThemeMode, colors: themeColors, actualTheme } = useTheme();
+  const { logout, biometricEnabled, disableBiometric } = useAuth();
+  const { address, disconnect } = useWallet();
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [showFullAddress, setShowFullAddress] = useState(false);
 
-  const walletAddress = address || '0x1234567890abcdef1234567890abcdef12345678';
-  const mezoRpcEndpoint = 'https://mezo-rpc.example.com';
-  const spectrumEndpoint = 'https://spectrum.example.com';
+  const isDark = actualTheme === 'dark';
 
   const truncateAddress = (addr: string): string => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    if (showFullAddress) return addr;
+    return `${addr.slice(0, 8)}...${addr.slice(-8)}`;
   };
 
-  const copyToClipboard = (text: string) => {
-    console.log('Copied:', text);
+  const copyToClipboard = async (text: string) => {
+    await Clipboard.setString(text);
+    Alert.alert('✓ Copied', 'Wallet address copied to clipboard');
   };
 
   const handleDisconnect = async () => {
-    try {
-      close();
-      await logout();
-    } catch (error) {
-      console.error('Error during disconnect:', error);
+    Alert.alert(
+      'Disconnect Wallet',
+      'Are you sure you want to disconnect your wallet?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDisconnecting(true);
+              await disconnect();
+              await logout();
+            } catch (error) {
+              console.error('Error during disconnect:', error);
+              Alert.alert('Error', 'Failed to disconnect wallet');
+            } finally {
+              setIsDisconnecting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBiometricToggle = async () => {
+    if (biometricEnabled) {
+      Alert.alert(
+        'Disable Biometric',
+        'Disable biometric authentication for this app?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            onPress: async () => {
+              try {
+                await disableBiometric();
+                Alert.alert('Success', 'Biometric authentication disabled');
+              } catch (error) {
+                Alert.alert('Error', 'Failed to disable biometric');
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert('Info', 'Enable biometric from login screen');
     }
   };
 
@@ -154,157 +197,44 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {/* Wallet Address */}
-      <Animated.View
-        style={styles.section}
-        entering={FadeInDown.duration(400).delay(100)}
-      >
-        <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
-          Wallet Address
-        </Text>
-        <SectionCard borderRadius="none">
-          <View style={styles.cardContent}>
-            <Text
-              style={[
-                styles.addressText,
-                { color: themeColors.textPrimary },
-              ]}
-            >
-              {truncateAddress(walletAddress)}
-            </Text>
-            <TouchableOpacity
-              style={styles.copyButton}
-              onPress={() => copyToClipboard(walletAddress)}
-            >
-              <Feather name="copy" size={20} color={themeColors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-        </SectionCard>
-      </Animated.View>
-
-      {/* Network Section */}
-      <Animated.View
-        style={styles.section}
-        entering={FadeInDown.duration(400).delay(150)}
-      >
-        <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
-          Network
-        </Text>
-        <SectionCard borderRadius="none">
-          <View style={styles.cardContent}>
-            <Text style={[styles.settingLabel, { color: themeColors.textPrimary }]}>
-              {network === 'mainnet' ? 'Mainnet' : 'Testnet'}
-            </Text>
-            <Switch
-              value={network === 'testnet'}
-              onValueChange={(value) =>
-                setNetwork(value ? 'testnet' : 'mainnet')
-              }
-              trackColor={{
-                false: themeColors.borderSecondary,
-                true: themeColors.textPrimary,
-              }}
-              thumbColor={Colors.base.white}
-              ios_backgroundColor={themeColors.borderSecondary}
-            />
-          </View>
-        </SectionCard>
-      </Animated.View>
-
-      {/* RPC Configuration */}
-      <Animated.View
-        style={styles.section}
-        entering={FadeInDown.duration(400).delay(175)}
-      >
-        <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
-          RPC Provider
-        </Text>
-        <View style={styles.rpcGrid}>
-          <TouchableOpacity
-            style={[
-              styles.rpcOption,
-              {
-                borderColor: themeColors.border,
-                backgroundColor:
-                  rpcProvider === 'spectrum'
-                    ? themeColors.textPrimary
-                    : themeColors.surface,
-              },
-            ]}
-            onPress={() => setRpcProvider('spectrum')}
-          >
-            <Text
-              style={[
-                styles.rpcLabel,
-                {
-                  color:
-                    rpcProvider === 'spectrum'
-                      ? themeColors.textInverse
-                      : themeColors.textPrimary,
-                },
-              ]}
-            >
-              SPECTRUM
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.rpcOption,
-              {
-                borderColor: themeColors.border,
-                backgroundColor:
-                  rpcProvider === 'custom'
-                    ? themeColors.textPrimary
-                    : themeColors.surface,
-              },
-            ]}
-            onPress={() => setRpcProvider('custom')}
-          >
-            <Text
-              style={[
-                styles.rpcLabel,
-                {
-                  color:
-                    rpcProvider === 'custom'
-                      ? themeColors.textInverse
-                      : themeColors.textPrimary,
-                },
-              ]}
-            >
-              CUSTOM
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      <Animated.View
-        style={styles.section}
-        entering={FadeInDown.duration(400).delay(180)}
-      >
-        <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
-          Endpoints
-        </Text>
-        <SectionCard borderRadius="none" style={{ marginBottom: Spacing.xs }}>
-          <View style={styles.endpointRow}>
-            <Text style={[styles.endpointLabel, { color: themeColors.textSecondary }]}>
-              Mezo RPC
-            </Text>
-            <Text style={[styles.endpointValue, { color: themeColors.textTertiary }]}>
-              {mezoRpcEndpoint.substring(0, 30)}...
-            </Text>
-          </View>
-        </SectionCard>
-        <SectionCard borderRadius="none">
-          <View style={styles.endpointRow}>
-            <Text style={[styles.endpointLabel, { color: themeColors.textSecondary }]}>
-              Spectrum
-            </Text>
-            <Text style={[styles.endpointValue, { color: themeColors.textTertiary }]}>
-              {spectrumEndpoint.substring(0, 30)}...
-            </Text>
-          </View>
-        </SectionCard>
-      </Animated.View>
+      {address && (
+        <Animated.View
+          style={styles.section}
+          entering={FadeInDown.duration(400).delay(100)}
+        >
+          <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
+            Connected Wallet
+          </Text>
+          <SectionCard borderRadius="none">
+            <View style={styles.addressContainer}>
+              <TouchableOpacity
+                style={styles.addressTouchable}
+                onPress={() => setShowFullAddress(!showFullAddress)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.addressText,
+                    { color: themeColors.textPrimary },
+                  ]}
+                  numberOfLines={showFullAddress ? undefined : 1}
+                >
+                  {truncateAddress(address)}
+                </Text>
+                <Text style={[styles.addressHint, { color: themeColors.textTertiary }]}>
+                  {showFullAddress ? 'Tap to hide' : 'Tap to view full address'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.copyButton}
+                onPress={() => copyToClipboard(address)}
+              >
+                <Feather name="copy" size={20} color={themeColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          </SectionCard>
+        </Animated.View>
+      )}
 
       {/* Appearance Section */}
       <Animated.View
@@ -321,7 +251,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         />
       </Animated.View>
 
-      {/* Security Section */}
       <Animated.View
         style={styles.section}
         entering={FadeInDown.duration(400).delay(250)}
@@ -329,67 +258,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
         <Text style={[styles.sectionLabel, { color: themeColors.textSecondary }]}>
           Security
         </Text>
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            { borderColor: themeColors.border, backgroundColor: themeColors.surface },
-          ]}
-          onPress={() => console.log('Biometric pressed')}
-        >
-          <Feather name="lock" size={20} color={themeColors.textPrimary} />
-          <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>
-            Biometric Authentication
-          </Text>
-          <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            { borderColor: themeColors.border, backgroundColor: themeColors.surface },
-          ]}
-          onPress={() => console.log('Backup pressed')}
-        >
-          <Feather name="key" size={20} color={themeColors.textPrimary} />
-          <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>
-            Private Key Backup
-          </Text>
-          <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.menuItem,
-            {
-              borderColor: themeColors.border,
-              backgroundColor: themeColors.surfaceSecondary,
-            },
-          ]}
-          onPress={() => console.log('Reset pressed')}
-        >
-          <Feather name="alert-triangle" size={20} color={themeColors.error} />
-          <Text style={[styles.menuLabel, { color: themeColors.textPrimary }]}>
-            Reset Wallet
-          </Text>
-          <Feather name="chevron-right" size={20} color={themeColors.textSecondary} />
-        </TouchableOpacity>
+        <SectionCard borderRadius="none">
+          <View style={styles.cardContent}>
+            <View style={styles.biometricRow}>
+              <Feather name="lock" size={20} color={themeColors.textPrimary} />
+              <Text style={[styles.settingLabel, { color: themeColors.textPrimary }]}>
+                Biometric Auth
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleBiometricToggle}>
+              <Text style={[styles.biometricStatus, { color: themeColors.textSecondary }]}>
+                {biometricEnabled ? 'Enabled' : 'Disabled'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SectionCard>
       </Animated.View>
-      {/* Action Buttons */}
       <Animated.View
         style={styles.actionsSection}
         entering={FadeInDown.duration(400).delay(350)}
       >
         <ActionButton
-          variant="secondary"
-          fullWidth
-          onPress={() => console.log('Support pressed')}
-        >
-          Support
-        </ActionButton>
-        <ActionButton
           variant="primary"
           fullWidth
           onPress={handleDisconnect}
+          disabled={isDisconnecting}
+          style={{
+            borderColor: isDark ? '#FFFFFF' : '#000000',
+          }}
         >
-          Disconnect
+          {isDisconnecting ? 'Disconnecting...' : 'Disconnect Wallet'}
         </ActionButton>
       </Animated.View>
 
@@ -421,10 +319,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  addressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  addressTouchable: {
+    flex: 1,
+  },
   addressText: {
     ...Typography.body,
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontVariant: ['tabular-nums'],
+    fontSize: 14,
+    marginBottom: Spacing.xxs,
+  },
+  addressHint: {
+    ...Typography.caption,
+    fontSize: 11,
   },
   copyButton: {
     padding: Spacing.xs,
@@ -433,7 +346,15 @@ const styles = StyleSheet.create({
     ...Typography.body,
     fontFamily: 'SpaceGrotesk_600SemiBold',
   },
-  // Theme selector styles
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  biometricStatus: {
+    ...Typography.body,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+  },
   themeGrid: {
     gap: Spacing.xs,
   },
@@ -454,61 +375,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: 'center',
     marginTop: Spacing.xxs,
-  },
-  // RPC selector styles
-  rpcGrid: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-  },
-  rpcOption: {
-    flex: 1,
-    padding: Spacing.lg,
-    borderWidth: Borders.width.thick,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rpcLabel: {
-    ...Typography.label,
-    fontFamily: 'SpaceGrotesk_700Bold',
-    letterSpacing: 0.8,
-  },
-  endpointRow: {
-    flex: 1,
-  },
-  endpointLabel: {
-    ...Typography.caption,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    marginBottom: Spacing.xxs,
-  },
-  endpointValue: {
-    ...Typography.caption,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    fontVariant: ['tabular-nums'],
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderWidth: Borders.width.thick,
-    marginBottom: Spacing.xs,
-  },
-  menuLabel: {
-    flex: 1,
-    ...Typography.body,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-  },
-  infoRow: {
-    flex: 1,
-  },
-  infoLabel: {
-    ...Typography.caption,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    marginBottom: Spacing.xxs,
-  },
-  infoValue: {
-    ...Typography.body,
-    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   actionsSection: {
     gap: Spacing.md,

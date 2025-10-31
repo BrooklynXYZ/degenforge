@@ -6,7 +6,7 @@ interface WalletContextType {
   address: string | undefined;
   isConnected: boolean;
   open: () => void;
-  close: () => void;
+  disconnect: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -21,10 +21,14 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 };
 
 const WalletProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { open, close } = useAppKit();
+  const { open } = useAppKit();
   const { address, isConnected } = useAccount();
 
-  return <WalletContext.Provider value={{ address, isConnected, open, close }}>{children}</WalletContext.Provider>;
+  const disconnect = async () => {
+    await appKit.disconnect();
+  };
+
+  return <WalletContext.Provider value={{ address, isConnected, open, disconnect }}>{children}</WalletContext.Provider>;
 };
 
 export const useWallet = () => {

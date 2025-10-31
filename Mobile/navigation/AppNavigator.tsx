@@ -66,8 +66,6 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
     if (!isLoading) {
       if (isAuthenticated) {
         setAuthFlow('authenticated');
-      } else if (!hasSeenOnboarding) {
-        setAuthFlow('onboarding');
       } else if (biometricEnabled) {
         setAuthFlow('biometric-prompt');
       } else {

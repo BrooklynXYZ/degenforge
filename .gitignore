@@ -208,5 +208,41 @@ marimo/_lsp/
 __marimo__/
 
 
+# Project specific
+tigris/
+musd/
 documentation/
 node_modules/
+
+# ICP Canister Development
+icp_bridge/.dfx/
+icp_bridge/.kybra/
+icp_bridge/target/
+icp_bridge/.env
+icp_bridge/.env.local
+icp_bridge/venv/
+icp_bridge/__pycache__/
+icp_bridge/*.wasm
+icp_bridge/*.wasm.gz
+
+# Mobile App
+Mobile/.env
+Mobile/.env.icp
+Mobile/node_modules/
+Mobile/.expo/
+Mobile/dist/
+Mobile/build/
+
+# Backend
+backend/.env
+backend/node_modules/
+backend/dist/
+backend/.env.local
+
+# General
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+.kybra/

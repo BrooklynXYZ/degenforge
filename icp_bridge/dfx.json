@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "canisters": {
+    "btc_handler": {
+      "type": "custom",
+      "candid": "src/btc_canister/btc_handler.did",
+      "wasm": ".kybra/btc_handler/btc_handler.wasm",
+      "build": "python -m kybra btc_handler src/btc_canister/main.py",
+      "main": "src/btc_canister/main.py"
+    },
+    "bridge_orchestrator": {
+      "type": "custom",
+      "candid": "src/bridge_canister/bridge.did",
+      "wasm": ".kybra/bridge_orchestrator/bridge_orchestrator.wasm",
+      "build": "python -m kybra bridge_orchestrator src/bridge_canister/main.py",
+      "main": "src/bridge_canister/main.py"
+    },
+    "solana_canister": {
+      "type": "custom",
+      "candid": "src/solana_canister/solana_rpc.did",
+      "wasm": ".kybra/solana_canister/solana_canister.wasm",
+      "build": "python -m kybra solana_canister src/solana_canister/main.py",
+      "main": "src/solana_canister/main.py"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": ""
+    },
+    "bitcoin": {
+      "enabled": true,
+      "network": "testnet"
+    },
+    "schnorr": {
+      "enabled": true
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": ["https://icp-api.io"],
+      "type": "persistent"
+    }
+  }
+}
+

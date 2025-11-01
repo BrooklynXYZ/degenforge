@@ -1,0 +1,13 @@
+# Python dependencies for ICP Kybra canisters
+
+# Kybra Python CDK for Internet Computer
+kybra
+
+# Bitcoin address encoding
+base58>=2.1.1
+
+# Required by Kybra
+# These are automatically handled by Kybra, but listed for reference:
+# - wasmer
+# - typing-extensions
+

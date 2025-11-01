@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Clipboard,
+  Linking,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -20,6 +21,7 @@ import { SectionCard } from '@/components/ui/Card';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletProvider';
+import EthereumWalletService from '@/services/EthereumWalletService';
 import {
   Colors,
   Spacing,
@@ -191,6 +193,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleOpenFaucet = () => {
+    Linking.openURL(EthereumWalletService.getFaucetUrl());
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: themeColors.background }]}
@@ -233,6 +239,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
               </TouchableOpacity>
             </View>
           </SectionCard>
+          <TouchableOpacity
+            style={[styles.faucetButton, { backgroundColor: Colors.accent.primary }]}
+            onPress={handleOpenFaucet}
+            activeOpacity={0.8}
+          >
+            <Feather name="droplet" size={18} color="#000" />
+            <Text style={styles.faucetText}>Get Testnet Funds</Text>
+            <Feather name="external-link" size={14} color="#000" />
+          </TouchableOpacity>
         </Animated.View>
       )}
 
@@ -383,5 +398,22 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 120,
+  },
+  faucetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: 12,
+    marginTop: Spacing.md,
+  },
+  faucetText: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    color: '#000',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

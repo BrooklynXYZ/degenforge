@@ -11,7 +11,6 @@ import { SwapScreen } from '@/screens/SwapScreen';
 import { PoolDetailScreen } from '@/screens/PoolDetailScreen';
 import { ActivityScreen } from '@/screens/ActivityScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
-import OnboardingScreen from '@/screens/OnboardingScreen';
 import WalletConnectScreen from '@/screens/WalletConnectScreen';
 import SignUpScreen from '@/screens/SignUpScreen';
 import BiometricPromptScreen from '@/screens/BiometricPromptScreen';
@@ -32,7 +31,6 @@ type ScreenName =
 
 type AuthFlow =
   | 'splash'
-  | 'onboarding'
   | 'biometric-prompt'
   | 'wallet-connect'
   | 'signup'
@@ -47,10 +45,8 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
   const {
     isAuthenticated,
     isLoading,
-    hasSeenOnboarding,
     biometricEnabled,
     login,
-    markOnboardingSeen,
     enableBiometric,
   } = useAuth();
 
@@ -72,7 +68,7 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
         setAuthFlow('wallet-connect');
       }
     }
-  }, [isLoading, isAuthenticated, hasSeenOnboarding, biometricEnabled]);
+  }, [isLoading, isAuthenticated, biometricEnabled]);
 
   const handleTabChange = useCallback((index: number) => {
     setActiveTab(index);
@@ -132,16 +128,6 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
   }, [currentScreen, navFunction]);
 
 
-  const handleOnboardingComplete = async () => {
-    await markOnboardingSeen();
-    setAuthFlow('wallet-connect');
-  };
-
-  const handleOnboardingSkip = async () => {
-    await markOnboardingSeen();
-    setAuthFlow('wallet-connect');
-  };
-
   const handleWalletConnectSuccess = (walletAddress: string) => {
     setTempWalletAddress(walletAddress);
     setAuthFlow('signup');
@@ -184,14 +170,6 @@ export const AppNavigator: React.FC<{ splashTransitionComplete?: boolean }> = ({
     switch (authFlow) {
       case 'splash':
         return null;
-
-      case 'onboarding':
-        return (
-          <OnboardingScreen
-            onComplete={handleOnboardingComplete}
-            onSkip={handleOnboardingSkip}
-          />
-        );
 
       case 'biometric-prompt':
         return (

@@ -3,8 +3,7 @@ import 'react-native-get-random-values';
 
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { Provider as PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
-import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
 import {
   SpaceGrotesk_300Light,
   SpaceGrotesk_400Regular,
@@ -12,7 +11,6 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold
 } from '@expo-google-fonts/space-grotesk';
-import { PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
@@ -30,16 +28,11 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
     SpaceGrotesk_300Light,
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
-    PlayfairDisplay_900Black,
     ...Feather.font,
   });
 
@@ -107,32 +100,8 @@ function ThemedApp({ transitionComplete }: { transitionComplete: boolean }) {
 
   return (
     <NavigationThemeProvider value={actualTheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <ThemedPaperProvider>
-        <AppNavigator splashTransitionComplete={transitionComplete} />
-        <StatusBar style={actualTheme === 'dark' ? 'light' : 'dark'} />
-      </ThemedPaperProvider>
+      <AppNavigator splashTransitionComplete={transitionComplete} />
+      <StatusBar style={actualTheme === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   );
-}
-
-function ThemedPaperProvider({ children }: { children: React.ReactNode }) {
-  const { actualTheme, colors } = useTheme();
-  const base = actualTheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-
-  const theme = {
-    ...base,
-    colors: {
-      ...base.colors,
-      primary: colors.accent,
-      background: colors.background,
-      surface: colors.surface,
-      onSurface: colors.textPrimary,
-      outline: colors.border,
-    },
-    fonts: {
-      ...base.fonts,
-    },
-  } as typeof base;
-
-  return <PaperProvider theme={theme}>{children}</PaperProvider>;
 }

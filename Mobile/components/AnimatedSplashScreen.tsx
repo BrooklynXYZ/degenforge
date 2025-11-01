@@ -9,7 +9,6 @@ import Animated, {
     Easing,
     runOnJS,
 } from 'react-native-reanimated';
-import { useFonts, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 
 interface AnimatedSplashScreenProps {
     onAnimationComplete?: () => void;
@@ -18,9 +17,7 @@ interface AnimatedSplashScreenProps {
 export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
     onAnimationComplete,
 }) => {
-    const [fontsLoaded] = useFonts({
-        PlayfairDisplay_900Black,
-    });
+    const fontsLoaded = true;
 
     const letterG = useSharedValue(0);
     const letterH = useSharedValue(0);
@@ -164,11 +161,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     letter: {
-        fontFamily: 'PlayfairDisplay_900Black',
+        fontFamily: 'SpaceGrotesk_700Bold',
         fontSize: 72,
         color: '#000000',
-        letterSpacing: -2,
-        fontWeight: '900',
-        marginHorizontal: -1,
+        letterSpacing: 4,
+        fontWeight: '700',
+        marginHorizontal: 2,
     },
 });

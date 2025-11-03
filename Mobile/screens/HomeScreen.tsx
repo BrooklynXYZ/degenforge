@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BalanceCard } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useWallet } from '@/contexts/WalletProvider';
+import EthereumWalletService from '@/services/EthereumWalletService';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
@@ -31,13 +33,59 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
+  const { address, isConnected } = useWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [balances, setBalances] = useState({
+    btcCollateral: 0,
+    musdBalance: 0,
+    totalValue: 0,
+    portfolioChange: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const walletData = {
-    btcCollateral: 0.5,
-    musdBalance: 25000,
-    totalValue: 32500,
-    portfolioChange: 2.5,
+  const walletData = balances;
+
+  // Fetch balances on mount and when address changes
+  useEffect(() => {
+    if (address) {
+      fetchBalances();
+    }
+  }, [address]);
+
+  const fetchBalances = async () => {
+    if (!address) return;
+    
+    try {
+      setIsLoading(true);
+      const mezoBalances = await EthereumWalletService.getBalances(address);
+      
+      const btc = parseFloat(mezoBalances.btcBalance);
+      const musd = parseFloat(mezoBalances.musdBalance);
+      const btcPrice = 65000;
+      
+      setBalances({
+        btcCollateral: btc,
+        musdBalance: musd,
+        totalValue: (btc * btcPrice) + musd,
+        portfolioChange: 0,
+      });
+    } catch (error) {
+      console.error('Error fetching balances:', error);
+      setBalances({
+        btcCollateral: 0,
+        musdBalance: 0,
+        totalValue: 0,
+        portfolioChange: 0,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchBalances();
+    setIsRefreshing(false);
   };
 
   const recentTxs = [
@@ -70,12 +118,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     },
   ];
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsRefreshing(false);
-  };
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: themeColors.background }]}
@@ -104,22 +146,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
             >
               ${walletData.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </Animated.Text>
-            <View style={styles.changeContainer}>
-              <Feather name="trending-up" size={16} color={Colors.accent.neon} />
-              <Text style={styles.changeText}>
-                +{walletData.portfolioChange}% ($
-                {(walletData.totalValue * walletData.portfolioChange / 100).toFixed(2)})
-              </Text>
-            </View>
+            {walletData.portfolioChange > 0 && (
+              <View style={styles.changeContainer}>
+                <Feather name="trending-up" size={16} color={Colors.accent.neon} />
+                <Text style={styles.changeText}>
+                  +{walletData.portfolioChange}% ($
+                  {(walletData.totalValue * walletData.portfolioChange / 100).toFixed(2)})
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.cardFooter}>
             <View style={styles.assetInfo}>
               <Text style={styles.assetLabel}>BTC COLLATERAL</Text>
-              <Text style={styles.assetValue}>{walletData.btcCollateral} BTC</Text>
+              <Text style={styles.assetValue}>{walletData.btcCollateral.toFixed(4)} BTC</Text>
             </View>
             <View style={styles.assetInfo}>
-              <Text style={styles.assetLabel}>mUSD DEBT</Text>
+              <Text style={styles.assetLabel}>mUSD BALANCE</Text>
               <Text style={styles.assetValue}>${walletData.musdBalance.toLocaleString()}</Text>
             </View>
           </View>

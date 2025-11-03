@@ -15,7 +15,7 @@
             "infoPlist": {
                 "NSFaceIDUsageDescription": "Ghala uses Face ID to securely authenticate and unlock your account.",
                 "NSBiometricAuthUsageDescription": "Ghala uses biometric authentication to provide quick and secure access to your account.",
-                "LSApplicationQueriesSchemes": ["phantom", "solflare", "wc"]
+                "LSApplicationQueriesSchemes": ["phantom", "metamask", "wc"]
             }
         },
         "android": {

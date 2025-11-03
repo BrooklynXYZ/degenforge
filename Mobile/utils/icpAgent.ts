@@ -1,8 +1,3 @@
-/**
- * ICP Agent - Utilities for interacting with Internet Computer canisters
- * Handles connection, authentication, and canister calls
- */
-
 import { Actor, HttpAgent, Identity } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
 

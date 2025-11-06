@@ -74,7 +74,7 @@ async fn generate_btc_address() -> String {
     let derivation_path = DerivationPath(vec![caller.as_slice().to_vec()]);
     
     // Request ECDSA public key from ICP
-    let public_key_response = ic_cdk::api::management_canister::ecdsa::ecdsa_public_key(
+    let public_key_response = match ic_cdk::api::management_canister::ecdsa::ecdsa_public_key(
         ic_cdk::api::management_canister::ecdsa::EcdsaPublicKeyArgument {
             canister_id: None,
             derivation_path: derivation_path.0.clone(),
@@ -85,8 +85,15 @@ async fn generate_btc_address() -> String {
         },
     )
     .await
-    .unwrap()
-    .0;
+    {
+        Ok((response,)) => response,
+        Err(err) => {
+            ic_cdk::trap(&format!(
+                "Failed to get ECDSA public key: {:?}. Make sure the ECDSA key '{}' is configured in dfx.json and the local replica has access to it.",
+                err, KEY_NAME
+            ));
+        }
+    };
     
     // Convert public key to P2PKH address
     let btc_address = bitcoin_address::public_key_to_p2pkh(

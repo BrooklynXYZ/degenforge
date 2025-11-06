@@ -213,12 +213,18 @@ chmod +x test-flow.sh
 
 This script:
 1. Generates BTC testnet address
-2. Waits for manual funding
-3. Checks BTC balance
-4. Initiates bridge flow
+2. Prompts user to fund the address with testnet BTC (wait for 6 confirmations)
+3. Initiates bridge flow
+4. Mints mUSD on Mezo testnet
 5. Generates Solana devnet address
 6. Bridges mUSD to Solana
 7. Verifies final balances
+8. Displays explorer links for verification
+
+**Verification Steps:**
+- Check BTC address on Blockstream: https://blockstream.info/testnet/address/YOUR_ADDRESS
+- Check Mezo transaction on explorer: https://explorer.mezo.org/tx/YOUR_TX_HASH
+- Check Solana address/transaction on Solana Explorer: https://explorer.solana.com/?cluster=devnet
 
 ## API Reference
 
@@ -252,8 +258,12 @@ This script:
 
 - RPC: `https://rpc.test.mezo.org`
 - Chain ID: `31611`
-- mUSD Token: Update in `bridge_canister/main.py`
-- BorrowManager: Update in `bridge_canister/main.py`
+- mUSD Token: `0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186`
+  - Explorer: https://explorer.mezo.org/address/0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186
+- BorrowManager: `0xd02E8c38a8E3db71f8b2ae30B8186d7874934e12`
+  - Explorer: https://explorer.mezo.org/address/0xd02E8c38a8E3db71f8b2ae30B8186d7874934e12
+  - Alternative candidate: `0x4411cc69aE69cE444c20603FcF75a209ddd25c0d`
+- Documentation: https://mezo.org/docs/users/musd/
 
 ### Bitcoin Testnet
 
@@ -261,12 +271,14 @@ This script:
 - Key Name: `test_key_1` (threshold ECDSA)
 - Confirmations: 6 blocks
 - Faucet: https://coinfaucet.eu/en/btc-testnet/
+- Explorer: https://blockstream.info/testnet/
 
 ### Solana Devnet
 
 - RPC: `https://api.devnet.solana.com`
 - SOL RPC Canister: `titvo-eiaaa-aaaar-qaogq-cai`
 - Rate Limit: 100 requests per 10 seconds
+- Explorer: https://explorer.solana.com/?cluster=devnet
 
 ## Cost Estimates
 

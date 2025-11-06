@@ -25,25 +25,32 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 1: Deploying BTC Handler Canister...${NC}"
+echo -e "${YELLOW}Step 1: Building Rust canisters...${NC}"
+dfx build btc_handler
+dfx build solana_canister
+dfx build bridge_orchestrator
+echo -e "${GREEN}✓ Build complete${NC}"
+echo ""
+
+echo -e "${YELLOW}Step 2: Deploying BTC Handler Canister...${NC}"
 dfx deploy btc_handler
 BTC_CANISTER_ID=$(dfx canister id btc_handler)
 echo -e "${GREEN}✓ BTC Handler deployed: ${BTC_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 2: Deploying Solana Canister...${NC}"
+echo -e "${YELLOW}Step 3: Deploying Solana Canister...${NC}"
 dfx deploy solana_canister
 SOLANA_CANISTER_ID=$(dfx canister id solana_canister)
 echo -e "${GREEN}✓ Solana Canister deployed: ${SOLANA_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 3: Deploying Bridge Orchestrator Canister...${NC}"
+echo -e "${YELLOW}Step 4: Deploying Bridge Orchestrator Canister...${NC}"
 dfx deploy bridge_orchestrator
 BRIDGE_CANISTER_ID=$(dfx canister id bridge_orchestrator)
 echo -e "${GREEN}✓ Bridge Orchestrator deployed: ${BRIDGE_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 4: Configuring Bridge Orchestrator with dependent canister IDs...${NC}"
+echo -e "${YELLOW}Step 5: Configuring Bridge Orchestrator with dependent canister IDs...${NC}"
 dfx canister call bridge_orchestrator set_canister_ids "(\"${BTC_CANISTER_ID}\", \"${SOLANA_CANISTER_ID}\")"
 echo -e "${GREEN}✓ Configuration complete${NC}"
 echo ""
@@ -68,4 +75,3 @@ echo "  1. Run: ./test-flow.sh"
 echo "  2. Integrate with Mobile app"
 echo "  3. Deploy to mainnet: ./deploy-mainnet.sh"
 echo ""
-

@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "src/btc_canister",
+    "src/solana_canister",
+    "src/bridge_canister",
+]
+resolver = "2"
+

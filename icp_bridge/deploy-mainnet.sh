@@ -45,30 +45,37 @@ if [ "$confirm" != "y" ]; then
 fi
 echo ""
 
-echo -e "${YELLOW}Step 1: Deploying BTC Handler Canister to mainnet...${NC}"
+echo -e "${YELLOW}Step 1: Building Rust canisters...${NC}"
+dfx build --network ic btc_handler
+dfx build --network ic solana_canister
+dfx build --network ic bridge_orchestrator
+echo -e "${GREEN}✓ Build complete${NC}"
+echo ""
+
+echo -e "${YELLOW}Step 2: Deploying BTC Handler Canister to mainnet...${NC}"
 dfx deploy --network ic --with-cycles 3000000000000 btc_handler
 BTC_CANISTER_ID=$(dfx canister --network ic id btc_handler)
 echo -e "${GREEN}✓ BTC Handler deployed: ${BTC_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 2: Deploying Solana Canister to mainnet...${NC}"
+echo -e "${YELLOW}Step 3: Deploying Solana Canister to mainnet...${NC}"
 dfx deploy --network ic --with-cycles 3000000000000 solana_canister
 SOLANA_CANISTER_ID=$(dfx canister --network ic id solana_canister)
 echo -e "${GREEN}✓ Solana Canister deployed: ${SOLANA_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 3: Deploying Bridge Orchestrator to mainnet...${NC}"
+echo -e "${YELLOW}Step 4: Deploying Bridge Orchestrator to mainnet...${NC}"
 dfx deploy --network ic --with-cycles 3000000000000 bridge_orchestrator
 BRIDGE_CANISTER_ID=$(dfx canister --network ic id bridge_orchestrator)
 echo -e "${GREEN}✓ Bridge Orchestrator deployed: ${BRIDGE_CANISTER_ID}${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 4: Configuring Bridge Orchestrator...${NC}"
+echo -e "${YELLOW}Step 5: Configuring Bridge Orchestrator...${NC}"
 dfx canister --network ic call bridge_orchestrator set_canister_ids "(\"${BTC_CANISTER_ID}\", \"${SOLANA_CANISTER_ID}\")"
 echo -e "${GREEN}✓ Configuration complete${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 5: Verifying deployments...${NC}"
+echo -e "${YELLOW}Step 6: Verifying deployments...${NC}"
 dfx canister --network ic status btc_handler
 dfx canister --network ic status bridge_orchestrator
 dfx canister --network ic status solana_canister

@@ -2,25 +2,22 @@
   "version": 1,
   "canisters": {
     "btc_handler": {
-      "type": "custom",
+      "type": "rust",
+      "package": "btc_handler_backend",
       "candid": "src/btc_canister/btc_handler.did",
-      "wasm": ".kybra/btc_handler/btc_handler.wasm",
-      "build": "python -m kybra btc_handler src/btc_canister/main.py",
-      "main": "src/btc_canister/main.py"
+      "source": ["src/btc_canister"]
     },
     "bridge_orchestrator": {
-      "type": "custom",
+      "type": "rust",
+      "package": "bridge_orchestrator_backend",
       "candid": "src/bridge_canister/bridge.did",
-      "wasm": ".kybra/bridge_orchestrator/bridge_orchestrator.wasm",
-      "build": "python -m kybra bridge_orchestrator src/bridge_canister/main.py",
-      "main": "src/bridge_canister/main.py"
+      "source": ["src/bridge_canister"]
     },
     "solana_canister": {
-      "type": "custom",
+      "type": "rust",
+      "package": "solana_handler_backend",
       "candid": "src/solana_canister/solana_rpc.did",
-      "wasm": ".kybra/solana_canister/solana_canister.wasm",
-      "build": "python -m kybra solana_canister src/solana_canister/main.py",
-      "main": "src/solana_canister/main.py"
+      "source": ["src/solana_canister"]
     }
   },
   "defaults": {

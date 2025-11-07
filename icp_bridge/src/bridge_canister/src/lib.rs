@@ -236,23 +236,49 @@ async fn get_canister_eth_address(caller: Principal) -> String {
     }
 }
 
+// Helper function to calculate keccak256 function selector
+fn calculate_function_selector(signature: &str) -> Vec<u8> {
+    let hash = Keccak256::digest(signature.as_bytes());
+    hash[0..4].to_vec()
+}
+
 // Helper function to build EVM transaction data for borrowing mUSD
-// Based on Mezo's CDP model, likely function: openTrove(uint256, uint256) or borrow(uint256)
-// Using openTrove(uint256 maxFeePercentage, uint256 musdAmount) as it's common in CDP protocols
-fn build_mint_musd_calldata(musd_amount: u64) -> Vec<u8> {
-    // Function selector for openTrove(uint256,uint256)
-    // keccak256("openTrove(uint256,uint256)") = first 4 bytes
-    // Common CDP pattern: openTrove(maxFeePercentage, musdAmount)
-    // For now, using borrow(uint256) as it's simpler - keccak256("borrow(uint256)")
-    // 0x1249c58b = first 4 bytes of keccak256("borrow(uint256)")
-    // If this doesn't work, try: openTrove(uint256,uint256) = 0x... (need to calculate)
-    let function_selector = hex::decode("1249c58b").unwrap(); // borrow(uint256)
+// Based on the Borrow event ABI, the function signature is:
+// borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf)
+fn build_mint_musd_calldata(musd_amount: u64, on_behalf_of: &str) -> Vec<u8> {
+    // Function selector: keccak256("borrow(address,uint256,uint256,uint16,address)")[0:4]
+    let function_selector = calculate_function_selector("borrow(address,uint256,uint256,uint16,address)");
     let mut calldata = function_selector;
     
-    // Encode musd_amount as uint256 (32 bytes, big-endian)
+    // Encode function parameters (ABI encoding - each parameter is 32 bytes)
+    // Parameter 1: asset (address) - mUSD token address (padded to 32 bytes)
+    let asset_bytes = hex::decode(MUSD_TOKEN_ADDRESS.trim_start_matches("0x")).unwrap();
+    let mut asset_padded = vec![0u8; 12];
+    asset_padded.extend_from_slice(&asset_bytes);
+    calldata.extend_from_slice(&asset_padded);
+    
+    // Parameter 2: amount (uint256) - musd_amount (32 bytes, big-endian)
     let mut amount_bytes = vec![0u8; 24];
     amount_bytes.extend_from_slice(&musd_amount.to_be_bytes());
     calldata.extend_from_slice(&amount_bytes);
+    
+    // Parameter 3: interestRateMode (uint256) - 2 = variable rate (common default)
+    let interest_mode: u64 = 2;
+    let mut mode_bytes = vec![0u8; 24];
+    mode_bytes.extend_from_slice(&interest_mode.to_be_bytes());
+    calldata.extend_from_slice(&mode_bytes);
+    
+    // Parameter 4: referralCode (uint16) - 0 = no referral (padded to 32 bytes)
+    let referral_code: u16 = 0;
+    let mut referral_bytes = vec![0u8; 30];
+    referral_bytes.extend_from_slice(&referral_code.to_be_bytes());
+    calldata.extend_from_slice(&referral_bytes);
+    
+    // Parameter 5: onBehalfOf (address) - canister's Ethereum address (padded to 32 bytes)
+    let on_behalf_bytes = hex::decode(on_behalf_of.trim_start_matches("0x")).unwrap();
+    let mut on_behalf_padded = vec![0u8; 12];
+    on_behalf_padded.extend_from_slice(&on_behalf_bytes);
+    calldata.extend_from_slice(&on_behalf_padded);
     
     calldata
 }
@@ -284,7 +310,7 @@ fn build_unsigned_evm_transaction(nonce: u64, gas_price: u64, gas_limit: u64, to
 }
 
 // Helper function to build signed RLP-encoded transaction
-fn build_signed_evm_transaction(nonce: u64, gas_price: u64, gas_limit: u64, to: &str, value: u64, data: &[u8], chain_id: u64, v: u64, r: &[u8], s: &[u8]) -> Vec<u8> {
+fn build_signed_evm_transaction(nonce: u64, gas_price: u64, gas_limit: u64, to: &str, value: u64, data: &[u8], _chain_id: u64, v: u64, r: &[u8], s: &[u8]) -> Vec<u8> {
     use rlp::RlpStream;
     
     let mut stream = RlpStream::new();
@@ -362,7 +388,7 @@ async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
     let canister_eth_address = get_canister_eth_address(caller).await;
     
     // Build transaction calldata for borrowing mUSD
-    let calldata = build_mint_musd_calldata(musd_amount);
+    let calldata = build_mint_musd_calldata(musd_amount, &canister_eth_address);
     
     // Get nonce from Mezo RPC
     let nonce = get_eth_nonce(&canister_eth_address).await.unwrap_or(0);

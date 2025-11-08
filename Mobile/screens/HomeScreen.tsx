@@ -26,6 +26,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import EthereumWalletService from '@/services/EthereumWalletService';
+import ICPBridgeService from '@/services/ICPBridgeService';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
@@ -38,35 +39,83 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const [balances, setBalances] = useState({
     btcCollateral: 0,
     musdBalance: 0,
+    solDeployed: 0,
     totalValue: 0,
     portfolioChange: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [btcAddress, setBtcAddress] = useState('');
+  const [icpConnected, setIcpConnected] = useState(false);
 
   const walletData = balances;
 
-  // Fetch balances on mount and when address changes
   useEffect(() => {
-    if (address) {
+    initializeServices();
+  }, []);
+
+  useEffect(() => {
+    if (address && ICPBridgeService.isReady()) {
       fetchBalances();
     }
   }, [address]);
+
+  const initializeServices = async () => {
+    if (!ICPBridgeService.isReady()) {
+      await ICPBridgeService.initialize();
+    }
+    setIcpConnected(ICPBridgeService.isReady());
+    if (address) {
+      await fetchBalances();
+    }
+  };
 
   const fetchBalances = async () => {
     if (!address) return;
     
     try {
       setIsLoading(true);
-      const mezoBalances = await EthereumWalletService.getBalances(address);
+
+      const [mezoBalances, bridgePosition] = await Promise.all([
+        EthereumWalletService.getBalances(address).catch(() => ({
+          btcBalance: '0',
+          musdBalance: '0',
+          btcBalanceRaw: BigInt(0),
+          musdBalanceRaw: BigInt(0),
+        })),
+        ICPBridgeService.getMyPosition().catch(() => null),
+      ]);
+
+      let btcDepositAddress = '';
+      try {
+        btcDepositAddress = await ICPBridgeService.getBTCDepositAddress();
+        setBtcAddress(btcDepositAddress);
+      } catch (error) {
+        console.log('Could not fetch BTC address:', error);
+      }
+
+      const mezoBTC = parseFloat(mezoBalances.btcBalance);
+      const mezoMUSD = parseFloat(mezoBalances.musdBalance);
       
-      const btc = parseFloat(mezoBalances.btcBalance);
-      const musd = parseFloat(mezoBalances.musdBalance);
+      const btcCollateral = bridgePosition 
+        ? Number(bridgePosition.btc_collateral) / 100_000_000
+        : mezoBTC;
+      
+      const musdMinted = bridgePosition
+        ? Number(bridgePosition.musd_minted) / 1e18
+        : mezoMUSD;
+      
+      const solDeployed = bridgePosition
+        ? Number(bridgePosition.sol_deployed) / 1e9
+        : 0;
+
       const btcPrice = 65000;
+      const totalValue = (btcCollateral * btcPrice) + musdMinted + (solDeployed * 150);
       
       setBalances({
-        btcCollateral: btc,
-        musdBalance: musd,
-        totalValue: (btc * btcPrice) + musd,
+        btcCollateral,
+        musdBalance: musdMinted,
+        solDeployed,
+        totalValue,
         portfolioChange: 0,
       });
     } catch (error) {
@@ -74,6 +123,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       setBalances({
         btcCollateral: 0,
         musdBalance: 0,
+        solDeployed: 0,
         totalValue: 0,
         portfolioChange: 0,
       });
@@ -88,35 +138,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     setIsRefreshing(false);
   };
 
-  const recentTxs = [
-    {
-      id: '1',
-      icon: 'send',
-      token: 'mUSD',
-      amount: 1000,
-      status: 'confirmed' as const,
-      timestamp: '2 hours ago',
-      type: 'Send',
-    },
-    {
-      id: '2',
-      icon: 'link',
-      token: 'SOL',
-      amount: 5.5,
-      status: 'confirmed' as const,
-      timestamp: '1 day ago',
-      type: 'Bridge',
-    },
-    {
-      id: '3',
-      icon: 'plus-circle',
-      token: 'mUSD',
-      amount: 500,
-      status: 'pending' as const,
-      timestamp: '5 minutes ago',
-      type: 'Mint',
-    },
-  ];
+  const recentTxs: Array<{
+    id: string;
+    icon: string;
+    token: string;
+    amount: number;
+    status: 'confirmed' | 'pending' | 'failed';
+    timestamp: string;
+    type: string;
+  }> = [];
 
   return (
     <ScrollView
@@ -179,6 +209,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
           <Text style={[styles.quickTitle, { color: themeColors.textPrimary }]}>
             Quick Actions
           </Text>
+          {!icpConnected && (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>Mezo Only</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.quickActionsGrid}>
@@ -481,12 +516,29 @@ const styles = StyleSheet.create({
   },
   quickHeader: {
     marginBottom: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   quickTitle: {
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
     fontFamily: 'SpaceGrotesk_700Bold',
+  },
+  statusBadge: {
+    backgroundColor: 'rgba(255, 179, 0, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 179, 0, 0.3)',
+  },
+  statusText: {
+    color: '#FFB300',
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
   },
   quickActionsGrid: {
     flexDirection: 'row',

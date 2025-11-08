@@ -34,6 +34,9 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useWallet } from '@/contexts/WalletProvider';
+import ICPBridgeService from '@/services/ICPBridgeService';
+import EthereumWalletService from '@/services/EthereumWalletService';
 
 interface MintScreenProps {
   onNavigate: (screen: string) => void;
@@ -41,20 +44,25 @@ interface MintScreenProps {
 
 export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
+  const { address } = useWallet();
   const [btcAmount, setBtcAmount] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [mintResult, setMintResult] = useState<{
+    txHash: string;
+    musdAmount: number;
+    newLtv: string;
+  } | null>(null);
 
   const progressValue = useSharedValue(0);
 
-  // Mock wallet data
-  const walletBalance = 0.5; // BTC
   const btcPrice = 65000;
   const ltvRatio = 0.5;
   const fee = 0.01;
-  const minMintAmount = 0.001; // Minimum BTC to mint
+  const minMintAmount = 0.001;
 
   const btcValue = parseFloat(btcAmount) || 0;
   const usdValue = btcValue * btcPrice;
@@ -62,8 +70,21 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   const feeAmount = musdMinted * fee;
   const netMinted = musdMinted - feeAmount;
 
-  const mockMintTxHash = '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e5f7a9c1b3e';
-  const mockVaultId = '0x1234567890abcdef1234567890abcdef';
+  useEffect(() => {
+    loadBalance();
+  }, [address]);
+
+  const loadBalance = async () => {
+    if (!address) return;
+    try {
+      const btcAddr = await ICPBridgeService.getBTCDepositAddress();
+      const { btc } = await ICPBridgeService.getBTCBalance(btcAddr);
+      setWalletBalance(parseFloat(btc));
+    } catch (error) {
+      console.error('Failed to load BTC balance:', error);
+      setWalletBalance(0);
+    }
+  };
 
   // Validation
   const validateAmount = useCallback((value: string) => {
@@ -104,12 +125,29 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
     setIsLoading(true);
     progressValue.value = 0;
-    progressValue.value = withTiming(1, { duration: 2000 });
+    progressValue.value = withTiming(1, { duration: 3000 });
 
-    // Simulate minting
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
-    setIsConfirmed(true);
+    try {
+      await ICPBridgeService.initialize();
+
+      const btcValue = parseFloat(btcAmount);
+      const result = await ICPBridgeService.mintMUSDOnMezo(btcValue);
+
+      setMintResult({
+        txHash: result.transaction_hash,
+        musdAmount: Number(result.musd_amount) / 1e18,
+        newLtv: result.new_ltv,
+      });
+
+      setIsConfirmed(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: any) {
+      console.error('Mint failed:', error);
+      setError(error.message || 'Failed to mint mUSD');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [btcAmount, validateAmount, progressValue]);
 
   const handleMaxAmount = useCallback(() => {
@@ -157,7 +195,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(500)}>
-          <PremiumAmountCard value={netMinted} themeColors={themeColors} />
+          <PremiumAmountCard value={mintResult?.musdAmount || netMinted} themeColors={themeColors} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(600)}>
@@ -165,14 +203,8 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Details</Text>
             <DetailRow
               label="Amount Minted"
-              value={`${netMinted.toFixed(2)} mUSD`}
+              value={`${(mintResult?.musdAmount || netMinted).toFixed(2)} mUSD`}
               icon="check-circle"
-              themeColors={themeColors}
-            />
-            <DetailRow
-              label="Fee"
-              value={`${feeAmount.toFixed(2)} mUSD`}
-              icon="info"
               themeColors={themeColors}
             />
             <DetailRow
@@ -181,14 +213,31 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
               icon="lock"
               themeColors={themeColors}
             />
+            <DetailRow
+              label="LTV Ratio"
+              value={mintResult?.newLtv || `${(ltvRatio * 100).toFixed(0)}%`}
+              icon="trending-up"
+              themeColors={themeColors}
+            />
           </SectionCard>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
-            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Mezo Proof</Text>
-            <ProofBox label="Mint TX Hash" value={mockMintTxHash} themeColors={themeColors} />
-            <ProofBox label="Vault ID" value={mockVaultId} themeColors={themeColors} />
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Proof</Text>
+            <ProofBox 
+              label="Transaction Hash" 
+              value={mintResult?.txHash || '0x...'} 
+              themeColors={themeColors} 
+            />
+            <View style={[styles.detailRow, { marginTop: Spacing.md }]}>
+              <View style={styles.detailLeft}>
+                <Feather name="check-circle" size={16} color={Colors.semantic.success} />
+                <Text style={[styles.detailLabel, { color: themeColors.textSecondary }]}>
+                  Minted via ICP Bridge
+                </Text>
+              </View>
+            </View>
           </SectionCard>
         </Animated.View>
 

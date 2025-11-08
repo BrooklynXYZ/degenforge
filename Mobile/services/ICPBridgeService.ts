@@ -21,14 +21,14 @@ class ICPBridgeService {
   async initialize(identity?: Identity): Promise<void> {
     try {
       if (!validateCanisterConfig()) {
-        throw new Error('Invalid canister configuration. Check your .env file or canister-ids.config.ts');
+        console.warn('⚠️  Invalid canister configuration. ICP features will be disabled.');
+        return;
       }
       initializeAPIs(identity);
       this.isInitialized = true;
       console.log('✅ ICP Bridge Service initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize ICP Bridge Service:', error);
-      throw error;
+      console.warn('⚠️  Failed to initialize ICP Bridge Service. ICP features will be disabled:', error);
     }
   }
 

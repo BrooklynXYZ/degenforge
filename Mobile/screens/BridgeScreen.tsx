@@ -28,6 +28,8 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard, InteractiveCard } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useWallet } from '@/contexts/WalletProvider';
+import ICPBridgeService from '@/services/ICPBridgeService';
 
 interface BridgeScreenProps {
   onNavigate: (screen: string) => void;
@@ -47,31 +49,29 @@ interface BridgeStep {
 
 export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
+  const { address } = useWallet();
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bridgeAmount, setBridgeAmount] = useState(0);
   const [steps, setSteps] = useState<BridgeStep[]>([
     {
       id: 0,
-      label: 'Mint on Mezo',
-      description: 'BTC collateral locked, mUSD minted',
-      txHash: '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e',
-      confirmations: 12,
-      status: 'confirmed',
+      label: 'Check Position',
+      description: 'Verify mUSD balance and readiness',
+      status: 'pending',
       icon: 'check-circle',
     },
     {
       id: 1,
-      label: 'Wrap on Solana',
-      description: 'mUSD bridged to Solana network',
-      txHash: 'Ey7Ck3Tz9mK2pL5qR8sT1uV4wX7yZ0aB1cD4eF5gH6iJ',
-      confirmations: 8,
-      status: 'in_progress',
+      label: 'Bridge to Solana',
+      description: 'Transfer mUSD to Solana network',
+      status: 'pending',
       icon: 'loader',
     },
     {
       id: 2,
-      label: 'Deposit to Pool',
-      description: 'Wrapped mUSD deposited to earn yield',
+      label: 'Receive on Solana',
+      description: 'mUSD available in Solana wallet',
       status: 'pending',
       icon: 'circle',
     },
@@ -85,7 +85,39 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
     risk: 'Low' as const,
   };
 
-  const bridgeAmount = 25000; // mUSD
+  useEffect(() => {
+    loadPosition();
+  }, [address]);
+
+  const loadPosition = async () => {
+    try {
+      const position = await ICPBridgeService.getMyPosition();
+      const musdAmount = Number(position.musd_minted) / 1e18;
+      setBridgeAmount(musdAmount);
+      
+      if (musdAmount > 0) {
+        updateStepStatus(0, 'confirmed', '✓ Position verified');
+      }
+    } catch (error) {
+      console.error('Failed to load position:', error);
+    }
+  };
+
+  const updateStepStatus = (stepId: number, status: StepStatus, description?: string, txHash?: string) => {
+    setSteps(prevSteps =>
+      prevSteps.map(step =>
+        step.id === stepId
+          ? {
+              ...step,
+              status,
+              description: description || step.description,
+              txHash: txHash || step.txHash,
+              icon: status === 'confirmed' ? 'check-circle' : status === 'in_progress' ? 'loader' : status === 'failed' ? 'x-circle' : 'circle',
+            }
+          : step
+      )
+    );
+  };
 
   useEffect(() => {
     if (currentStep === 0 && steps[0].status === 'confirmed') {
@@ -97,32 +129,45 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
   const handleContinue = async () => {
     if (currentStep >= steps.length - 1) return;
+    if (bridgeAmount <= 0) {
+      alert('No mUSD to bridge. Please mint mUSD first.');
+      return;
+    }
 
     setIsProcessing(true);
 
-    // Simulate step completion
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    try {
+      if (currentStep === 1) {
+        updateStepStatus(1, 'in_progress', 'Bridging mUSD to Solana...');
 
-    // Update current step to confirmed
-    setSteps((prev) =>
-      prev.map((step, idx) =>
-        idx === currentStep
-          ? { ...step, status: 'confirmed', txHash: step.txHash || `0x${Math.random().toString(16).slice(2)}` }
-          : step
-      )
-    );
-
-    // Move to next step
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-      setSteps((prev) =>
-        prev.map((step, idx) =>
-          idx === currentStep + 1 ? { ...step, status: 'in_progress' } : step
-        )
-      );
+        const signature = await ICPBridgeService.bridgeMUSDToSolana(bridgeAmount);
+        
+        updateStepStatus(1, 'confirmed', 'Successfully bridged to Solana', signature);
+        updateStepStatus(2, 'confirmed', 'mUSD available in Solana wallet');
+        
+        setCurrentStep(2);
+      } else {
+        setSteps((prev) =>
+          prev.map((step, idx) =>
+            idx === currentStep
+              ? { ...step, status: 'confirmed' }
+              : step
+          )
+        );
+        setCurrentStep(currentStep + 1);
+        setSteps((prev) =>
+          prev.map((step, idx) =>
+            idx === currentStep + 1 ? { ...step, status: 'in_progress' } : step
+          )
+        );
+      }
+    } catch (error: any) {
+      console.error('Bridge operation failed:', error);
+      updateStepStatus(currentStep, 'failed', error.message || 'Operation failed');
+      alert(`Failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
   };
 
   const isComplete = steps.every((s) => s.status === 'confirmed');

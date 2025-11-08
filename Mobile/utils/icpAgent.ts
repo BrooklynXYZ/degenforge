@@ -63,15 +63,16 @@ export interface TransactionResult {
 }
 
 export class BTCHandlerAPI {
-  private actor: any;
+  private actorPromise: Promise<any>;
 
   constructor(identity?: Identity) {
-    this.actor = createActor(CANISTER_IDS.BTC_HANDLER, btcIdlFactory, identity);
+    this.actorPromise = createActor(CANISTER_IDS.BTC_HANDLER, btcIdlFactory, identity);
   }
 
   async generateBTCAddress(): Promise<string> {
     try {
-      const address = await this.actor.generate_btc_address();
+      const actor = await this.actorPromise;
+      const address = await actor.generate_btc_address();
       return address;
     } catch (error) {
       console.error('Error generating BTC address:', error);
@@ -81,7 +82,8 @@ export class BTCHandlerAPI {
 
   async getMyBTCAddress(): Promise<string> {
     try {
-      const address = await this.actor.get_my_btc_address();
+      const actor = await this.actorPromise;
+      const address = await actor.get_my_btc_address();
       return address;
     } catch (error) {
       console.error('Error getting BTC address:', error);
@@ -91,7 +93,8 @@ export class BTCHandlerAPI {
 
   async getBTCBalance(address: string): Promise<bigint> {
     try {
-      const balance = await this.actor.get_btc_balance(address);
+      const actor = await this.actorPromise;
+      const balance = await actor.get_btc_balance(address);
       return balance;
     } catch (error) {
       console.error('Error getting BTC balance:', error);
@@ -101,7 +104,8 @@ export class BTCHandlerAPI {
 
   async sendBTC(toAddress: string, amount: bigint): Promise<string> {
     try {
-      const result = await this.actor.send_btc(toAddress, amount);
+      const actor = await this.actorPromise;
+      const result = await actor.send_btc(toAddress, amount);
       return result;
     } catch (error) {
       console.error('Error sending BTC:', error);
@@ -111,15 +115,16 @@ export class BTCHandlerAPI {
 }
 
 export class BridgeOrchestratorAPI {
-  private actor: any;
+  private actorPromise: Promise<any>;
 
   constructor(identity?: Identity) {
-    this.actor = createActor(CANISTER_IDS.BRIDGE_ORCHESTRATOR, bridgeIdlFactory, identity);
+    this.actorPromise = createActor(CANISTER_IDS.BRIDGE_ORCHESTRATOR, bridgeIdlFactory, identity);
   }
 
   async depositBTCForMUSD(btcAmount: bigint): Promise<DepositResponse> {
     try {
-      const response = await this.actor.deposit_btc_for_musd(btcAmount);
+      const actor = await this.actorPromise;
+      const response = await actor.deposit_btc_for_musd(btcAmount);
       return response;
     } catch (error) {
       console.error('Error depositing BTC:', error);
@@ -129,7 +134,8 @@ export class BridgeOrchestratorAPI {
 
   async mintMUSDOnMezo(btcAmount: bigint): Promise<MintResponse> {
     try {
-      const response = await this.actor.mint_musd_on_mezo(btcAmount);
+      const actor = await this.actorPromise;
+      const response = await actor.mint_musd_on_mezo(btcAmount);
       return response;
     } catch (error) {
       console.error('Error minting mUSD:', error);
@@ -139,7 +145,8 @@ export class BridgeOrchestratorAPI {
 
   async bridgeMUSDToSolana(musdAmount: bigint): Promise<string> {
     try {
-      const result = await this.actor.bridge_musd_to_solana(musdAmount);
+      const actor = await this.actorPromise;
+      const result = await actor.bridge_musd_to_solana(musdAmount);
       return result;
     } catch (error) {
       console.error('Error bridging to Solana:', error);
@@ -149,7 +156,8 @@ export class BridgeOrchestratorAPI {
 
   async getMyPosition(): Promise<BridgePosition> {
     try {
-      const position = await this.actor.get_my_position();
+      const actor = await this.actorPromise;
+      const position = await actor.get_my_position();
       return position;
     } catch (error) {
       console.error('Error getting position:', error);
@@ -159,7 +167,8 @@ export class BridgeOrchestratorAPI {
 
   async calculateMaxMintable(btcCollateral: bigint): Promise<bigint> {
     try {
-      const maxMintable = await this.actor.calculate_max_mintable(btcCollateral);
+      const actor = await this.actorPromise;
+      const maxMintable = await actor.calculate_max_mintable(btcCollateral);
       return maxMintable;
     } catch (error) {
       console.error('Error calculating max mintable:', error);
@@ -169,7 +178,8 @@ export class BridgeOrchestratorAPI {
 
   async getBridgeStats(): Promise<any> {
     try {
-      const stats = await this.actor.get_bridge_stats();
+      const actor = await this.actorPromise;
+      const stats = await actor.get_bridge_stats();
       return stats;
     } catch (error) {
       console.error('Error getting bridge stats:', error);
@@ -179,7 +189,8 @@ export class BridgeOrchestratorAPI {
 
   async deployToYieldProtocol(musdAmount: bigint, protocol: string): Promise<string> {
     try {
-      const result = await this.actor.deploy_to_yield_protocol(musdAmount, protocol);
+      const actor = await this.actorPromise;
+      const result = await actor.deploy_to_yield_protocol(musdAmount, protocol);
       return result;
     } catch (error) {
       console.error('Error deploying to yield protocol:', error);
@@ -189,15 +200,16 @@ export class BridgeOrchestratorAPI {
 }
 
 export class SolanaCanisterAPI {
-  private actor: any;
+  private actorPromise: Promise<any>;
 
   constructor(identity?: Identity) {
-    this.actor = createActor(CANISTER_IDS.SOLANA_CANISTER, solanaIdlFactory, identity);
+    this.actorPromise = createActor(CANISTER_IDS.SOLANA_CANISTER, solanaIdlFactory, identity);
   }
 
   async generateSolanaAddress(): Promise<string> {
     try {
-      const address = await this.actor.generate_solana_address();
+      const actor = await this.actorPromise;
+      const address = await actor.generate_solana_address();
       return address;
     } catch (error) {
       console.error('Error generating Solana address:', error);
@@ -207,7 +219,8 @@ export class SolanaCanisterAPI {
 
   async getMySolanaAddress(): Promise<string> {
     try {
-      const address = await this.actor.get_my_solana_address();
+      const actor = await this.actorPromise;
+      const address = await actor.get_my_solana_address();
       return address;
     } catch (error) {
       console.error('Error getting Solana address:', error);
@@ -217,7 +230,8 @@ export class SolanaCanisterAPI {
 
   async getSolanaBalance(address: string): Promise<SolanaBalance> {
     try {
-      const balance = await this.actor.get_solana_balance(address);
+      const actor = await this.actorPromise;
+      const balance = await actor.get_solana_balance(address);
       return balance;
     } catch (error) {
       console.error('Error getting Solana balance:', error);
@@ -227,7 +241,8 @@ export class SolanaCanisterAPI {
 
   async sendSOL(toAddress: string, lamports: bigint): Promise<TransactionResult> {
     try {
-      const result = await this.actor.send_sol(toAddress, lamports);
+      const actor = await this.actorPromise;
+      const result = await actor.send_sol(toAddress, lamports);
       return result;
     } catch (error) {
       console.error('Error sending SOL:', error);
@@ -237,7 +252,8 @@ export class SolanaCanisterAPI {
 
   async requestAirdrop(address: string, lamports: bigint): Promise<TransactionResult> {
     try {
-      const result = await this.actor.request_airdrop(address, lamports);
+      const actor = await this.actorPromise;
+      const result = await actor.request_airdrop(address, lamports);
       return result;
     } catch (error) {
       console.error('Error requesting airdrop:', error);

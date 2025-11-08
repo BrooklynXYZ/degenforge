@@ -30,6 +30,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
+import transactionStore from '@/utils/transactionStore';
 
 interface BridgeScreenProps {
   onNavigate: (screen: string) => void;
@@ -140,8 +141,20 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
       if (currentStep === 1) {
         updateStepStatus(1, 'in_progress', 'Bridging mUSD to Solana...');
 
+        const tx = await transactionStore.addTransaction({
+          type: 'bridge',
+          token: 'mUSD',
+          amount: bridgeAmount,
+          status: 'pending',
+        });
+
         const signature = await ICPBridgeService.bridgeMUSDToSolana(bridgeAmount);
         
+        await transactionStore.updateTransaction(tx.id, {
+          status: 'confirmed',
+          solanaTxSig: signature,
+        });
+
         updateStepStatus(1, 'confirmed', 'Successfully bridged to Solana', signature);
         updateStepStatus(2, 'confirmed', 'mUSD available in Solana wallet');
         

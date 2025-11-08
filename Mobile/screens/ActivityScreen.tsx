@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,25 +19,16 @@ import { TxListItem } from '@/components/lists/TxListItem';
 import { TxDetailModal } from '@/components/modals/TxDetailModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useTheme } from '@/contexts/ThemeContext';
+import transactionStore, { Transaction } from '@/utils/transactionStore';
 import {
   Spacing,
   Typography,
   Borders,
 } from '@/constants/designTokens';
 
-interface Transaction {
-  id: string;
+interface DisplayTransaction extends Transaction {
   icon: string;
-  token: string;
-  amount: number;
-  status: 'pending' | 'confirmed' | 'failed';
-  timestamp: number;
   timestampText: string;
-  mezoTxHash?: string;
-  spectrumBtcTxId?: string;
-  solanaTxSig?: string;
-  confirmations?: number;
-  blockSlot?: number;
   date: number;
 }
 
@@ -136,81 +127,54 @@ const FilterTab: React.FC<FilterTabProps> = ({
 
 export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [selectedTx, setSelectedTx] = useState<DisplayTransaction | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [transactions, setTransactions] = useState<DisplayTransaction[]>([]);
 
-  const transactions: Transaction[] = useMemo(() => [
-    {
-      id: '1',
-      icon: 'arrow-up',
-      token: 'mUSD',
-      amount: 1000,
-      status: 'confirmed',
-      timestamp: Date.now() - 2 * 60 * 60 * 1000,
-      timestampText: '2 hours ago',
-      mezoTxHash: '0x9f8c4a2b1e3d5f7a9c1b3e5f7a9c1b3e',
-      spectrumBtcTxId: 'abc123def456',
-      solanaTxSig: 'Ey7Ck3Tz9mK2pL5qR8sT1uV4wX7yZ0aB1cD4eF5gH6iJ7kL8mN9oP0qR1sT2uV3w',
-      confirmations: 12,
-      blockSlot: 245678901,
-      date: Date.now() - 2 * 60 * 60 * 1000,
-    },
-    {
-      id: '2',
-      icon: 'git-branch',
-      token: 'SOL',
-      amount: 5.5,
-      status: 'confirmed',
-      timestamp: Date.now() - 24 * 60 * 60 * 1000,
-      timestampText: '1 day ago',
-      mezoTxHash: '0x1234567890abcdef1234567890abcdef',
-      solanaTxSig: 'Fx8Dl4Ua0nJ3qM6rS9tU2vV5wX8yZ1aB2cD5eF6gH7iJ8kL9mN0oP1qR2sT3uV4w',
-      confirmations: 32,
-      blockSlot: 245678800,
-      date: Date.now() - 24 * 60 * 60 * 1000,
-    },
-    {
-      id: '3',
-      icon: 'dollar-sign',
-      token: 'mUSD',
-      amount: 500,
-      status: 'pending',
-      timestamp: Date.now() - 5 * 60 * 1000,
-      timestampText: '5 minutes ago',
-      mezoTxHash: '0xabcdef1234567890abcdef1234567890',
-      confirmations: 2,
-      blockSlot: 245679050,
-      date: Date.now() - 5 * 60 * 1000,
-    },
-    {
-      id: '4',
-      icon: 'arrow-down',
-      token: 'mUSD',
-      amount: 2000,
-      status: 'confirmed',
-      timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000,
-      timestampText: '3 days ago',
-      mezoTxHash: '0x5678901234567890abcdef1234567890',
-      solanaTxSig: 'Gx9Em5Vb1oK4pL7qR0sT3uV6wX9yZ2aB3cD6eF7gH8iJ9kL0mN1oP2qR3sT4uV5w',
-      confirmations: 64,
-      blockSlot: 245678500,
-      date: Date.now() - 3 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: '5',
-      icon: 'x-circle',
-      token: 'mUSD',
-      amount: 250,
-      status: 'failed',
-      timestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
-      timestampText: '1 week ago',
-      mezoTxHash: '0xfedcba9876543210fedcba9876543210',
-      date: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    },
-  ], []);
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const loadTransactions = async () => {
+    const storedTxs = await transactionStore.getTransactions();
+    const displayTxs: DisplayTransaction[] = storedTxs.map(tx => ({
+      ...tx,
+      icon: getTransactionIcon(tx.type, tx.status),
+      timestampText: getTimeAgo(tx.timestamp),
+      date: tx.timestamp,
+    }));
+    setTransactions(displayTxs);
+  };
+
+  const getTransactionIcon = (type: string, status: string): string => {
+    if (status === 'failed') return 'x-circle';
+    if (status === 'pending') return 'clock';
+    switch (type) {
+      case 'mint': return 'dollar-sign';
+      case 'bridge': return 'git-branch';
+      case 'deposit': return 'arrow-down';
+      case 'send': return 'arrow-up';
+      default: return 'activity';
+    }
+  };
+
+  const getTimeAgo = (timestamp: number): string => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 4) return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+    const months = Math.floor(days / 30);
+    return `${months} month${months > 1 ? 's' : ''} ago`;
+  };
 
   // Filter transactions based on active filter and search query
   const filteredTransactions = useMemo(() => {
@@ -229,9 +193,11 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
           tx.token.toLowerCase().includes(query) ||
           tx.amount.toString().includes(query) ||
           tx.status.toLowerCase().includes(query) ||
+          tx.type.toLowerCase().includes(query) ||
           tx.mezoTxHash?.toLowerCase().includes(query) ||
-          tx.spectrumBtcTxId?.toLowerCase().includes(query) ||
-          tx.solanaTxSig?.toLowerCase().includes(query)
+          tx.solanaTxSig?.toLowerCase().includes(query) ||
+          tx.btcAddress?.toLowerCase().includes(query) ||
+          tx.solanaAddress?.toLowerCase().includes(query)
         );
       });
     }
@@ -252,15 +218,14 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     failed: transactions.filter((tx) => tx.status === 'failed').length,
   }), [transactions]);
 
-  const handleTxPress = (tx: Transaction) => {
+  const handleTxPress = (tx: DisplayTransaction) => {
     setSelectedTx(tx);
     setModalVisible(true);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await loadTransactions();
     setIsRefreshing(false);
   };
 
@@ -268,14 +233,16 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
     if (selectedTx) {
       const proof = {
         transaction: selectedTx.id,
+        type: selectedTx.type,
         token: selectedTx.token,
         amount: selectedTx.amount,
         status: selectedTx.status,
+        timestamp: selectedTx.timestamp,
         mezoTxHash: selectedTx.mezoTxHash,
-        spectrumBtcTxId: selectedTx.spectrumBtcTxId,
         solanaTxSig: selectedTx.solanaTxSig,
-        confirmations: selectedTx.confirmations,
-        blockSlot: selectedTx.blockSlot,
+        btcAddress: selectedTx.btcAddress,
+        solanaAddress: selectedTx.solanaAddress,
+        errorMessage: selectedTx.errorMessage,
         exportedAt: new Date().toISOString(),
       };
       console.log('Exporting proof:', JSON.stringify(proof, null, 2));
@@ -445,11 +412,11 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
 
 interface GroupedTransaction {
   title: string;
-  data: Transaction[];
+  data: DisplayTransaction[];
 }
 
-const groupTransactionsByDate = (txs: Transaction[]): GroupedTransaction[] => {
-  const groups: { [key: string]: Transaction[] } = {};
+const groupTransactionsByDate = (txs: DisplayTransaction[]): GroupedTransaction[] => {
+  const groups: { [key: string]: DisplayTransaction[] } = {};
 
   txs.forEach((tx) => {
     const date = new Date(tx.date);

@@ -37,6 +37,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
 import EthereumWalletService from '@/services/EthereumWalletService';
+import transactionStore from '@/utils/transactionStore';
 
 interface MintScreenProps {
   onNavigate: (screen: string) => void;
@@ -127,11 +128,26 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     progressValue.value = 0;
     progressValue.value = withTiming(1, { duration: 3000 });
 
+    const btcValue = parseFloat(btcAmount);
+    const musdAmount = usdValue * ltvRatio - (usdValue * ltvRatio * fee);
+
+    const tx = await transactionStore.addTransaction({
+      type: 'mint',
+      token: 'mUSD',
+      amount: musdAmount,
+      status: 'pending',
+    });
+
     try {
       await ICPBridgeService.initialize();
 
-      const btcValue = parseFloat(btcAmount);
       const result = await ICPBridgeService.mintMUSDOnMezo(btcValue);
+
+      await transactionStore.updateTransaction(tx.id, {
+        status: 'confirmed',
+        mezoTxHash: result.transaction_hash,
+        amount: Number(result.musd_amount) / 1e18,
+      });
 
       setMintResult({
         txHash: result.transaction_hash,
@@ -143,12 +159,16 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
       console.error('Mint failed:', error);
+      await transactionStore.updateTransaction(tx.id, {
+        status: 'failed',
+        errorMessage: error.message || 'Failed to mint mUSD',
+      });
       setError(error.message || 'Failed to mint mUSD');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
     }
-  }, [btcAmount, validateAmount, progressValue]);
+  }, [btcAmount, validateAmount, progressValue, usdValue, ltvRatio, fee]);
 
   const handleMaxAmount = useCallback(() => {
     setBtcAmount(walletBalance.toString());

@@ -1,60 +1,33 @@
 import { Actor, HttpAgent, Identity } from '@dfinity/agent';
 import { Principal } from '@dfinity/principal';
+import { idlFactory as btcIdlFactory } from '../declarations/btc_handler';
+import { idlFactory as bridgeIdlFactory } from '../declarations/bridge_orchestrator';
+import { idlFactory as solanaIdlFactory } from '../declarations/solana_canister';
+import { CANISTER_CONFIG } from '../canister-ids.config';
 
-// Import canister interfaces (generated from .did files)
-// These will be generated after canister deployment
-// import { idlFactory as btcIdlFactory } from '../declarations/btc_handler';
-// import { idlFactory as bridgeIdlFactory } from '../declarations/bridge_orchestrator';
-// import { idlFactory as solanaIdlFactory } from '../declarations/solana_canister';
+const ICP_HOST = CANISTER_CONFIG.ICP_HOST;
 
-// Configuration
-const ICP_HOST = __DEV__ 
-  ? 'http://localhost:4943'  // Local replica for development
-  : 'https://icp-api.io';      // Mainnet for production
-
-// Canister IDs (update after deployment)
 export const CANISTER_IDS = {
-  BTC_HANDLER: process.env.BTC_HANDLER_CANISTER_ID || '',
-  BRIDGE_ORCHESTRATOR: process.env.BRIDGE_ORCHESTRATOR_CANISTER_ID || '',
-  SOLANA_CANISTER: process.env.SOLANA_CANISTER_ID || '',
+  BTC_HANDLER: CANISTER_CONFIG.BTC_HANDLER,
+  BRIDGE_ORCHESTRATOR: CANISTER_CONFIG.BRIDGE_ORCHESTRATOR,
+  SOLANA_CANISTER: CANISTER_CONFIG.SOLANA_CANISTER,
 };
 
-/**
- * Initialize ICP agent
- */
 export const createAgent = async (identity?: Identity): Promise<HttpAgent> => {
-  const agent = new HttpAgent({
-    host: ICP_HOST,
-    identity,
-  });
-
-  // Fetch root key for local development
-  if (__DEV__) {
-    await agent.fetchRootKey();
-  }
-
+  const agent = new HttpAgent({ host: ICP_HOST, identity });
+  if (__DEV__) await agent.fetchRootKey();
   return agent;
 };
 
-/**
- * Create actor for canister interaction
- */
 export const createActor = <T>(
   canisterId: string,
   idlFactory: any,
   identity?: Identity
 ): Promise<T> => {
   return createAgent(identity).then((agent) => {
-    return Actor.createActor<T>(idlFactory, {
-      agent,
-      canisterId,
-    });
+    return Actor.createActor<T>(idlFactory, { agent, canisterId });
   });
 };
-
-/**
- * ICP Bridge API - Type definitions
- */
 export interface BridgePosition {
   user: Principal;
   btc_collateral: bigint;
@@ -89,15 +62,11 @@ export interface TransactionResult {
   message: string;
 }
 
-/**
- * BTC Handler Canister API
- */
 export class BTCHandlerAPI {
   private actor: any;
 
   constructor(identity?: Identity) {
-    // TODO: Replace with actual idlFactory after canister deployment
-    // this.actor = createActor(CANISTER_IDS.BTC_HANDLER, btcIdlFactory, identity);
+    this.actor = createActor(CANISTER_IDS.BTC_HANDLER, btcIdlFactory, identity);
   }
 
   async generateBTCAddress(): Promise<string> {
@@ -141,15 +110,11 @@ export class BTCHandlerAPI {
   }
 }
 
-/**
- * Bridge Orchestrator Canister API
- */
 export class BridgeOrchestratorAPI {
   private actor: any;
 
   constructor(identity?: Identity) {
-    // TODO: Replace with actual idlFactory after canister deployment
-    // this.actor = createActor(CANISTER_IDS.BRIDGE_ORCHESTRATOR, bridgeIdlFactory, identity);
+    this.actor = createActor(CANISTER_IDS.BRIDGE_ORCHESTRATOR, bridgeIdlFactory, identity);
   }
 
   async depositBTCForMUSD(btcAmount: bigint): Promise<DepositResponse> {
@@ -223,15 +188,11 @@ export class BridgeOrchestratorAPI {
   }
 }
 
-/**
- * Solana Canister API
- */
 export class SolanaCanisterAPI {
   private actor: any;
 
   constructor(identity?: Identity) {
-    // TODO: Replace with actual idlFactory after canister deployment
-    // this.actor = createActor(CANISTER_IDS.SOLANA_CANISTER, solanaIdlFactory, identity);
+    this.actor = createActor(CANISTER_IDS.SOLANA_CANISTER, solanaIdlFactory, identity);
   }
 
   async generateSolanaAddress(): Promise<string> {
@@ -285,50 +246,28 @@ export class SolanaCanisterAPI {
   }
 }
 
-/**
- * Utility functions
- */
-
-/**
- * Convert satoshis to BTC
- */
 export const satoshisToBTC = (satoshis: bigint): string => {
   return (Number(satoshis) / 100_000_000).toFixed(8);
 };
 
-/**
- * Convert BTC to satoshis
- */
 export const btcToSatoshis = (btc: number): bigint => {
   return BigInt(Math.floor(btc * 100_000_000));
 };
 
-/**
- * Convert lamports to SOL
- */
 export const lamportsToSOL = (lamports: bigint): string => {
   return (Number(lamports) / 1_000_000_000).toFixed(9);
 };
 
-/**
- * Convert SOL to lamports
- */
 export const solToLamports = (sol: number): bigint => {
   return BigInt(Math.floor(sol * 1_000_000_000));
 };
 
-/**
- * Format Principal as short string
- */
 export const formatPrincipal = (principal: Principal): string => {
   const text = principal.toText();
   if (text.length <= 12) return text;
   return `${text.slice(0, 6)}...${text.slice(-4)}`;
 };
 
-/**
- * Check if canister IDs are configured
- */
 export const areCanistersConfigured = (): boolean => {
   return (
     CANISTER_IDS.BTC_HANDLER !== '' &&
@@ -337,16 +276,10 @@ export const areCanistersConfigured = (): boolean => {
   );
 };
 
-/**
- * Export singleton instances (will be initialized with user identity)
- */
 export let btcHandlerAPI: BTCHandlerAPI;
 export let bridgeOrchestratorAPI: BridgeOrchestratorAPI;
 export let solanaCanisterAPI: SolanaCanisterAPI;
 
-/**
- * Initialize all APIs with user identity
- */
 export const initializeAPIs = (identity?: Identity) => {
   btcHandlerAPI = new BTCHandlerAPI(identity);
   bridgeOrchestratorAPI = new BridgeOrchestratorAPI(identity);

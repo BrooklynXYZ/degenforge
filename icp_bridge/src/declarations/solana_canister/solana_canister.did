@@ -1,0 +1,20 @@
+type CanisterStats = record {
+  network : text;
+  rpc_endpoint : text;
+  total_addresses_generated : nat64;
+};
+type SolanaBalance = record { sol : text; lamports : nat64 };
+type TransactionResult = record {
+  status : text;
+  signature : text;
+  message : text;
+};
+service : () -> {
+  generate_solana_address : () -> (text);
+  get_canister_stats : () -> (CanisterStats) query;
+  get_my_solana_address : () -> (text) query;
+  get_recent_blockhash : () -> (text);
+  get_solana_balance : (text) -> (SolanaBalance);
+  request_airdrop : (text, nat64) -> (TransactionResult);
+  send_sol : (text, nat64) -> (TransactionResult);
+}

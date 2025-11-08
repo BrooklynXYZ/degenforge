@@ -1,0 +1,39 @@
+type BridgePosition = record {
+  status : text;
+  sol_address : text;
+  user : principal;
+  musd_minted : nat64;
+  btc_collateral : nat64;
+  sol_deployed : nat64;
+  btc_address : text;
+};
+type BridgeStats = record {
+  total_musd_minted : nat64;
+  total_btc_collateral : nat64;
+  total_sol_deployed : nat64;
+  interest_rate : nat64;
+  max_ltv : nat64;
+  total_positions : nat64;
+};
+type DepositResponse = record {
+  status : text;
+  message : text;
+  btc_address : text;
+};
+type MintResponse = record {
+  new_ltv : text;
+  status : text;
+  transaction_hash : text;
+  musd_amount : nat64;
+};
+service : () -> {
+  bridge_musd_to_solana : (nat64) -> (text);
+  calculate_max_mintable : (nat64) -> (nat64) query;
+  deploy_to_yield_protocol : (nat64, text) -> (text);
+  deposit_btc_for_musd : (nat64) -> (DepositResponse);
+  get_bridge_stats : () -> (BridgeStats) query;
+  get_my_position : () -> (BridgePosition) query;
+  get_position : (principal) -> (BridgePosition) query;
+  mint_musd_on_mezo : (nat64) -> (MintResponse);
+  set_canister_ids : (text, text) -> (text);
+}

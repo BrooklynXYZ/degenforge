@@ -198,64 +198,110 @@ The backend acts as the **Mezo Network gateway**:
 
 ##### a) **BTC Handler Canister** (`btc_handler`)
 
-Manages Bitcoin testnet interactions using ICP's native Bitcoin integration.
+**Purpose**: Native Bitcoin Integration Layer
 
-**Capabilities:**
+This canister provides direct interaction with the Bitcoin testnet without any external APIs or centralized services. It uses ICP's threshold ECDSA to generate Bitcoin addresses and sign transactions in a fully decentralized manner.
 
-- 🔑 Generate Bitcoin addresses using threshold ECDSA
-- 📊 Query UTXO balances
-- ✍️ Sign and broadcast Bitcoin transactions
-- 🔒 Track user BTC deposits
+**What it does:**
+
+- 🔑 **Generates Bitcoin addresses** - Creates unique BTC addresses for each user using threshold cryptography (no private keys stored!)
+- 💰 **Checks BTC balances** - Queries Bitcoin network for address balances via ICP's native Bitcoin integration
+- 📦 **Tracks UTXOs** - Monitors unspent transaction outputs for accurate balance tracking
+- ✍️ **Signs transactions** - Uses threshold ECDSA to sign Bitcoin transactions securely across multiple ICP nodes
+- 📡 **Broadcasts to Bitcoin network** - Sends signed transactions directly to Bitcoin testnet
 
 **Key Functions:**
 
 ```python
-generate_btc_address() -> str
-get_btc_balance(address: str) -> nat64
-get_utxos(address: str) -> Vec[UTXOInfo]
-sign_transaction(message_hash: blob) -> blob
-send_btc(to_address: str, amount: nat64) -> str
+generate_btc_address() -> str                    # Create new BTC address for user
+get_my_btc_address() -> str                      # Retrieve user's existing address
+get_btc_balance(address: str) -> nat64           # Check BTC balance (in satoshis)
+get_utxos(address: str) -> Vec[UTXOInfo]         # Get unspent outputs
+send_btc(to_address: str, amount: nat64) -> str  # Send BTC transaction
 ```
 
 ##### b) **Bridge Orchestrator Canister** (`bridge_orchestrator`)
 
-Coordinates the entire BTC → mUSD → Solana flow.
+**Purpose**: Bridge Coordination & Flow Management
 
-**Capabilities:**
+This is the "brain" of the bridge that orchestrates the complete cross-chain flow. It coordinates interactions between Bitcoin, Mezo, and Solana, making HTTPS outcalls to Mezo's RPC and managing user positions across all three chains.
 
-- 🌉 Multi-step bridge orchestration
-- 📞 HTTPS outcalls to Mezo RPC
-- 📈 LTV and collateral calculations
-- 🗂️ User position management
+**What it does:**
+
+- 🎯 **Orchestrates bridge flow** - Manages the complete BTC → mUSD → Solana journey in sequential steps
+- 🔗 **Connects to Mezo** - Makes HTTPS outcalls to Mezo testnet RPC to interact with mUSD contracts
+- 📊 **Tracks positions** - Maintains user bridge positions (BTC collateral, mUSD minted, SOL deployed)
+- 🧮 **Calculates LTV** - Computes Loan-to-Value ratios and determines max mintable amounts based on collateral
+- 📈 **Bridge statistics** - Aggregates total volume, users, and activity across the bridge
+- 🎛️ **Configuration** - Stores references to BTC Handler and Solana canisters for coordination
 
 **Key Functions:**
 
 ```python
-deposit_btc_for_musd(amount: nat64) -> DepositResponse
-mint_musd_on_mezo(amount: nat64) -> MintResponse
-bridge_musd_to_solana(amount: nat64) -> str
-get_my_position() -> BridgePosition
-calculate_max_mintable(btc: nat64) -> nat64
+deposit_btc_for_musd(amount: nat64) -> DepositResponse    # Step 1: Deposit BTC
+mint_musd_on_mezo(amount: nat64) -> MintResponse          # Step 2: Mint mUSD on Mezo
+bridge_musd_to_solana(amount: nat64) -> str               # Step 3: Bridge to Solana
+get_my_position() -> BridgePosition                       # Get user's current position
+calculate_max_mintable(btc: nat64) -> nat64               # Calculate max mUSD for given BTC
+get_bridge_stats() -> BridgeStats                         # Get overall bridge statistics
+set_canister_ids(btc_id: str, sol_id: str) -> str        # Configure dependent canisters
 ```
 
 ##### c) **Solana Canister** (`solana_canister`)
 
-Manages Solana devnet interactions using threshold Schnorr signatures.
+**Purpose**: Solana Network Integration Layer
 
-**Capabilities:**
+This canister provides direct interaction with Solana devnet using ICP's threshold Schnorr (Ed25519) signatures. It handles the final step of the bridge by managing mUSD tokens and interactions with Solana DeFi protocols.
 
-- 🔑 Generate Solana addresses using Ed25519
-- 📊 Query SOL and SPL token balances
-- ✍️ Sign and submit Solana transactions
-- 💧 Request devnet airdrops
+**What it does:**
+
+- 🔑 **Generates Solana addresses** - Creates Ed25519 keypairs using threshold Schnorr signatures (decentralized key generation)
+- 💎 **Checks SOL balances** - Queries Solana RPC for native SOL and SPL token balances
+- 🪙 **Manages SPL tokens** - Handles wrapped mUSD tokens and other SPL token operations
+- ✍️ **Signs transactions** - Uses threshold signatures to sign Solana transactions securely
+- 📡 **Submits to Solana** - Broadcasts signed transactions to Solana devnet
+- 🪂 **Testnet airdrops** - Requests SOL airdrops for testing purposes
 
 **Key Functions:**
 
 ```python
-generate_solana_address() -> str
-get_solana_balance(address: str) -> SolanaBalance
-send_sol(to_address: str, lamports: nat64) -> TransactionResult
-request_airdrop(address: str, lamports: nat64) -> TransactionResult
+generate_solana_address() -> str                                 # Create new Solana address
+get_my_solana_address() -> str                                   # Retrieve user's address
+get_solana_balance(address: str) -> SolanaBalance               # Check SOL balance
+send_sol(to_address: str, lamports: nat64) -> TransactionResult # Send SOL transaction
+request_airdrop(address: str, lamports: nat64) -> TransactionResult # Get testnet SOL
+get_recent_blockhash() -> str                                    # Get blockhash for tx
+```
+
+#### 🔗 How the Canisters Work Together
+
+```
+User deposits BTC
+       ↓
+[BTC Handler Canister]
+   • Generates BTC address
+   • Receives BTC deposit
+   • Tracks UTXO balances
+       ↓
+[Bridge Orchestrator Canister]
+   • Coordinates minting process
+   • Makes HTTPS call to Mezo RPC
+   • Calls mUSD contract to mint
+   • Tracks user position
+       ↓
+   Mezo mUSD minted ✓
+       ↓
+[Bridge Orchestrator Canister]
+   • Initiates bridge to Solana
+   • Communicates with Solana canister
+       ↓
+[Solana Canister]
+   • Generates Solana address
+   • Receives mUSD from bridge
+   • Creates SPL token transaction
+   • Broadcasts to Solana
+       ↓
+User has mUSD on Solana for DeFi yields ✨
 ```
 
 #### Key Technologies:
@@ -275,6 +321,73 @@ ICP canisters provide the **trustless execution layer**:
 - Immutable, auditable Rust/Python smart contracts
 - Communicate with Mezo via HTTPS outcalls
 - Store user positions in stable memory across all chains
+
+#### 🔄 Updating Canister IDs and Declarations
+
+When working with ICP canisters locally, you need to keep your Mobile app in sync with your canister deployments.
+
+##### **When to Update Canister IDs**
+
+Every time you redeploy canisters locally, their IDs change. Update them in your `.env` file:
+
+```bash
+# Get new canister IDs after deployment
+wsl
+cd ~/icp_bridge
+dfx canister id btc_handler
+dfx canister id bridge_orchestrator
+dfx canister id solana_canister
+
+# Update Mobile/.env with new IDs
+EXPO_PUBLIC_BTC_HANDLER_CANISTER_ID=<new-id>
+EXPO_PUBLIC_BRIDGE_ORCHESTRATOR_CANISTER_ID=<new-id>
+EXPO_PUBLIC_SOLANA_CANISTER_ID=<new-id>
+```
+
+##### **When to Update Declarations**
+
+Declarations are TypeScript/JavaScript bindings generated from your canister interfaces (`.did` files).
+
+**Update declarations when:**
+- ✅ You add, remove, or modify canister methods
+- ✅ You change method parameters or return types
+- ✅ You modify the `.did` interface files
+- ✅ After running `dfx deploy` with interface changes
+
+**Don't need to update if:**
+- ❌ You only redeploy without changing the interface
+- ❌ You only update canister IDs
+- ❌ You only change internal canister logic without changing the public API
+
+##### **How to Update Declarations**
+
+```bash
+# 1. Regenerate declarations in your ICP project
+cd icp_bridge
+dfx generate
+
+# 2. Copy updated declarations to Mobile app
+cd Mobile
+# On Windows PowerShell:
+Copy-Item -Path "..\icp_bridge\src\declarations\*" -Destination "declarations\" -Recurse -Force
+
+# On WSL/Linux/Mac:
+cp -r ../icp_bridge/src/declarations/* declarations/
+
+# 3. Restart your Metro bundler
+npm start --clear
+```
+
+##### **Quick Reference**
+
+| Scenario | Update IDs? | Update Declarations? | Command |
+|----------|-------------|---------------------|---------|
+| Fresh deployment | ✅ Yes | ✅ Yes | `dfx deploy && dfx generate` |
+| Redeploy (no interface changes) | ✅ Yes | ❌ No | Just update `.env` |
+| Modified canister methods | ✅ Yes | ✅ Yes | `dfx deploy && dfx generate` then copy |
+| Only internal logic changes | ✅ Yes | ❌ No | Just update `.env` |
+
+**TIP**: If unsure, it's safer to regenerate and copy declarations. It won't hurt and ensures everything is in sync!
 
 ---
 

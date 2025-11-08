@@ -315,3 +315,4 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+.python-version

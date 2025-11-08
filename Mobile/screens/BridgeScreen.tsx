@@ -95,7 +95,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
       const position = await ICPBridgeService.getMyPosition();
       const musdAmount = Number(position.musd_minted) / 1e18;
       setBridgeAmount(musdAmount);
-      
+
       if (musdAmount > 0) {
         updateStepStatus(0, 'confirmed', '✓ Position verified');
       }
@@ -109,12 +109,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
       prevSteps.map(step =>
         step.id === stepId
           ? {
-              ...step,
-              status,
-              description: description || step.description,
-              txHash: txHash || step.txHash,
-              icon: status === 'confirmed' ? 'check-circle' : status === 'in_progress' ? 'loader' : status === 'failed' ? 'x-circle' : 'circle',
-            }
+            ...step,
+            status,
+            description: description || step.description,
+            txHash: txHash || step.txHash,
+            icon: status === 'confirmed' ? 'check-circle' : status === 'in_progress' ? 'loader' : status === 'failed' ? 'x-circle' : 'circle',
+          }
           : step
       )
     );
@@ -149,7 +149,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         });
 
         const signature = await ICPBridgeService.bridgeMUSDToSolana(bridgeAmount);
-        
+
         await transactionStore.updateTransaction(tx.id, {
           status: 'confirmed',
           solanaTxSig: signature,
@@ -157,7 +157,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
         updateStepStatus(1, 'confirmed', 'Successfully bridged to Solana', signature);
         updateStepStatus(2, 'confirmed', 'mUSD available in Solana wallet');
-        
+
         setCurrentStep(2);
       } else {
         setSteps((prev) =>

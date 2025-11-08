@@ -116,12 +116,22 @@ class EthereumWalletService {
                 musdContract.balanceOf(address)
             ]);
 
-            return {
+            console.log(`💰 Raw balances fetched:`, {
+                btcRaw: btcBalanceRaw.toString(),
+                musdRaw: musdBalanceRaw.toString(),
+                btcFormatted: formatEther(btcBalanceRaw),
+                musdFormatted: formatEther(musdBalanceRaw)
+            });
+
+            const result = {
                 btcBalance: formatEther(btcBalanceRaw),
                 musdBalance: formatEther(musdBalanceRaw),
                 btcBalanceRaw,
                 musdBalanceRaw
             };
+
+            console.log(`✅ Returning balances:`, result);
+            return result;
         } catch (error: any) {
             console.error('Error fetching balances:', error);
             throw new Error(`Failed to fetch balances: ${error?.message || 'Unknown error'}`);

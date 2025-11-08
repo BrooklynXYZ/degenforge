@@ -54,63 +54,98 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   }, []);
 
   useEffect(() => {
-    if (address && ICPBridgeService.isReady()) {
+    if (address) {
+      console.log('📍 Address changed, fetching balances...');
       fetchBalances();
     }
   }, [address]);
 
   const initializeServices = async () => {
+    console.log('🔧 Initializing services...');
     if (!ICPBridgeService.isReady()) {
       await ICPBridgeService.initialize();
     }
     setIcpConnected(ICPBridgeService.isReady());
     if (address) {
+      console.log('📍 Address available on init, fetching balances...');
       await fetchBalances();
+    } else {
+      console.log('⚠️  No address available yet');
     }
   };
 
   const fetchBalances = async () => {
-    if (!address) return;
-    
+    console.log('🚀 fetchBalances CALLED with address:', address);
+    if (!address) {
+      console.log('❌ No address, returning early');
+      return;
+    }
+
+    const timeout = (ms: number) => new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), ms)
+    );
+
     try {
       setIsLoading(true);
+      console.log('✅ About to fetch balances via Promise.all...');
 
       const [mezoBalances, bridgePosition] = await Promise.all([
-        EthereumWalletService.getBalances(address).catch(() => ({
-          btcBalance: '0',
-          musdBalance: '0',
-          btcBalanceRaw: BigInt(0),
-          musdBalanceRaw: BigInt(0),
-        })),
-        ICPBridgeService.getMyPosition().catch(() => null),
+        EthereumWalletService.getBalances(address).catch((err) => {
+          console.error('❌ Mezo balance fetch failed:', err);
+          return {
+            btcBalance: '0',
+            musdBalance: '0',
+            btcBalanceRaw: BigInt(0),
+            musdBalanceRaw: BigInt(0),
+          };
+        }),
+        Promise.race([
+          ICPBridgeService.getMyPosition(),
+          timeout(3000)
+        ]).catch((err) => {
+          console.log('⚠️  ICP position fetch failed (using Mezo only):', err.message);
+          return null;
+        }),
       ]);
 
-      let btcDepositAddress = '';
-      try {
-        btcDepositAddress = await ICPBridgeService.getBTCDepositAddress();
-        setBtcAddress(btcDepositAddress);
-      } catch (error) {
-        console.log('Could not fetch BTC address:', error);
-      }
+      console.log('✅ Promise.all COMPLETED!');
+      console.log('📥 Received Mezo balances:', mezoBalances);
+      console.log('📥 Received bridge position:', bridgePosition);
 
       const mezoBTC = parseFloat(mezoBalances.btcBalance);
       const mezoMUSD = parseFloat(mezoBalances.musdBalance);
-      
-      const btcCollateral = bridgePosition 
-        ? Number(bridgePosition.btc_collateral) / 100_000_000
+
+      console.log('🔢 Parsed values:', { mezoBTC, mezoMUSD });
+
+      const btcCollateral = (bridgePosition && typeof bridgePosition === 'object' && 'btc_collateral' in bridgePosition)
+        ? Number((bridgePosition as any).btc_collateral) / 100_000_000
         : mezoBTC;
-      
-      const musdMinted = bridgePosition
-        ? Number(bridgePosition.musd_minted) / 1e18
+
+      const musdMinted = (bridgePosition && typeof bridgePosition === 'object' && 'musd_minted' in bridgePosition)
+        ? Number((bridgePosition as any).musd_minted) / 1e18
         : mezoMUSD;
-      
-      const solDeployed = bridgePosition
-        ? Number(bridgePosition.sol_deployed) / 1e9
+
+      const solDeployed = (bridgePosition && typeof bridgePosition === 'object' && 'sol_deployed' in bridgePosition)
+        ? Number((bridgePosition as any).sol_deployed) / 1e9
         : 0;
 
       const btcPrice = 65000;
       const totalValue = (btcCollateral * btcPrice) + musdMinted + (solDeployed * 150);
-      
+
+      console.log('💎 Final calculated balances:', {
+        btcCollateral,
+        musdBalance: musdMinted,
+        solDeployed,
+        totalValue,
+      });
+
+      console.log('🎯 About to call setBalances with:', {
+        btcCollateral,
+        musdBalance: musdMinted,
+        solDeployed,
+        totalValue,
+      });
+
       setBalances({
         btcCollateral,
         musdBalance: musdMinted,
@@ -118,8 +153,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         totalValue,
         portfolioChange: 0,
       });
+
+      console.log('✅ setBalances CALLED SUCCESSFULLY!');
+
+      // Fetch BTC address in background (non-blocking, after balance display)
+      if (ICPBridgeService.isReady()) {
+        Promise.race([
+          ICPBridgeService.getBTCDepositAddress(),
+          timeout(2000)
+        ])
+          .then((addr) => {
+            setBtcAddress(addr as string);
+            console.log('✅ Got BTC deposit address:', addr);
+          })
+          .catch(() => {
+            console.log('⚠️  Could not fetch BTC address (skipping)');
+          });
+      }
+
     } catch (error) {
-      console.error('Error fetching balances:', error);
+      console.error('❌ Error fetching balances:', error);
       setBalances({
         btcCollateral: 0,
         musdBalance: 0,
@@ -129,6 +182,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       });
     } finally {
       setIsLoading(false);
+      console.log('🏁 fetchBalances COMPLETED');
     }
   };
 
@@ -800,7 +854,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
   },
-  statusText: {
+  txStatusText: {
     fontSize: 10,
     fontWeight: '600',
     fontFamily: 'SpaceGrotesk_600SemiBold',
@@ -825,3 +879,5 @@ const styles = StyleSheet.create({
     height: 120,
   },
 });
+
+

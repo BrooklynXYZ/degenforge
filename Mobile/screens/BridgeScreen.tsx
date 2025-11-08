@@ -30,6 +30,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
+import EthereumWalletService from '@/services/EthereumWalletService';
 import transactionStore from '@/utils/transactionStore';
 
 interface BridgeScreenProps {
@@ -91,16 +92,39 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   }, [address]);
 
   const loadPosition = async () => {
+    if (!address) return;
     try {
-      const position = await ICPBridgeService.getMyPosition();
-      const musdAmount = Number(position.musd_minted) / 1e18;
+      console.log('🌉 BridgeScreen: Loading mUSD balance for', address);
+
+      // Try ICP first (with timeout), fallback to Mezo
+      const timeout = (ms: number) => new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), ms)
+      );
+
+      let musdAmount = 0;
+
+      try {
+        const position = await Promise.race([
+          ICPBridgeService.getMyPosition(),
+          timeout(2000)
+        ]);
+        musdAmount = Number((position as any).musd_minted) / 1e18;
+        console.log('✅ BridgeScreen: Got mUSD from ICP:', musdAmount);
+      } catch (icpError) {
+        console.log('⚠️  BridgeScreen: ICP failed, using Mezo balance...');
+        const balances = await EthereumWalletService.getBalances(address);
+        musdAmount = parseFloat(balances.musdBalance);
+        console.log('✅ BridgeScreen: Got mUSD from Mezo:', musdAmount);
+      }
+
       setBridgeAmount(musdAmount);
 
       if (musdAmount > 0) {
-        updateStepStatus(0, 'confirmed', '✓ Position verified');
+        updateStepStatus(0, 'confirmed', `✓ Position verified: ${musdAmount.toFixed(2)} mUSD`);
       }
     } catch (error) {
-      console.error('Failed to load position:', error);
+      console.error('❌ BridgeScreen: Failed to load position:', error);
+      setBridgeAmount(0);
     }
   };
 

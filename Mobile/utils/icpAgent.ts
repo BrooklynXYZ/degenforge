@@ -4,6 +4,7 @@ import { idlFactory as btcIdlFactory } from '../declarations/btc_handler';
 import { idlFactory as bridgeIdlFactory } from '../declarations/bridge_orchestrator';
 import { idlFactory as solanaIdlFactory } from '../declarations/solana_canister';
 import { CANISTER_CONFIG } from '../canister-ids.config';
+import logger from './logger';
 
 const ICP_HOST = CANISTER_CONFIG.ICP_HOST;
 
@@ -13,10 +14,26 @@ export const CANISTER_IDS = {
   SOLANA_CANISTER: CANISTER_CONFIG.SOLANA_CANISTER,
 };
 
-export const createAgent = async (identity?: Identity): Promise<HttpAgent> => {
-  const agent = new HttpAgent({ host: ICP_HOST, identity });
-  if (__DEV__) await agent.fetchRootKey();
-  return agent;
+export const createAgent = async (identity?: Identity, retries = 3): Promise<HttpAgent> => {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const agent = new HttpAgent({ host: ICP_HOST, identity });
+      if (__DEV__) {
+        await agent.fetchRootKey();
+      }
+      return agent;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < retries) {
+        logger.debug(`Agent creation attempt ${attempt} failed, retrying...`, { error: lastError });
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      }
+    }
+  }
+  
+  throw new Error(`Failed to create ICP agent after ${retries} attempts: ${lastError?.message || 'Unknown error'}`);
 };
 
 export const createActor = <T>(
@@ -62,6 +79,31 @@ export interface TransactionResult {
   message: string;
 }
 
+// Helper function to retry API calls with exponential backoff
+async function retryApiCall<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = 3
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries) {
+        const delay = 1000 * attempt; // Exponential backoff
+        logger.debug(`${operationName} attempt ${attempt} failed, retrying in ${delay}ms...`, { error: lastError });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  logger.error(`${operationName} failed after ${maxRetries} attempts`, lastError);
+  throw lastError || new Error(`${operationName} failed`);
+}
+
 export class BTCHandlerAPI {
   private actorPromise: Promise<any>;
 
@@ -70,14 +112,13 @@ export class BTCHandlerAPI {
   }
 
   async generateBTCAddress(): Promise<string> {
-    try {
-      const actor = await this.actorPromise;
-      const address = await actor.generate_btc_address();
-      return address;
-    } catch (error) {
-      console.error('Error generating BTC address:', error);
-      throw error;
-    }
+    return retryApiCall(
+      async () => {
+        const actor = await this.actorPromise;
+        return await actor.generate_btc_address();
+      },
+      'generateBTCAddress'
+    );
   }
 
   async getMyBTCAddress(): Promise<string> {
@@ -86,7 +127,7 @@ export class BTCHandlerAPI {
       const address = await actor.get_my_btc_address();
       return address;
     } catch (error) {
-      console.error('Error getting BTC address:', error);
+      logger.error('Error getting BTC address', error);
       throw error;
     }
   }
@@ -97,7 +138,7 @@ export class BTCHandlerAPI {
       const balance = await actor.get_btc_balance(address);
       return balance;
     } catch (error) {
-      console.error('Error getting BTC balance:', error);
+      logger.error('Error getting BTC balance', error);
       throw error;
     }
   }
@@ -108,7 +149,7 @@ export class BTCHandlerAPI {
       const result = await actor.send_btc(toAddress, amount);
       return result;
     } catch (error) {
-      console.error('Error sending BTC:', error);
+      logger.error('Error sending BTC', error);
       throw error;
     }
   }
@@ -127,7 +168,7 @@ export class BridgeOrchestratorAPI {
       const response = await actor.deposit_btc_for_musd(btcAmount);
       return response;
     } catch (error) {
-      console.error('Error depositing BTC:', error);
+      logger.error('Error depositing BTC', error);
       throw error;
     }
   }
@@ -138,7 +179,7 @@ export class BridgeOrchestratorAPI {
       const response = await actor.mint_musd_on_mezo(btcAmount);
       return response;
     } catch (error) {
-      console.error('Error minting mUSD:', error);
+      logger.error('Error minting mUSD', error);
       throw error;
     }
   }
@@ -149,7 +190,7 @@ export class BridgeOrchestratorAPI {
       const result = await actor.bridge_musd_to_solana(musdAmount);
       return result;
     } catch (error) {
-      console.error('Error bridging to Solana:', error);
+      logger.error('Error bridging to Solana', error);
       throw error;
     }
   }
@@ -160,7 +201,7 @@ export class BridgeOrchestratorAPI {
       const position = await actor.get_my_position();
       return position;
     } catch (error) {
-      console.error('Error getting position:', error);
+      logger.error('Error getting position', error);
       throw error;
     }
   }
@@ -171,7 +212,7 @@ export class BridgeOrchestratorAPI {
       const maxMintable = await actor.calculate_max_mintable(btcCollateral);
       return maxMintable;
     } catch (error) {
-      console.error('Error calculating max mintable:', error);
+      logger.error('Error calculating max mintable', error);
       throw error;
     }
   }
@@ -182,7 +223,7 @@ export class BridgeOrchestratorAPI {
       const stats = await actor.get_bridge_stats();
       return stats;
     } catch (error) {
-      console.error('Error getting bridge stats:', error);
+      logger.error('Error getting bridge stats', error);
       throw error;
     }
   }
@@ -193,7 +234,7 @@ export class BridgeOrchestratorAPI {
       const result = await actor.deploy_to_yield_protocol(musdAmount, protocol);
       return result;
     } catch (error) {
-      console.error('Error deploying to yield protocol:', error);
+      logger.error('Error deploying to yield protocol', error);
       throw error;
     }
   }
@@ -212,7 +253,7 @@ export class SolanaCanisterAPI {
       const address = await actor.generate_solana_address();
       return address;
     } catch (error) {
-      console.error('Error generating Solana address:', error);
+      logger.error('Error generating Solana address', error);
       throw error;
     }
   }
@@ -223,7 +264,7 @@ export class SolanaCanisterAPI {
       const address = await actor.get_my_solana_address();
       return address;
     } catch (error) {
-      console.error('Error getting Solana address:', error);
+      logger.error('Error getting Solana address', error);
       throw error;
     }
   }
@@ -234,7 +275,7 @@ export class SolanaCanisterAPI {
       const balance = await actor.get_solana_balance(address);
       return balance;
     } catch (error) {
-      console.error('Error getting Solana balance:', error);
+      logger.error('Error getting Solana balance', error);
       throw error;
     }
   }
@@ -245,7 +286,7 @@ export class SolanaCanisterAPI {
       const result = await actor.send_sol(toAddress, lamports);
       return result;
     } catch (error) {
-      console.error('Error sending SOL:', error);
+      logger.error('Error sending SOL', error);
       throw error;
     }
   }
@@ -256,7 +297,7 @@ export class SolanaCanisterAPI {
       const result = await actor.request_airdrop(address, lamports);
       return result;
     } catch (error) {
-      console.error('Error requesting airdrop:', error);
+      logger.error('Error requesting airdrop', error);
       throw error;
     }
   }

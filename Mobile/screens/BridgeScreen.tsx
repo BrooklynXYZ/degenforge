@@ -32,6 +32,7 @@ import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
 import EthereumWalletService from '@/services/EthereumWalletService';
 import transactionStore from '@/utils/transactionStore';
+import logger from '@/utils/logger';
 
 interface BridgeScreenProps {
   onNavigate: (screen: string) => void;
@@ -94,7 +95,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const loadPosition = async () => {
     if (!address) return;
     try {
-      console.log('🌉 BridgeScreen: Loading mUSD balance for', address);
+      logger.debug('BridgeScreen: Loading mUSD balance', { address });
 
       // Try ICP first (with timeout), fallback to Mezo
       const timeout = (ms: number) => new Promise((_, reject) =>
@@ -109,12 +110,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
           timeout(2000)
         ]);
         musdAmount = Number((position as any).musd_minted) / 1e18;
-        console.log('✅ BridgeScreen: Got mUSD from ICP:', musdAmount);
+        logger.debug('BridgeScreen: Got mUSD from ICP', { musdAmount });
       } catch (icpError) {
-        console.log('⚠️  BridgeScreen: ICP failed, using Mezo balance...');
+        logger.debug('BridgeScreen: ICP failed, using Mezo balance');
         const balances = await EthereumWalletService.getBalances(address);
         musdAmount = parseFloat(balances.musdBalance);
-        console.log('✅ BridgeScreen: Got mUSD from Mezo:', musdAmount);
+        logger.debug('BridgeScreen: Got mUSD from Mezo', { musdAmount });
       }
 
       setBridgeAmount(musdAmount);
@@ -123,7 +124,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         updateStepStatus(0, 'confirmed', `✓ Position verified: ${musdAmount.toFixed(2)} mUSD`);
       }
     } catch (error) {
-      console.error('❌ BridgeScreen: Failed to load position:', error);
+      logger.error('BridgeScreen: Failed to load position', error);
       setBridgeAmount(0);
     }
   };
@@ -199,7 +200,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
         );
       }
     } catch (error: any) {
-      console.error('Bridge operation failed:', error);
+      logger.error('Bridge operation failed', error);
       updateStepStatus(currentStep, 'failed', error.message || 'Operation failed');
       alert(`Failed: ${error.message || 'Unknown error'}`);
     } finally {

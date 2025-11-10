@@ -7,7 +7,6 @@ use ic_stable_structures::{memory_manager::{MemoryManager, VirtualMemory, Memory
 use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::borrow::Cow;
-use std::convert::TryInto;
 
 mod bitcoin_address;
 
@@ -22,11 +21,23 @@ impl Storable for DerivationPath {
     const BOUND: Bound = Bound::Unbounded;
     
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(bincode::serialize(&self.0).unwrap())
+        match bincode::serialize(&self.0) {
+            Ok(bytes) => Cow::Owned(bytes),
+            Err(e) => {
+                ic_cdk::println!("Error serializing DerivationPath: {:?}", e);
+                ic_cdk::trap("Failed to serialize DerivationPath");
+            }
+        }
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        DerivationPath(bincode::deserialize(&bytes).unwrap())
+        match bincode::deserialize(&bytes) {
+            Ok(path) => DerivationPath(path),
+            Err(e) => {
+                ic_cdk::println!("Error deserializing DerivationPath: {:?}", e);
+                DerivationPath(vec![])
+            }
+        }
     }
 }
 
@@ -123,6 +134,11 @@ fn get_my_btc_address() -> String {
 
 #[ic_cdk::update]
 async fn get_btc_balance(address: String) -> u64 {
+    // Validate address format
+    if address.is_empty() {
+        ic_cdk::trap("Address cannot be empty");
+    }
+    
     match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(
         GetBalanceRequest {
             address: address.clone(),
@@ -134,7 +150,13 @@ async fn get_btc_balance(address: String) -> u64 {
     {
         Ok((balance,)) => balance,
         Err(err) => {
-            ic_cdk::println!("Failed to fetch balance: {:?}", err);
+            let error_msg = format!(
+                "Failed to fetch BTC balance for address {}: {:?}. \
+                Ensure the address is valid and the Bitcoin network is accessible.",
+                address, err
+            );
+            ic_cdk::println!("{}", error_msg);
+            // Return 0 instead of trapping to allow graceful error handling
             0
         }
     }
@@ -142,6 +164,11 @@ async fn get_btc_balance(address: String) -> u64 {
 
 #[ic_cdk::update]
 async fn get_utxos(address: String) -> Vec<UTXOInfo> {
+    // Validate address format
+    if address.is_empty() {
+        ic_cdk::trap("Address cannot be empty");
+    }
+    
     let utxos_result = ic_cdk::api::management_canister::bitcoin::bitcoin_get_utxos(
         GetUtxosRequest {
             address: address.clone(),
@@ -155,7 +182,12 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
         Ok((response,)) => {
             response.utxos.into_iter().map(|utxo| {
                 let mut outpoint = utxo.outpoint.txid.to_vec();
-                outpoint.push(utxo.outpoint.vout.try_into().unwrap());
+                // Safely convert vout to u8, handling potential overflow
+                let vout = utxo.outpoint.vout;
+                if vout > u8::MAX as u32 {
+                    ic_cdk::println!("Warning: vout {} exceeds u8::MAX, truncating", vout);
+                }
+                outpoint.push(vout as u8);
                 UTXOInfo {
                     outpoint: ByteBuf::from(outpoint),
                     value: utxo.value,
@@ -164,7 +196,12 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
             }).collect()
         }
         Err(err) => {
-            ic_cdk::trap(&format!("Failed to fetch UTXOs: {:?}", err));
+            let error_msg = format!(
+                "Failed to fetch UTXOs for address {}: {:?}. \
+                Ensure the address is valid and the Bitcoin network is accessible.",
+                address, err
+            );
+            ic_cdk::trap(&error_msg);
         }
     }
 }
@@ -180,7 +217,7 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
         })
     });
     
-    let signature = ic_cdk::api::management_canister::ecdsa::sign_with_ecdsa(
+    let signature_result = ic_cdk::api::management_canister::ecdsa::sign_with_ecdsa(
         ic_cdk::api::management_canister::ecdsa::SignWithEcdsaArgument {
             message_hash: message_hash.to_vec(),
             derivation_path: derivation_path.0.clone(),
@@ -190,10 +227,18 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
             },
         },
     )
-    .await
-    .unwrap()
-    .0
-    .signature;
+    .await;
+    
+    let signature = match signature_result {
+        Ok((response,)) => response.signature,
+        Err(err) => {
+            ic_cdk::trap(&format!(
+                "Failed to sign transaction: {:?}. \
+                Ensure the ECDSA key '{}' is configured in dfx.json.",
+                err, KEY_NAME
+            ));
+        }
+    };
     
     ByteBuf::from(signature)
 }

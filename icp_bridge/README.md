@@ -55,15 +55,46 @@ pip install base58 hashlib
 
 ## Quick Start
 
+### WSL Setup (for Mobile App Development)
+
+If you're developing on Windows with WSL and need to connect from a mobile device:
+
+1. **Start dfx with network access:**
+   ```bash
+   dfx start --host 0.0.0.0:4943 --background --clean
+   ```
+
+2. **Find your WSL IP address:**
+   ```bash
+   ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d/ -f1
+   ```
+
+3. **Set WSL IP in Mobile app `.env` file:**
+   ```bash
+   EXPO_PUBLIC_WSL_IP=<your-wsl-ip>
+   EXPO_PUBLIC_ICP_PORT=4943
+   ```
+
+4. **Note:** Port 4943 is the correct ICP local replica port (not 4393)
+
 ### 1. Start Local Replica
 
 ```bash
-# Start dfx in background
-dfx start --clean --background
+# Start dfx in background (with network access for WSL)
+dfx start --host 0.0.0.0:4943 --background --clean
 
 # Check status
 dfx ping local
 ```
+
+**Note on Bitcoin Integration Canister Errors:**
+
+When starting `dfx start`, you may see errors like:
+```
+[Canister g4xu7-jiaaa-aaaan-aaaaq-cai] Error fetching blocks: [SysTransient] ConnectionBroken
+```
+
+These errors are **expected and harmless** in local development. The Bitcoin integration canister (a system canister) automatically initializes and tries to connect to Bitcoin regtest network, which isn't available in local development. This canister is only needed for mainnet Bitcoin operations and can be safely ignored during local testing.
 
 ### 2. Deploy Canisters Locally
 
@@ -295,46 +326,257 @@ This script:
 - Bridge Orchestrator: 5T cycles (due to HTTPS outcalls)
 - Solana Canister: 3T cycles
 
+## Testing Guide
+
+### Testing with Real Wallets and Faucets
+
+#### 1. BTC Handler Canister Testing
+
+1. **Deploy canister locally:**
+   ```bash
+   dfx deploy btc_handler
+   ```
+
+2. **Generate BTC testnet address:**
+   ```bash
+   dfx canister call btc_handler generate_btc_address
+   ```
+
+3. **Fund address from Bitcoin testnet faucet:**
+   - Faucet: https://coinfaucet.eu/en/btc-testnet/
+   - Explorer: https://blockstream.info/testnet/
+
+4. **Wait for 6 confirmations (~60 minutes)**
+
+5. **Test balance query:**
+   ```bash
+   dfx canister call btc_handler get_btc_balance '("YOUR_BTC_ADDRESS")'
+   ```
+
+6. **Test UTXO query:**
+   ```bash
+   dfx canister call btc_handler get_utxos '("YOUR_BTC_ADDRESS")'
+   ```
+
+#### 2. Bridge Orchestrator Testing
+
+1. **Ensure canister IDs are configured:**
+   ```bash
+   dfx canister call bridge_orchestrator set_canister_ids '("BTC_ID", "SOL_ID")'
+   ```
+
+2. **Test deposit flow:**
+   ```bash
+   dfx canister call bridge_orchestrator deposit_btc_for_musd '(100000 : nat64)'
+   ```
+
+3. **Test mUSD minting (requires real BTC deposit):**
+   ```bash
+   dfx canister call bridge_orchestrator mint_musd_on_mezo '(100000 : nat64)'
+   ```
+
+4. **Verify transaction on Mezo explorer:**
+   - Check transaction hash in response
+   - Visit: https://explorer.mezo.org/tx/{tx_hash}
+
+#### 3. Solana Canister Testing
+
+1. **Generate Solana devnet address:**
+   ```bash
+   dfx canister call solana_canister generate_solana_address
+   ```
+
+2. **Request SOL airdrop:**
+   ```bash
+   dfx canister call solana_canister request_airdrop '("YOUR_SOL_ADDRESS", 1000000000 : nat64)'
+   ```
+
+3. **Test balance query:**
+   ```bash
+   dfx canister call solana_canister get_solana_balance '("YOUR_SOL_ADDRESS")'
+   ```
+
+4. **Verify on Solana explorer:**
+   - Visit: https://explorer.solana.com/address/{address}?cluster=devnet
+
+### Integration Testing
+
+Run the comprehensive test flow:
+
+```bash
+./test-flow.sh
+```
+
+This script tests the complete BTC → mUSD → Solana flow.
+
 ## Troubleshooting
+
+### Port Configuration Issues
+
+**Problem:** Mobile app can't connect to canisters
+
+**Solution:**
+1. Ensure dfx is started with `--host 0.0.0.0:4943` (not 127.0.0.1)
+2. Verify WSL IP is set correctly in Mobile/.env
+3. Check firewall settings allow port 4943
+4. Use port 4943 (not 4393) - this is the correct ICP local replica port
 
 ### ECDSA Signature Fails
 
+**Problem:** `Failed to get ECDSA public key`
+
+**Solution:**
 ```bash
 # Verify using test_key_1
 KEY_NAME = "test_key_1"  # Not production key
+
+# Ensure key is configured in dfx.json
+# Check dfx.json has:
+# "schnorr": { "enabled": true }
 ```
 
 ### HTTPS Outcall Timeout
 
-```python
-# Increase max_response_bytes
-"max_response_bytes": 5000  # Default: 2000
-```
+**Problem:** Mezo RPC calls timeout
+
+**Solution:**
+- Increase max_response_bytes in bridge_canister/src/lib.rs
+- Check Mezo RPC endpoint is accessible
+- Verify network connectivity
 
 ### Out of Cycles
 
+**Problem:** Canister runs out of cycles
+
+**Solution:**
 ```bash
-# Top up canister
+# Check cycles balance
+dfx canister call bridge_orchestrator get_cycles_balance
+
+# Top up canister (mainnet)
 dfx ledger top-up <CANISTER_ID> --network ic --amount 3.0
 ```
 
-### Solana RPC Rate Limit
+### Canister Not Configured
 
-Add retry logic with exponential backoff (devnet limit: 100 req/10s)
+**Problem:** `BTC canister not configured` or `Solana canister not configured`
+
+**Solution:**
+```bash
+# Get canister IDs
+BTC_ID=$(dfx canister id btc_handler)
+SOL_ID=$(dfx canister id solana_canister)
+
+# Configure bridge orchestrator
+dfx canister call bridge_orchestrator set_canister_ids "(\"$BTC_ID\", \"$SOL_ID\")"
+```
 
 ### Bitcoin Balance Shows 0
 
-- Wait for confirmations (6 blocks, ~60 minutes)
+**Problem:** Balance query returns 0 after funding
+
+**Solution:**
+- Wait for 6 confirmations (~60 minutes)
 - Verify address format (should start with `tb1` for testnet)
-- Check faucet transaction on explorer
+- Check faucet transaction on explorer: https://blockstream.info/testnet/
+- Ensure min_confirmations is set correctly (default: 6)
+
+### Solana RPC Rate Limit
+
+**Problem:** Solana RPC calls fail with rate limit error
+
+**Solution:**
+- Add retry logic with exponential backoff (devnet limit: 100 req/10s)
+- Use SOL RPC canister for better rate limits
+- Implement request queuing
+
+### dfx Color Output Panic
+
+**Problem:** dfx panics on color output
+
+**Solution:**
+```bash
+export NO_COLOR=1
+dfx start --clean --background
+```
+
+### Health Check
+
+Check canister health status:
+
+```bash
+dfx canister call bridge_orchestrator health_check
+```
+
+This returns:
+- Status
+- Cycles balance
+- Canister configuration status
+- Total positions
+- Timestamp
+
+## Production Deployment Checklist
+
+### Pre-Deployment
+
+- [ ] All canisters compile without errors
+- [ ] All tests pass (unit + integration)
+- [ ] Security audit completed
+- [ ] Code review completed
+- [ ] Documentation updated
+
+### Deployment Steps
+
+1. **Deploy to Mainnet:**
+   ```bash
+   ./deploy-mainnet.sh
+   ```
+
+2. **Configure Canister IDs:**
+   ```bash
+   dfx canister call bridge_orchestrator set_canister_ids \
+     --network ic \
+     "(\"$BTC_ID\", \"$SOL_ID\")"
+   ```
+
+3. **Verify Health:**
+   ```bash
+   dfx canister call bridge_orchestrator health_check --network ic
+   ```
+
+4. **Check Cycles Balance:**
+   ```bash
+   dfx canister call bridge_orchestrator get_cycles_balance --network ic
+   ```
+
+5. **Set Up Monitoring:**
+   - Configure cycles alerts
+   - Set up transaction tracking
+   - Enable error logging
+
+6. **Update Mobile App:**
+   - Update canister IDs in production .env
+   - Set `EXPO_PUBLIC_ICP_HOST=https://icp-api.io`
+   - Test connection to mainnet canisters
+
+### Post-Deployment
+
+- [ ] Monitor cycles consumption
+- [ ] Check error logs regularly
+- [ ] Verify all canister methods work
+- [ ] Test complete bridge flow
+- [ ] Set up automated backups (if needed)
 
 ## Security Considerations
 
 1. **Principal-based Access Control**: Each user can only access their own positions
-2. **Rate Limiting**: Implement request throttling for HTTPS outcalls
-3. **Reentrancy Protection**: State updates before external calls
-4. **Error Handling**: Comprehensive error messages for debugging
-5. **Cycles Monitoring**: Set up alerts for low cycles balance
+2. **Authorization Checks**: `set_canister_ids` requires controller authentication (enabled in production)
+3. **Input Validation**: All user inputs are validated before processing
+4. **Rate Limiting**: Implement request throttling for HTTPS outcalls (basic implementation in place)
+5. **Reentrancy Protection**: State updates before external calls
+6. **Error Handling**: Comprehensive error messages for debugging
+7. **Cycles Monitoring**: Health check endpoint provides cycles balance
+8. **Secure Key Management**: ECDSA keys managed by ICP threshold cryptography
 
 ## Resources
 

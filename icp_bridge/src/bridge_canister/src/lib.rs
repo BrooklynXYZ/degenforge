@@ -2,6 +2,7 @@ use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::management_canister::{
     ecdsa::{EcdsaCurve, EcdsaKeyId},
     http_request::{CanisterHttpRequestArgument, HttpHeader, HttpMethod},
+    main::CanisterIdRecord,
 };
 use ic_stable_structures::{memory_manager::{MemoryManager, VirtualMemory, MemoryId}, StableBTreeMap, DefaultMemoryImpl, Storable, storable::Bound};
 use sha3::{Keccak256, Digest as KeccakDigest};
@@ -34,6 +35,29 @@ thread_local! {
         btc_canister: None,
         solana_canister: None,
     }));
+    
+    // Track last used nonce per Ethereum address to prevent race conditions
+    // Using a wrapper for String to ensure Storable implementation
+    static NONCE_TRACKER: RefCell<StableBTreeMap<NonceKey, u64, VirtualMemory<DefaultMemoryImpl>>> =
+        RefCell::new(StableBTreeMap::init(
+            MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2)))
+        ));
+}
+
+// Wrapper for String to use as key in StableBTreeMap
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct NonceKey(String);
+
+impl Storable for NonceKey {
+    const BOUND: Bound = Bound::Unbounded;
+    
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(self.0.as_bytes().to_vec())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        NonceKey(String::from_utf8(bytes.to_vec()).unwrap_or_default())
+    }
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize)]
@@ -57,11 +81,32 @@ impl Storable for BridgePosition {
     const BOUND: Bound = Bound::Unbounded;
     
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(bincode::serialize(self).unwrap())
+        match bincode::serialize(self) {
+            Ok(bytes) => Cow::Owned(bytes),
+            Err(e) => {
+                ic_cdk::println!("Error serializing BridgePosition: {:?}", e);
+                ic_cdk::trap("Failed to serialize BridgePosition");
+            }
+        }
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        bincode::deserialize(&bytes).unwrap()
+        match bincode::deserialize(&bytes) {
+            Ok(position) => position,
+            Err(e) => {
+                ic_cdk::println!("Error deserializing BridgePosition: {:?}", e);
+                // Return default position instead of panicking
+                BridgePosition {
+                    user: Principal::anonymous(),
+                    btc_collateral: 0,
+                    musd_minted: 0,
+                    sol_deployed: 0,
+                    status: "error".to_string(),
+                    btc_address: "".to_string(),
+                    sol_address: "".to_string(),
+                }
+            }
+        }
     }
 }
 
@@ -90,17 +135,43 @@ pub struct BridgeStats {
     pub interest_rate: u64,
 }
 
+// Helper function to check if caller is a controller
+async fn is_controller(caller: Principal) -> bool {
+    let canister_id = ic_cdk::id();
+    match ic_cdk::api::management_canister::main::canister_status(
+        CanisterIdRecord { canister_id }
+    ).await {
+        Ok((status,)) => {
+            status.settings.controllers.iter().any(|&controller| controller == caller)
+        }
+        Err(_) => {
+            ic_cdk::println!("Failed to get canister status for authorization check");
+            false
+        }
+    }
+}
+
 #[ic_cdk::update]
 async fn set_canister_ids(btc_canister: String, solana_canister: String) -> String {
-    // Authorization: For now, allow any caller in local development
-    // In production, this should check if caller is a controller
-    // The canister_status API call has issues with response decoding,
-    // so we'll use a simpler approach for now
+    let caller = ic_cdk::caller();
     
     // Reject anonymous callers
-    let caller = ic_cdk::caller();
     if caller == Principal::anonymous() {
         ic_cdk::trap("Unauthorized: Anonymous callers cannot set canister IDs");
+    }
+    
+    // Check if caller is a controller
+    if !is_controller(caller).await {
+        ic_cdk::trap("Unauthorized: Only canister controllers can set canister IDs");
+    }
+    
+    // Validate Principal format for both canister IDs
+    if Principal::from_text(&btc_canister).is_err() {
+        ic_cdk::trap(&format!("Invalid BTC canister ID format: {}", btc_canister));
+    }
+    
+    if Principal::from_text(&solana_canister).is_err() {
+        ic_cdk::trap(&format!("Invalid Solana canister ID format: {}", solana_canister));
     }
     
     // Store the canister IDs
@@ -114,8 +185,31 @@ async fn set_canister_ids(btc_canister: String, solana_canister: String) -> Stri
     format!("Canister IDs set: BTC={}, Solana={}", btc_canister, solana_canister)
 }
 
+// Helper function to verify BTC deposit by checking balance
+async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, required_amount: u64) -> Result<u64, String> {
+    // Get BTC balance from BTC canister (with 6 confirmations minimum)
+    let balance_result: Result<(u64,), _> = ic_cdk::call(btc_canister, "get_btc_balance", (btc_address.to_string(),))
+        .await;
+    
+    match balance_result {
+        Ok((balance,)) => {
+            if balance >= required_amount {
+                Ok(balance)
+            } else {
+                Err(format!("Insufficient BTC deposit. Required: {}, Found: {}", required_amount, balance))
+            }
+        }
+        Err(e) => Err(format!("Failed to get BTC balance: {:?}", e))
+    }
+}
+
 #[ic_cdk::update]
 async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
+    // Input validation
+    if btc_amount == 0 {
+        ic_cdk::trap("Invalid input: BTC amount must be greater than 0");
+    }
+    
     let caller = ic_cdk::caller();
     
     let btc_canister_id = CANISTER_IDS.with(|ids| {
@@ -125,7 +219,12 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
     });
     
     // Call BTC handler canister to generate address
-    let btc_canister = Principal::from_text(&btc_canister_id).unwrap();
+    let btc_canister = match Principal::from_text(&btc_canister_id) {
+        Ok(principal) => principal,
+        Err(e) => {
+            ic_cdk::trap(&format!("Invalid BTC canister ID '{}': {:?}", btc_canister_id, e));
+        }
+    };
     
     let btc_address_result: Result<(String,), _> = ic_cdk::call(btc_canister, "generate_btc_address", ())
         .await;
@@ -133,47 +232,57 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
     let btc_address = match btc_address_result {
         Ok((addr,)) => addr,
         Err(err) => {
-            ic_cdk::println!("Failed to generate BTC address: {:?}", err);
-            // Fallback to placeholder
-            format!("tb1placeholder{}", caller.to_text())
+            ic_cdk::trap(&format!("Failed to generate BTC address: {:?}", err));
         }
     };
     
-    // Check if position already exists
-    let existing = POSITIONS.with(|map| {
-        map.borrow().get(&caller)
-    });
-    
-    let updated_position = if let Some(existing) = existing {
-        BridgePosition {
-            user: caller,
-            btc_collateral: existing.btc_collateral + btc_amount,
-            musd_minted: existing.musd_minted,
-            sol_deployed: existing.sol_deployed,
-            status: "btc_deposited".to_string(),
-            btc_address: btc_address.clone(),
-            sol_address: existing.sol_address,
+    // CRITICAL FIX: Verify BTC deposit before updating position
+    match verify_btc_deposit(btc_canister, &btc_address, btc_amount).await {
+        Ok(verified_balance) => {
+            // Check if position already exists
+            let existing = POSITIONS.with(|map| {
+                map.borrow().get(&caller)
+            });
+            
+            // Use checked arithmetic to prevent overflow
+            let updated_position = if let Some(existing) = existing {
+                let new_collateral = existing.btc_collateral.checked_add(btc_amount)
+                    .unwrap_or_else(|| ic_cdk::trap("Overflow: BTC collateral addition would overflow"));
+                
+                BridgePosition {
+                    user: caller,
+                    btc_collateral: new_collateral,
+                    musd_minted: existing.musd_minted,
+                    sol_deployed: existing.sol_deployed,
+                    status: "btc_deposited".to_string(),
+                    btc_address: btc_address.clone(),
+                    sol_address: existing.sol_address,
+                }
+            } else {
+                BridgePosition {
+                    user: caller,
+                    btc_collateral: btc_amount,
+                    musd_minted: 0,
+                    sol_deployed: 0,
+                    status: "btc_deposited".to_string(),
+                    btc_address: btc_address.clone(),
+                    sol_address: "".to_string(),
+                }
+            };
+            
+            POSITIONS.with(|map| {
+                map.borrow_mut().insert(caller, updated_position);
+            });
+            
+            DepositResponse {
+                btc_address,
+                message: format!("Deposit {} satoshis verified. Balance: {} satoshis", btc_amount, verified_balance),
+                status: "confirmed".to_string(),
+            }
         }
-    } else {
-        BridgePosition {
-            user: caller,
-            btc_collateral: btc_amount,
-            musd_minted: 0,
-            sol_deployed: 0,
-            status: "btc_deposited".to_string(),
-            btc_address: btc_address.clone(),
-            sol_address: "".to_string(),
+        Err(e) => {
+            ic_cdk::trap(&format!("BTC deposit verification failed: {}", e));
         }
-    };
-    
-    POSITIONS.with(|map| {
-        map.borrow_mut().insert(caller, updated_position);
-    });
-    
-    DepositResponse {
-        btc_address,
-        message: format!("Deposit {} satoshis to this address", btc_amount),
-        status: "pending_deposit".to_string(),
     }
 }
 
@@ -252,7 +361,10 @@ fn build_mint_musd_calldata(musd_amount: u64, on_behalf_of: &str) -> Vec<u8> {
     
     // Encode function parameters (ABI encoding - each parameter is 32 bytes)
     // Parameter 1: asset (address) - mUSD token address (padded to 32 bytes)
-    let asset_bytes = hex::decode(MUSD_TOKEN_ADDRESS.trim_start_matches("0x")).unwrap();
+    let asset_bytes = hex::decode(MUSD_TOKEN_ADDRESS.trim_start_matches("0x"))
+        .unwrap_or_else(|e| {
+            ic_cdk::trap(&format!("Invalid mUSD token address '{}': {:?}", MUSD_TOKEN_ADDRESS, e));
+        });
     let mut asset_padded = vec![0u8; 12];
     asset_padded.extend_from_slice(&asset_bytes);
     calldata.extend_from_slice(&asset_padded);
@@ -275,7 +387,10 @@ fn build_mint_musd_calldata(musd_amount: u64, on_behalf_of: &str) -> Vec<u8> {
     calldata.extend_from_slice(&referral_bytes);
     
     // Parameter 5: onBehalfOf (address) - canister's Ethereum address (padded to 32 bytes)
-    let on_behalf_bytes = hex::decode(on_behalf_of.trim_start_matches("0x")).unwrap();
+    let on_behalf_bytes = hex::decode(on_behalf_of.trim_start_matches("0x"))
+        .unwrap_or_else(|e| {
+            ic_cdk::trap(&format!("Invalid onBehalfOf address '{}': {:?}", on_behalf_of, e));
+        });
     let mut on_behalf_padded = vec![0u8; 12];
     on_behalf_padded.extend_from_slice(&on_behalf_bytes);
     calldata.extend_from_slice(&on_behalf_padded);
@@ -295,7 +410,10 @@ fn build_unsigned_evm_transaction(nonce: u64, gas_price: u64, gas_limit: u64, to
     stream.append(&gas_limit);
     
     // Decode 'to' address (remove 0x prefix)
-    let to_bytes = hex::decode(to.trim_start_matches("0x")).unwrap();
+    let to_bytes = hex::decode(to.trim_start_matches("0x"))
+        .unwrap_or_else(|e| {
+            ic_cdk::trap(&format!("Invalid 'to' address '{}': {:?}", to, e));
+        });
     stream.append(&to_bytes);
     
     stream.append(&value);
@@ -321,7 +439,10 @@ fn build_signed_evm_transaction(nonce: u64, gas_price: u64, gas_limit: u64, to: 
     stream.append(&gas_limit);
     
     // Decode 'to' address (remove 0x prefix)
-    let to_bytes = hex::decode(to.trim_start_matches("0x")).unwrap();
+    let to_bytes = hex::decode(to.trim_start_matches("0x"))
+        .unwrap_or_else(|e| {
+            ic_cdk::trap(&format!("Invalid 'to' address '{}': {:?}", to, e));
+        });
     stream.append(&to_bytes);
     
     stream.append(&value);
@@ -366,6 +487,11 @@ fn parse_ecdsa_signature(signature: &[u8]) -> (u64, Vec<u8>, Vec<u8>) {
 
 #[ic_cdk::update]
 async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
+    // Input validation
+    if btc_amount == 0 {
+        ic_cdk::trap("Invalid input: BTC amount must be greater than 0");
+    }
+    
     let caller = ic_cdk::caller();
     
     let position = POSITIONS.with(|map| {
@@ -384,14 +510,35 @@ async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
     // Calculate mUSD to mint (at 99% of collateral value for 1% borrow rate)
     let musd_amount = (btc_amount * 99) / 100;
     
+    // CRITICAL FIX: Check LTV before minting
+    let total_minted_after = position.musd_minted.checked_add(musd_amount)
+        .unwrap_or_else(|| ic_cdk::trap("Overflow: mUSD mint amount would overflow"));
+    
+    let projected_ltv = (total_minted_after.checked_mul(100)
+        .unwrap_or_else(|| ic_cdk::trap("Overflow: LTV calculation would overflow")))
+        .checked_div(position.btc_collateral)
+        .unwrap_or(u64::MAX);
+    
+    if projected_ltv > MAX_LTV {
+        ic_cdk::trap(&format!(
+            "Minting would exceed MAX_LTV. Current LTV: {}%, Projected LTV: {}%, MAX_LTV: {}%",
+            (position.musd_minted * 100) / position.btc_collateral,
+            projected_ltv,
+            MAX_LTV
+        ));
+    }
+    
     // Get canister's Ethereum address (derived from ECDSA key)
     let canister_eth_address = get_canister_eth_address(caller).await;
     
     // Build transaction calldata for borrowing mUSD
     let calldata = build_mint_musd_calldata(musd_amount, &canister_eth_address);
     
-    // Get nonce from Mezo RPC
-    let nonce = get_eth_nonce(&canister_eth_address).await.unwrap_or(0);
+    // CRITICAL FIX: Get and track nonce atomically to prevent race conditions
+    let nonce = get_and_increment_nonce(&canister_eth_address).await
+        .unwrap_or_else(|e| {
+            ic_cdk::trap(&format!("Failed to get nonce: {}", e));
+        });
     
     // Get gas price from Mezo RPC
     let gas_price = get_eth_gas_price().await.unwrap_or(20_000_000_000u64); // Default: 20 gwei
@@ -427,72 +574,82 @@ async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
     )
     .await;
     
-    let tx_hash_hex = match signature_result {
-        Ok((sig_response,)) => {
-            // Parse signature to get v, r, s
-            let (v, r, s) = parse_ecdsa_signature(&sig_response.signature);
+    // CRITICAL FIX: Sign transaction and only update state after confirmation
+    let sig_response = match signature_result {
+        Ok((response,)) => response,
+        Err(err) => {
+            ic_cdk::trap(&format!("Failed to sign transaction: {:?}", err));
+        }
+    };
+    
+    // Parse signature to get v, r, s
+    let (v, r, s) = parse_ecdsa_signature(&sig_response.signature);
+    
+    // Build signed transaction
+    let signed_tx = build_signed_evm_transaction(
+        nonce,
+        gas_price,
+        gas_limit,
+        BORROW_MANAGER_ADDRESS,
+        0,
+        &calldata,
+        MEZO_TESTNET_CHAIN_ID,
+        v,
+        &r,
+        &s,
+    );
+    
+    // Encode signed transaction as hex
+    let raw_tx_hex = format!("0x{}", hex::encode(&signed_tx));
+    
+    // Send transaction via HTTPS outcall
+    let tx_hash = match send_eth_transaction(&raw_tx_hex).await {
+        Ok(hash) => hash,
+        Err(err) => {
+            ic_cdk::trap(&format!("Failed to send transaction: {:?}", err));
+        }
+    };
+    
+    // CRITICAL FIX: Poll for transaction receipt and validate success before updating state
+    match poll_transaction_receipt(&tx_hash).await {
+        Ok(true) => {
+            // Transaction succeeded - now update state
+            let total_minted = position.musd_minted.checked_add(musd_amount)
+                .unwrap_or_else(|| ic_cdk::trap("Overflow: mUSD mint would overflow"));
             
-            // Build signed transaction
-            let signed_tx = build_signed_evm_transaction(
-                nonce,
-                gas_price,
-                gas_limit,
-                BORROW_MANAGER_ADDRESS,
-                0,
-                &calldata,
-                MEZO_TESTNET_CHAIN_ID,
-                v,
-                &r,
-                &s,
-            );
+            let current_ltv = (total_minted.checked_mul(100)
+                .unwrap_or_else(|| ic_cdk::trap("Overflow: LTV calculation would overflow")))
+                .checked_div(position.btc_collateral)
+                .unwrap_or(u64::MAX);
             
-            // Encode signed transaction as hex
-            let raw_tx_hex = format!("0x{}", hex::encode(&signed_tx));
+            // Update position only after transaction confirmation
+            let updated_position = BridgePosition {
+                user: caller,
+                btc_collateral: position.btc_collateral,
+                musd_minted: total_minted,
+                sol_deployed: position.sol_deployed,
+                status: "musd_minted".to_string(),
+                btc_address: position.btc_address,
+                sol_address: position.sol_address,
+            };
             
-            // Send transaction via HTTPS outcall
-            match send_eth_transaction(&raw_tx_hex).await {
-                Ok(tx_hash) => {
-                    // Poll for transaction receipt
-                    let _receipt = poll_transaction_receipt(&tx_hash).await;
-                    tx_hash
-                }
-                Err(err) => {
-                    ic_cdk::println!("Failed to send transaction: {:?}", err);
-                    format!("0x{}", hex::encode(&tx_hash[..16]))
-                }
+            POSITIONS.with(|map| {
+                map.borrow_mut().insert(caller, updated_position);
+            });
+            
+            MintResponse {
+                musd_amount,
+                transaction_hash: tx_hash,
+                new_ltv: format!("{}%", current_ltv),
+                status: "confirmed".to_string(),
             }
         }
-        Err(err) => {
-            ic_cdk::println!("Failed to sign transaction: {:?}", err);
-            // Fallback to placeholder
-            format!("0x{}", hex::encode(&tx_hash[..16]))
+        Ok(false) => {
+            ic_cdk::trap("Transaction failed on chain");
         }
-    };
-    
-    // Calculate new LTV
-    let total_minted = position.musd_minted + musd_amount;
-    let current_ltv = (total_minted * 100) / position.btc_collateral;
-    
-    // Update position
-    let updated_position = BridgePosition {
-        user: caller,
-        btc_collateral: position.btc_collateral,
-        musd_minted: total_minted,
-        sol_deployed: position.sol_deployed,
-        status: "musd_minted".to_string(),
-        btc_address: position.btc_address,
-        sol_address: position.sol_address,
-    };
-    
-    POSITIONS.with(|map| {
-        map.borrow_mut().insert(caller, updated_position);
-    });
-    
-    MintResponse {
-        musd_amount,
-        transaction_hash: tx_hash_hex,
-        new_ltv: format!("{}%", current_ltv),
-        status: "confirmed".to_string(),
+        Err(e) => {
+            ic_cdk::trap(&format!("Transaction receipt validation failed: {}", e));
+        }
     }
 }
 
@@ -592,8 +749,8 @@ async fn estimate_gas(from: &str, to: &str, data: &[u8]) -> Result<u64, String> 
     }
 }
 
-// Helper function to poll for transaction receipt
-async fn poll_transaction_receipt(tx_hash: &str) -> Result<serde_json::Value, String> {
+// Helper function to poll for transaction receipt and validate status
+async fn poll_transaction_receipt(tx_hash: &str) -> Result<bool, String> {
     // Poll up to 10 times with 2 second delay (20 seconds total)
     for _ in 0..10 {
         let request_body = serde_json::json!({
@@ -627,7 +784,19 @@ async fn poll_transaction_receipt(tx_hash: &str) -> Result<serde_json::Value, St
                     
                     if let Some(result) = json.get("result") {
                         if !result.is_null() {
-                            return Ok(result.clone());
+                            // CRITICAL FIX: Validate transaction status
+                            // Status "0x1" = success, "0x0" = failure
+                            if let Some(status) = result.get("status").and_then(|s| s.as_str()) {
+                                if status == "0x1" {
+                                    return Ok(true); // Transaction succeeded
+                                } else if status == "0x0" {
+                                    return Err("Transaction failed on chain".to_string());
+                                }
+                            }
+                            // If status field is missing, assume success for backwards compatibility
+                            // but log a warning
+                            ic_cdk::println!("Warning: Transaction receipt missing status field");
+                            return Ok(true);
                         }
                     }
                 }
@@ -641,6 +810,28 @@ async fn poll_transaction_receipt(tx_hash: &str) -> Result<serde_json::Value, St
     }
     
     Err("Transaction receipt not found after polling".to_string())
+}
+
+// Helper function to get and track nonce atomically to prevent race conditions
+async fn get_and_increment_nonce(address: &str) -> Result<u64, String> {
+    // Get current nonce from chain
+    let chain_nonce = get_eth_nonce(address).await?;
+    
+    // Get last used nonce from storage
+    let key = NonceKey(address.to_string());
+    let stored_nonce = NONCE_TRACKER.with(|tracker| {
+        tracker.borrow().get(&key).unwrap_or(0)
+    });
+    
+    // Use the maximum of chain nonce and stored nonce + 1 to handle concurrent requests
+    let next_nonce = std::cmp::max(chain_nonce, stored_nonce.checked_add(1).unwrap_or(chain_nonce));
+    
+    // Update stored nonce
+    NONCE_TRACKER.with(|tracker| {
+        tracker.borrow_mut().insert(key, next_nonce);
+    });
+    
+    Ok(next_nonce)
 }
 
 // Helper function to get Ethereum nonce via RPC
@@ -735,6 +926,11 @@ async fn send_eth_transaction(raw_tx_hex: &str) -> Result<String, String> {
 
 #[ic_cdk::update]
 async fn bridge_musd_to_solana(musd_amount: u64) -> String {
+    // Input validation
+    if musd_amount == 0 {
+        ic_cdk::trap("Invalid input: mUSD amount must be greater than 0");
+    }
+    
     let caller = ic_cdk::caller();
     
     let position = POSITIONS.with(|map| {
@@ -754,7 +950,12 @@ async fn bridge_musd_to_solana(musd_amount: u64) -> String {
     });
     
     // Call Solana canister to generate address
-    let sol_canister = Principal::from_text(&solana_canister_id).unwrap();
+    let sol_canister = match Principal::from_text(&solana_canister_id) {
+        Ok(principal) => principal,
+        Err(e) => {
+            ic_cdk::trap(&format!("Invalid Solana canister ID '{}': {:?}", solana_canister_id, e));
+        }
+    };
     
     // Call generate_solana_address on the Solana canister
     let sol_address_result: Result<(String,), _> = ic_cdk::call(sol_canister, "generate_solana_address", ())
@@ -769,36 +970,67 @@ async fn bridge_musd_to_solana(musd_amount: u64) -> String {
         }
     };
     
-    // Call send_sol on the Solana canister to bridge the mUSD
-    // Note: In production, this would be a token transfer, not SOL transfer
-    // We'll just call it and ignore the result for now since TransactionResult is defined in solana_canister
-    let _bridge_result = ic_cdk::call::<(String, u64), (String, String, String)>(
+    // CRITICAL FIX: Call send_sol and check result before updating state
+    let bridge_result: Result<(String, String, String), _> = ic_cdk::call(
         sol_canister,
         "send_sol",
         (sol_address.clone(), musd_amount),
     )
     .await;
     
-    // Update position
-    let updated_position = BridgePosition {
-        user: caller,
-        btc_collateral: position.btc_collateral,
-        musd_minted: position.musd_minted,
-        sol_deployed: position.sol_deployed + musd_amount,
-        status: "bridged_to_solana".to_string(),
-        btc_address: position.btc_address,
-        sol_address: sol_address.clone(),
-    };
-    
-    POSITIONS.with(|map| {
-        map.borrow_mut().insert(caller, updated_position);
-    });
-    
-    format!("Successfully bridged {} mUSD to Solana address: {}", musd_amount, sol_address)
+    match bridge_result {
+        Ok((signature, status, message)) => {
+            // Check if transaction was successful
+            if status == "error" || status == "failed" {
+                ic_cdk::trap(&format!("Solana bridge transaction failed: {}", message));
+            }
+            
+            // CRITICAL FIX: Only update state if bridge succeeded
+            // Also decrement musd_minted when bridging (or track separately)
+            let new_musd_minted = position.musd_minted.checked_sub(musd_amount)
+                .unwrap_or_else(|| ic_cdk::trap("Overflow: mUSD balance would underflow"));
+            
+            let new_sol_deployed = position.sol_deployed.checked_add(musd_amount)
+                .unwrap_or_else(|| ic_cdk::trap("Overflow: Sol deployed amount would overflow"));
+            
+            let updated_position = BridgePosition {
+                user: caller,
+                btc_collateral: position.btc_collateral,
+                musd_minted: new_musd_minted,
+                sol_deployed: new_sol_deployed,
+                status: "bridged_to_solana".to_string(),
+                btc_address: position.btc_address,
+                sol_address: sol_address.clone(),
+            };
+            
+            POSITIONS.with(|map| {
+                map.borrow_mut().insert(caller, updated_position);
+            });
+            
+            format!("Successfully bridged {} mUSD to Solana address: {}. Transaction: {}", musd_amount, sol_address, signature)
+        }
+        Err(err) => {
+            ic_cdk::trap(&format!("Failed to bridge mUSD to Solana: {:?}", err));
+        }
+    }
 }
 
 #[ic_cdk::update]
 fn deploy_to_yield_protocol(musd_amount: u64, protocol: String) -> String {
+    // Input validation
+    if musd_amount == 0 {
+        ic_cdk::trap("Invalid input: mUSD amount must be greater than 0");
+    }
+    
+    if protocol.is_empty() {
+        ic_cdk::trap("Invalid input: Protocol name cannot be empty");
+    }
+    
+    // Validate protocol name (basic sanitization)
+    if protocol.len() > 50 {
+        ic_cdk::trap("Invalid input: Protocol name too long");
+    }
+    
     let caller = ic_cdk::caller();
     
     let position = POSITIONS.with(|map| {
@@ -850,9 +1082,10 @@ fn get_bridge_stats() -> BridgeStats {
     
     POSITIONS.with(|map| {
         for (_, position) in map.borrow().iter() {
-            total_btc += position.btc_collateral;
-            total_musd += position.musd_minted;
-            total_sol_deployed += position.sol_deployed;
+            // Use saturating_add to prevent overflow in stats calculation
+            total_btc = total_btc.saturating_add(position.btc_collateral);
+            total_musd = total_musd.saturating_add(position.musd_minted);
+            total_sol_deployed = total_sol_deployed.saturating_add(position.sol_deployed);
         }
     });
     
@@ -866,6 +1099,49 @@ fn get_bridge_stats() -> BridgeStats {
         max_ltv: MAX_LTV,
         interest_rate: INTEREST_RATE,
     }
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+pub struct HealthStatus {
+    pub status: String,
+    pub canister_id: String,
+    pub cycles_balance: u64,
+    pub btc_canister_configured: bool,
+    pub solana_canister_configured: bool,
+    pub total_positions: u64,
+    pub timestamp: u64,
+}
+
+#[ic_cdk::query]
+fn health_check() -> HealthStatus {
+    let canister_id = ic_cdk::id();
+    let cycles_balance = ic_cdk::api::canister_balance();
+    
+    let (btc_configured, solana_configured) = CANISTER_IDS.with(|ids| {
+        let inner = ids.borrow();
+        let ids_ref = inner.borrow();
+        (
+            ids_ref.btc_canister.is_some(),
+            ids_ref.solana_canister.is_some(),
+        )
+    });
+    
+    let total_positions = POSITIONS.with(|map| map.borrow().len() as u64);
+    
+    HealthStatus {
+        status: "healthy".to_string(),
+        canister_id: canister_id.to_text(),
+        cycles_balance,
+        btc_canister_configured: btc_configured,
+        solana_canister_configured: solana_configured,
+        total_positions,
+        timestamp: ic_cdk::api::time(),
+    }
+}
+
+#[ic_cdk::query]
+fn get_cycles_balance() -> u64 {
+    ic_cdk::api::canister_balance()
 }
 
 #[ic_cdk::init]

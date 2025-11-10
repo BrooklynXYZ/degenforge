@@ -14,22 +14,35 @@ import {
   type TransactionResult,
 } from '@/utils/icpAgent';
 import { validateCanisterConfig } from '@/canister-ids.config';
+import logger from '@/utils/logger';
 
 class ICPBridgeService {
   private isInitialized = false;
 
-  async initialize(identity?: Identity): Promise<void> {
-    try {
-      if (!validateCanisterConfig()) {
-        console.warn('⚠️  Invalid canister configuration. ICP features will be disabled.');
-        return;
-      }
-      initializeAPIs(identity);
-      this.isInitialized = true;
-      console.log('✅ ICP Bridge Service initialized');
-    } catch (error) {
-      console.warn('⚠️  Failed to initialize ICP Bridge Service. ICP features will be disabled:', error);
+  async initialize(identity?: Identity, retries = 3): Promise<void> {
+    if (!validateCanisterConfig()) {
+      logger.warn('Invalid canister configuration. ICP features will be disabled.');
+      return;
     }
+    
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        initializeAPIs(identity);
+        this.isInitialized = true;
+        logger.info('ICP Bridge Service initialized');
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < retries) {
+          logger.debug(`ICP Bridge Service initialization attempt ${attempt} failed, retrying...`, { error: lastError });
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        }
+      }
+    }
+    
+    logger.warn('Failed to initialize ICP Bridge Service after all retries. ICP features will be disabled.', lastError);
+    this.isInitialized = false;
   }
 
   isReady(): boolean {
@@ -42,11 +55,11 @@ class ICPBridgeService {
       let address = await btcHandlerAPI.getMyBTCAddress();
       if (!address) {
         address = await btcHandlerAPI.generateBTCAddress();
-        console.log('🔑 Generated BTC address:', address);
+        logger.debug('Generated BTC address', { address });
       }
       return address;
     } catch (error) {
-      console.error('Error getting BTC address:', error);
+      logger.error('Error getting BTC address', error);
       throw error;
     }
   }
@@ -57,7 +70,7 @@ class ICPBridgeService {
       const satoshis = await btcHandlerAPI.getBTCBalance(address);
       return { satoshis, btc: satoshisToBTC(satoshis) };
     } catch (error) {
-      console.error('Error getting BTC balance:', error);
+      logger.error('Error getting BTC balance', error);
       throw error;
     }
   }
@@ -66,10 +79,10 @@ class ICPBridgeService {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {
       const response = await bridgeOrchestratorAPI.depositBTCForMUSD(btcToSatoshis(btcAmount));
-      console.log('💰 BTC deposited:', response);
+      logger.debug('BTC deposited', { response, btcAmount });
       return response;
     } catch (error) {
-      console.error('Error depositing BTC:', error);
+      logger.error('Error depositing BTC', error);
       throw error;
     }
   }
@@ -78,10 +91,10 @@ class ICPBridgeService {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {
       const response = await bridgeOrchestratorAPI.mintMUSDOnMezo(btcToSatoshis(btcAmount));
-      console.log('🏦 mUSD minted:', response);
+      logger.debug('mUSD minted', { response, btcAmount });
       return response;
     } catch (error) {
-      console.error('Error minting mUSD:', error);
+      logger.error('Error minting mUSD', error);
       throw error;
     }
   }
@@ -90,10 +103,10 @@ class ICPBridgeService {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {
       const signature = await bridgeOrchestratorAPI.bridgeMUSDToSolana(BigInt(Math.floor(musdAmount * 1e18)));
-      console.log('🌉 Bridged to Solana:', signature);
+      logger.debug('Bridged to Solana', { signature, musdAmount });
       return signature;
     } catch (error) {
-      console.error('Error bridging to Solana:', error);
+      logger.error('Error bridging to Solana', error);
       throw error;
     }
   }
@@ -120,11 +133,11 @@ class ICPBridgeService {
       let address = await solanaCanisterAPI.getMySolanaAddress();
       if (!address) {
         address = await solanaCanisterAPI.generateSolanaAddress();
-        console.log('🔑 Generated Solana address:', address);
+        logger.debug('Generated Solana address', { address });
       }
       return address;
     } catch (error) {
-      console.error('Error getting Solana address:', error);
+      logger.error('Error getting Solana address', error);
       throw error;
     }
   }
@@ -151,14 +164,14 @@ class ICPBridgeService {
   }> {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {
-      console.log('🚀 Starting bridge flow...');
+      logger.info('Starting bridge flow', { btcAmount });
       const deposit = await this.depositBTCForMUSD(btcAmount);
       const mint = await this.mintMUSDOnMezo(btcAmount);
       const bridge = await this.bridgeMUSDToSolana(Number(mint.musd_amount) / 1e18);
-      console.log('✅ Bridge flow completed');
+      logger.info('Bridge flow completed', { deposit, mint, bridge });
       return { deposit, mint, bridge };
     } catch (error) {
-      console.error('❌ Bridge flow failed:', error);
+      logger.error('Bridge flow failed', error, { btcAmount });
       throw error;
     }
   }

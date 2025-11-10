@@ -38,6 +38,7 @@ import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
 import EthereumWalletService from '@/services/EthereumWalletService';
 import transactionStore from '@/utils/transactionStore';
+import logger from '@/utils/logger';
 
 interface MintScreenProps {
   onNavigate: (screen: string) => void;
@@ -82,7 +83,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       const { btc } = await ICPBridgeService.getBTCBalance(btcAddr);
       setWalletBalance(parseFloat(btc));
     } catch (error) {
-      console.error('Failed to load BTC balance:', error);
+      logger.error('Failed to load BTC balance', error);
       setWalletBalance(0);
     }
   };
@@ -158,7 +159,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       setIsConfirmed(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      console.error('Mint failed:', error);
+      logger.error('Mint failed', error);
       await transactionStore.updateTransaction(tx.id, {
         status: 'failed',
         errorMessage: error.message || 'Failed to mint mUSD',

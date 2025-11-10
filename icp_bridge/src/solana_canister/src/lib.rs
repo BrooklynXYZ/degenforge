@@ -7,7 +7,8 @@ use std::borrow::Cow;
 
 const _KEY_NAME: &str = "test_key_1"; // Reserved for future Schnorr/Ed25519 key derivation
 const SOLANA_DEVNET_RPC: &str = "https://api.devnet.solana.com";
-const SOL_RPC_CANISTER_ID: &str = "titvo-eiaaa-aaaar-qaogq-cai";
+// SOL_RPC_CANISTER_ID reserved for future use with SOL RPC canister
+// const SOL_RPC_CANISTER_ID: &str = "titvo-eiaaa-aaaar-qaogq-cai";
 
 // Wrapper to make Vec<Vec<u8>> Storable
 #[derive(Clone, Debug, CandidType, Deserialize, serde::Serialize)]
@@ -17,11 +18,23 @@ impl Storable for DerivationPath {
     const BOUND: Bound = Bound::Unbounded;
     
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(bincode::serialize(&self.0).unwrap())
+        match bincode::serialize(&self.0) {
+            Ok(bytes) => Cow::Owned(bytes),
+            Err(e) => {
+                ic_cdk::println!("Error serializing DerivationPath: {:?}", e);
+                ic_cdk::trap("Failed to serialize DerivationPath");
+            }
+        }
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        DerivationPath(bincode::deserialize(&bytes).unwrap())
+        match bincode::deserialize(&bytes) {
+            Ok(path) => DerivationPath(path),
+            Err(e) => {
+                ic_cdk::println!("Error deserializing DerivationPath: {:?}", e);
+                DerivationPath(vec![])
+            }
+        }
     }
 }
 
@@ -35,11 +48,26 @@ impl Storable for SolanaAccount {
     const BOUND: Bound = Bound::Unbounded;
     
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(bincode::serialize(self).unwrap())
+        match bincode::serialize(self) {
+            Ok(bytes) => Cow::Owned(bytes),
+            Err(e) => {
+                ic_cdk::println!("Error serializing SolanaAccount: {:?}", e);
+                ic_cdk::trap("Failed to serialize SolanaAccount");
+            }
+        }
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        bincode::deserialize(&bytes).unwrap()
+        match bincode::deserialize(&bytes) {
+            Ok(account) => account,
+            Err(e) => {
+                ic_cdk::println!("Error deserializing SolanaAccount: {:?}", e);
+                SolanaAccount {
+                    pubkey: "".to_string(),
+                    derivation_path: DerivationPath(vec![]),
+                }
+            }
+        }
     }
 }
 

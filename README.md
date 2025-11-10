@@ -753,12 +753,68 @@ npm start
 
 ---
 
+## 🚀 Production Deployment
+
+### Deploying to ICP Mainnet
+
+To deploy canisters to ICP mainnet for production use:
+
+```bash
+cd icp_bridge
+./deploy-production.sh
+```
+
+This script will:
+- Deploy all canisters to ICP mainnet
+- Configure bridge orchestrator with canister IDs
+- Generate `Mobile/.env.production` with production canister IDs
+- Validate deployments and run health checks
+
+**Prerequisites:**
+- At least 9T cycles (3T per canister)
+- Get free cycles from [faucet.dfinity.org](https://faucet.dfinity.org)
+
+**Note**: Bitcoin integration canister errors during local `dfx start` are expected and harmless. See [ICP Bridge README](icp_bridge/README.md) for details.
+
+### Building Production APK
+
+To build a production APK for user distribution:
+
+1. **Deploy canisters to mainnet** (see above)
+2. **Review production environment**:
+   ```bash
+   cat Mobile/.env.production
+   ```
+3. **Build APK**:
+   ```bash
+   cd Mobile
+   npm run build:production
+   ```
+
+For detailed build instructions, see [Mobile/BUILD.md](Mobile/BUILD.md)
+
+**Distribution Options:**
+- **Direct APK**: Host on website, email, or cloud storage
+- **Google Play Store**: Use `npm run build:production-bundle` for AAB file
+
+### Local vs Production
+
+| Environment | Network | Use Case |
+|------------|---------|----------|
+| **Local** | `dfx start` (localhost:4943) | Development & Testing |
+| **Production** | ICP Mainnet (`https://icp-api.io`) | Live App for Users |
+
+The mobile app automatically detects the environment using the `__DEV__` flag and connects to the appropriate network.
+
+---
+
 ## 📚 Documentation
 
 - **Backend API Docs**: See `backend/README.md`
 - **ICP Canister Docs**: See `icp_bridge/README.md`
 - **mUSD Protocol Docs**: See `musd/README.md`
 - **Mobile App Setup**: See `Mobile/README.md` (to be added)
+- **APK Build Guide**: See `Mobile/BUILD.md`
 
 ---
 

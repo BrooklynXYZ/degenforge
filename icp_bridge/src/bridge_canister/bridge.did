@@ -26,14 +26,25 @@ type MintResponse = record {
   transaction_hash : text;
   musd_amount : nat64;
 };
+type HealthStatus = record {
+  status : text;
+  canister_id : text;
+  cycles_balance : nat64;
+  btc_canister_configured : bool;
+  solana_canister_configured : bool;
+  total_positions : nat64;
+  timestamp : nat64;
+};
 service : () -> {
   bridge_musd_to_solana : (nat64) -> (text);
   calculate_max_mintable : (nat64) -> (nat64) query;
   deploy_to_yield_protocol : (nat64, text) -> (text);
   deposit_btc_for_musd : (nat64) -> (DepositResponse);
   get_bridge_stats : () -> (BridgeStats) query;
+  get_cycles_balance : () -> (nat64) query;
   get_my_position : () -> (BridgePosition) query;
   get_position : (principal) -> (BridgePosition) query;
+  health_check : () -> (HealthStatus) query;
   mint_musd_on_mezo : (nat64) -> (MintResponse);
   set_canister_ids : (text, text) -> (text);
 }

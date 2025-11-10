@@ -8,7 +8,10 @@
         "android": "expo start --android",
         "ios": "expo start --ios",
         "web": "expo start --web",
-        "lint": "expo lint"
+        "lint": "expo lint",
+        "build:apk": "eas build --platform android --profile preview",
+        "build:production": "eas build --platform android --profile production-apk",
+        "build:production-bundle": "eas build --platform android --profile production"
     },
     "dependencies": {
         "@dfinity/agent": "^3.4.1",

@@ -6,7 +6,7 @@ __pycache__/
 # C extensions
 *.so
 .DS_Store
-
+ICP_CODER_SETUP.md
 # Distribution / packaging
 .Python
 build/

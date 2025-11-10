@@ -27,6 +27,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import EthereumWalletService from '@/services/EthereumWalletService';
 import ICPBridgeService from '@/services/ICPBridgeService';
+import logger from '@/utils/logger';
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
@@ -55,29 +56,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (address) {
-      console.log('📍 Address changed, fetching balances...');
+      logger.debug('Address changed, fetching balances');
       fetchBalances();
     }
   }, [address]);
 
   const initializeServices = async () => {
-    console.log('🔧 Initializing services...');
+    logger.debug('Initializing services');
     if (!ICPBridgeService.isReady()) {
       await ICPBridgeService.initialize();
     }
     setIcpConnected(ICPBridgeService.isReady());
     if (address) {
-      console.log('📍 Address available on init, fetching balances...');
+      logger.debug('Address available on init, fetching balances');
       await fetchBalances();
     } else {
-      console.log('⚠️  No address available yet');
+      logger.debug('No address available yet');
     }
   };
 
   const fetchBalances = async () => {
-    console.log('🚀 fetchBalances CALLED with address:', address);
+    logger.debug('fetchBalances called', { address });
     if (!address) {
-      console.log('❌ No address, returning early');
+      logger.debug('No address, returning early');
       return;
     }
 
@@ -87,11 +88,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
     try {
       setIsLoading(true);
-      console.log('✅ About to fetch balances via Promise.all...');
+      logger.debug('About to fetch balances via Promise.all');
 
       const [mezoBalances, bridgePosition] = await Promise.all([
         EthereumWalletService.getBalances(address).catch((err) => {
-          console.error('❌ Mezo balance fetch failed:', err);
+          logger.error('Mezo balance fetch failed', err);
           return {
             btcBalance: '0',
             musdBalance: '0',
@@ -103,19 +104,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
           ICPBridgeService.getMyPosition(),
           timeout(3000)
         ]).catch((err) => {
-          console.log('⚠️  ICP position fetch failed (using Mezo only):', err.message);
+          logger.debug('ICP position fetch failed (using Mezo only)', err);
           return null;
         }),
       ]);
 
-      console.log('✅ Promise.all COMPLETED!');
-      console.log('📥 Received Mezo balances:', mezoBalances);
-      console.log('📥 Received bridge position:', bridgePosition);
+      logger.debug('Balance fetch completed', { mezoBalances, bridgePosition });
 
       const mezoBTC = parseFloat(mezoBalances.btcBalance);
       const mezoMUSD = parseFloat(mezoBalances.musdBalance);
 
-      console.log('🔢 Parsed values:', { mezoBTC, mezoMUSD });
+      logger.debug('Parsed balance values', { mezoBTC, mezoMUSD });
 
       const btcCollateral = (bridgePosition && typeof bridgePosition === 'object' && 'btc_collateral' in bridgePosition)
         ? Number((bridgePosition as any).btc_collateral) / 100_000_000
@@ -132,14 +131,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       const btcPrice = 65000;
       const totalValue = (btcCollateral * btcPrice) + musdMinted + (solDeployed * 150);
 
-      console.log('💎 Final calculated balances:', {
-        btcCollateral,
-        musdBalance: musdMinted,
-        solDeployed,
-        totalValue,
-      });
-
-      console.log('🎯 About to call setBalances with:', {
+      logger.debug('Final calculated balances', {
         btcCollateral,
         musdBalance: musdMinted,
         solDeployed,
@@ -153,8 +145,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         totalValue,
         portfolioChange: 0,
       });
-
-      console.log('✅ setBalances CALLED SUCCESSFULLY!');
 
       // Fetch BTC address in background (non-blocking, after balance display)
       if (ICPBridgeService.isReady()) {
@@ -164,15 +154,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         ])
           .then((addr) => {
             setBtcAddress(addr as string);
-            console.log('✅ Got BTC deposit address:', addr);
+            logger.debug('Got BTC deposit address', { address: addr });
           })
           .catch(() => {
-            console.log('⚠️  Could not fetch BTC address (skipping)');
+            logger.debug('Could not fetch BTC address (skipping)');
           });
       }
 
     } catch (error) {
-      console.error('❌ Error fetching balances:', error);
+      logger.error('Error fetching balances', error);
       setBalances({
         btcCollateral: 0,
         musdBalance: 0,
@@ -182,7 +172,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       });
     } finally {
       setIsLoading(false);
-      console.log('🏁 fetchBalances COMPLETED');
+      logger.debug('fetchBalances completed');
     }
   };
 
@@ -354,7 +344,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
                     { borderBottomColor: themeColors.borderSecondary },
                     index === recentTxs.length - 1 && styles.activityItemLast,
                   ]}
-                  onPress={() => console.log('Transaction pressed:', tx.id)}
+                  onPress={() => logger.debug('Transaction pressed', { txId: tx.id })}
                   activeOpacity={0.7}
                 >
                   <View style={styles.activityLeft}>

@@ -22,9 +22,17 @@ class Logger {
   private formatMessage(level: LogLevel, message: string, ...args: any[]): string {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
-    return args.length > 0 
-      ? `${prefix} ${message} ${JSON.stringify(args, null, 2)}`
-      : `${prefix} ${message}`;
+    if (args.length === 0) {
+      return `${prefix} ${message}`;
+    }
+    try {
+      const serialized = JSON.stringify(args, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      , 2);
+      return `${prefix} ${message} ${serialized}`;
+    } catch {
+      return `${prefix} ${message} [Unable to serialize arguments]`;
+    }
   }
 
   debug(message: string, ...args: any[]): void {
@@ -47,6 +55,10 @@ class Logger {
 
   error(message: string, error?: Error | unknown, ...args: any[]): void {
     if (this.shouldLog('error')) {
+      if (!error) {
+        console.error(this.formatMessage('error', message));
+        return;
+      }
       const errorDetails = error instanceof Error 
         ? { message: error.message, stack: error.stack }
         : error;

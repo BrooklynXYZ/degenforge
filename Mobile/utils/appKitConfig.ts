@@ -6,20 +6,56 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const storage = {
     getKeys: async () => {
-        const keys = await AsyncStorage.getAllKeys();
-        return keys as string[];
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+            return keys.filter(k => k.startsWith('wc@2') || k.startsWith('@appkit'));
+        } catch {
+            return [];
+        }
     },
     getEntries: async () => {
-        const keys = await AsyncStorage.getAllKeys();
-        const entries = await AsyncStorage.multiGet(keys);
-        return entries.map(([key, value]) => [key, JSON.parse(value || 'null')] as [string, any]);
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+            const relevantKeys = keys.filter(k => k.startsWith('wc@2') || k.startsWith('@appkit'));
+            const entries = await AsyncStorage.multiGet(relevantKeys);
+
+            return entries
+                .map(([key, value]): [string, any] => {
+                    if (!value) return [key, undefined];
+                    try {
+                        return [key, JSON.parse(value)];
+                    } catch {
+                        return [key, undefined];
+                    }
+                })
+                .filter(([, value]) => value !== undefined);
+        } catch {
+            return [];
+        }
     },
-    setItem: async (key: string, value: any) => await AsyncStorage.setItem(key, JSON.stringify(value)),
+    setItem: async (key: string, value: any) => {
+        try {
+            await AsyncStorage.setItem(key, JSON.stringify(value));
+        } catch (error) {
+            console.error('Storage setItem error:', error);
+        }
+    },
     getItem: async (key: string) => {
-        const item = await AsyncStorage.getItem(key);
-        return item ? JSON.parse(item) : undefined;
+        try {
+            const item = await AsyncStorage.getItem(key);
+            if (!item) return undefined;
+            return JSON.parse(item);
+        } catch {
+            return undefined;
+        }
     },
-    removeItem: async (key: string) => await AsyncStorage.removeItem(key),
+    removeItem: async (key: string) => {
+        try {
+            await AsyncStorage.removeItem(key);
+        } catch (error) {
+            console.error('Storage removeItem error:', error);
+        }
+    },
 };
 
 const mainnet = {

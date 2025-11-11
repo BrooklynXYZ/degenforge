@@ -92,7 +92,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
       const [mezoBalances, bridgePosition] = await Promise.all([
         EthereumWalletService.getBalances(address).catch((err) => {
-          logger.error('Mezo balance fetch failed', err);
+          if (err) {
+            logger.error('Mezo balance fetch failed', err);
+          } else {
+            logger.debug('Mezo balance fetch encountered an issue');
+          }
           return {
             btcBalance: '0',
             musdBalance: '0',
@@ -104,7 +108,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
           ICPBridgeService.getMyPosition(),
           timeout(3000)
         ]).catch((err) => {
-          logger.debug('ICP position fetch failed (using Mezo only)', err);
+          if (err) {
+            logger.debug('ICP position fetch failed (using Mezo only)', err);
+          } else {
+            logger.debug('ICP position fetch timed out (no error object)');
+          }
           return null;
         }),
       ]);
@@ -162,7 +170,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       }
 
     } catch (error) {
-      logger.error('Error fetching balances', error);
+      if (error) {
+        logger.error('Error fetching balances', error);
+      } else {
+        logger.debug('fetchBalances encountered an issue (null/undefined error)');
+      }
       setBalances({
         btcCollateral: 0,
         musdBalance: 0,

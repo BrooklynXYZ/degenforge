@@ -27,10 +27,13 @@ import {
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard, InteractiveCard } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { SuccessToast } from '@/components/ui/SuccessToast';
+import { CustomAlert } from '@/components/ui/CustomAlert';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
 import EthereumWalletService from '@/services/EthereumWalletService';
+import TransactionMonitorService from '@/services/TransactionMonitorService';
 import transactionStore from '@/utils/transactionStore';
 import logger from '@/utils/logger';
 
@@ -56,6 +59,13 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [bridgeAmount, setBridgeAmount] = useState(0);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'error' | 'info';
+  }>({ visible: false, title: '', message: '', type: 'info' });
   const [steps, setSteps] = useState<BridgeStep[]>([
     {
       id: 0,
@@ -156,7 +166,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const handleContinue = async () => {
     if (currentStep >= steps.length - 1) return;
     if (bridgeAmount <= 0) {
-      alert('No mUSD to bridge. Please mint mUSD first.');
+      setAlertConfig({
+        visible: true,
+        title: 'No Balance',
+        message: 'No mUSD to bridge. Please mint mUSD first.',
+        type: 'info',
+      });
       return;
     }
 
@@ -164,7 +179,7 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
     try {
       if (currentStep === 1) {
-        updateStepStatus(1, 'in_progress', 'Bridging mUSD to Solana...');
+        updateStepStatus(1, 'in_progress', 'Initiating bridge to Solana...');
 
         const tx = await transactionStore.addTransaction({
           type: 'bridge',
@@ -173,17 +188,31 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
           status: 'pending',
         });
 
-        const signature = await ICPBridgeService.bridgeMUSDToSolana(bridgeAmount);
+        logger.info('Bridge transaction created', { txId: tx.id, amount: bridgeAmount });
 
-        await transactionStore.updateTransaction(tx.id, {
-          status: 'confirmed',
-          solanaTxSig: signature,
-        });
+        ICPBridgeService.bridgeMUSDToSolana(bridgeAmount)
+          .then(async (signature) => {
+            logger.info('Bridge initiated successfully', { signature });
+            await transactionStore.updateTransaction(tx.id, {
+              solanaTxSig: signature,
+            });
+          })
+          .catch(async (error) => {
+            logger.error('Bridge initiation failed', error);
+            await transactionStore.updateTransaction(tx.id, {
+              status: 'failed',
+              errorMessage: error.message || 'Failed to initiate bridge',
+            });
+            updateStepStatus(1, 'failed', error.message || 'Failed to initiate bridge');
+          });
 
-        updateStepStatus(1, 'confirmed', 'Successfully bridged to Solana', signature);
-        updateStepStatus(2, 'confirmed', 'mUSD available in Solana wallet');
+        TransactionMonitorService.startMonitoring(tx.id, 'bridge');
+
+        updateStepStatus(1, 'in_progress', 'Bridge initiated - monitoring status...');
+        updateStepStatus(2, 'in_progress', 'Waiting for Solana confirmation...');
 
         setCurrentStep(2);
+        setShowSuccessToast(true);
       } else {
         setSteps((prev) =>
           prev.map((step, idx) =>
@@ -202,7 +231,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
     } catch (error: any) {
       logger.error('Bridge operation failed', error);
       updateStepStatus(currentStep, 'failed', error.message || 'Operation failed');
-      alert(`Failed: ${error.message || 'Unknown error'}`);
+      setAlertConfig({
+        visible: true,
+        title: 'Bridge Failed',
+        message: error.message || 'Unknown error',
+        type: 'error',
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -212,11 +246,12 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const progressPercentage = ((steps.filter((s) => s.status === 'confirmed').length) / steps.length) * 100;
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <>
+      <ScrollView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Header */}
       <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.header}>
         <View style={styles.headerTop}>
@@ -374,6 +409,27 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
 
       <View style={styles.bottomSpacer} />
     </ScrollView>
+
+    {showSuccessToast && (
+      <SuccessToast
+        message="Bridge initiated! Transaction is being processed in the background."
+        onAction={() => {
+          setShowSuccessToast(false);
+          onNavigate('Activity');
+        }}
+        actionLabel="View Status"
+        onClose={() => setShowSuccessToast(false)}
+      />
+    )}
+
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      type={alertConfig.type}
+      onConfirm={() => setAlertConfig({ ...alertConfig, visible: false })}
+    />
+    </>
   );
 };
 

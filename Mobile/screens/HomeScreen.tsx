@@ -35,7 +35,7 @@ interface HomeScreenProps {
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
   const { colors: themeColors } = useTheme();
-  const { address, isConnected } = useWallet();
+  const { address } = useWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [balances, setBalances] = useState({
     btcCollateral: 0,
@@ -44,14 +44,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     totalValue: 0,
     portfolioChange: 0,
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [btcAddress, setBtcAddress] = useState('');
   const [icpConnected, setIcpConnected] = useState(false);
 
   const walletData = balances;
 
   useEffect(() => {
     initializeServices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -59,6 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
       logger.debug('Address changed, fetching balances');
       fetchBalances();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   const initializeServices = async () => {
@@ -87,7 +87,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     );
 
     try {
-      setIsLoading(true);
       logger.debug('About to fetch balances via Promise.all');
 
       const [mezoBalances, bridgePosition] = await Promise.all([
@@ -154,21 +153,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         portfolioChange: 0,
       });
 
-      // Fetch BTC address in background (non-blocking, after balance display)
-      if (ICPBridgeService.isReady()) {
-        Promise.race([
-          ICPBridgeService.getBTCDepositAddress(),
-          timeout(2000)
-        ])
-          .then((addr) => {
-            setBtcAddress(addr as string);
-            logger.debug('Got BTC deposit address', { address: addr });
-          })
-          .catch(() => {
-            logger.debug('Could not fetch BTC address (skipping)');
-          });
-      }
-
     } catch (error) {
       if (error) {
         logger.error('Error fetching balances', error);
@@ -182,9 +166,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
         totalValue: 0,
         portfolioChange: 0,
       });
-    } finally {
-      setIsLoading(false);
-      logger.debug('fetchBalances completed');
     }
   };
 
@@ -194,7 +175,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     setIsRefreshing(false);
   };
 
-  const recentTxs: Array<{
+  const recentTxs: {
     id: string;
     icon: string;
     token: string;
@@ -202,7 +183,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
     status: 'confirmed' | 'pending' | 'failed';
     timestamp: string;
     type: string;
-  }> = [];
+  }[] = [];
 
   return (
     <ScrollView

@@ -136,6 +136,12 @@ export const ActivityScreen: React.FC<ActivityScreenProps> = ({ onNavigate }) =>
 
   useEffect(() => {
     loadTransactions();
+    
+    const pollInterval = setInterval(() => {
+      loadTransactions();
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   const loadTransactions = async () => {

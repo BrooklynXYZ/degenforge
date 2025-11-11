@@ -23,6 +23,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AnimatedSplashScreen } from '@/components/AnimatedSplashScreen';
 import { WalletProvider } from '@/contexts/WalletProvider';
+import TransactionMonitorService from '@/services/TransactionMonitorService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -64,6 +65,7 @@ export default function RootLayout() {
   React.useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
+      TransactionMonitorService.resumePendingTransactions();
     }
   }, [fontsLoaded]);
 

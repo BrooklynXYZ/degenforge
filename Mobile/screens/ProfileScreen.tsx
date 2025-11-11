@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Clipboard,
   Linking,
 } from 'react-native';
@@ -18,6 +17,8 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
+import { CustomAlert } from '@/components/ui/CustomAlert';
+import { SuccessToast } from '@/components/ui/SuccessToast';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletProvider';
@@ -129,6 +130,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   const { address, disconnect } = useWallet();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [showFullAddress, setShowFullAddress] = useState(false);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'error' | 'info' | 'warning';
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {},
+  });
 
   const isDark = actualTheme === 'dark';
 
@@ -139,57 +157,80 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setString(text);
-    Alert.alert('✓ Copied', 'Wallet address copied to clipboard');
+    setShowCopiedToast(true);
   };
 
   const handleDisconnect = async () => {
-    Alert.alert(
-      'Disconnect Wallet',
-      'Are you sure you want to disconnect your wallet?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsDisconnecting(true);
-              await disconnect();
-              await logout();
-            } catch (error) {
-              console.error('Error during disconnect:', error);
-              Alert.alert('Error', 'Failed to disconnect wallet');
-            } finally {
-              setIsDisconnecting(false);
-            }
-          },
-        },
-      ]
-    );
+    setAlertConfig({
+      visible: true,
+      title: 'Disconnect Wallet',
+      message: 'Are you sure you want to disconnect your wallet?',
+      type: 'warning',
+      confirmText: 'Disconnect',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        setAlertConfig({ ...alertConfig, visible: false });
+        try {
+          setIsDisconnecting(true);
+          await disconnect();
+          await logout();
+        } catch (error) {
+          console.error('Error during disconnect:', error);
+          setAlertConfig({
+            visible: true,
+            title: 'Error',
+            message: 'Failed to disconnect wallet',
+            type: 'error',
+            onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
+          });
+        } finally {
+          setIsDisconnecting(false);
+        }
+      },
+      onCancel: () => setAlertConfig({ ...alertConfig, visible: false }),
+    });
   };
 
   const handleBiometricToggle = async () => {
     if (biometricEnabled) {
-      Alert.alert(
-        'Disable Biometric',
-        'Disable biometric authentication for this app?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable',
-            onPress: async () => {
-              try {
-                await disableBiometric();
-                Alert.alert('Success', 'Biometric authentication disabled');
-              } catch (error) {
-                Alert.alert('Error', 'Failed to disable biometric');
-              }
-            },
-          },
-        ]
-      );
+      setAlertConfig({
+        visible: true,
+        title: 'Disable Biometric',
+        message: 'Disable biometric authentication for this app?',
+        type: 'warning',
+        confirmText: 'Disable',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          setAlertConfig({ ...alertConfig, visible: false });
+          try {
+            await disableBiometric();
+            setAlertConfig({
+              visible: true,
+              title: 'Success',
+              message: 'Biometric authentication disabled',
+              type: 'info',
+              onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
+            });
+          } catch (error) {
+            setAlertConfig({
+              visible: true,
+              title: 'Error',
+              message: 'Failed to disable biometric',
+              type: 'error',
+              onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
+            });
+          }
+        },
+        onCancel: () => setAlertConfig({ ...alertConfig, visible: false }),
+      });
     } else {
-      Alert.alert('Info', 'Enable biometric from login screen');
+      setAlertConfig({
+        visible: true,
+        title: 'Info',
+        message: 'Enable biometric from login screen',
+        type: 'info',
+        onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
+      });
     }
   };
 
@@ -198,11 +239,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <>
+      <ScrollView
+        style={[styles.container, { backgroundColor: themeColors.background }]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
       {address && (
         <Animated.View
           style={styles.section}
@@ -307,7 +349,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
       </Animated.View>
 
       <View style={styles.bottomSpacer} />
-    </ScrollView>
+      </ScrollView>
+
+      {showCopiedToast && (
+        <SuccessToast
+          message="Wallet address copied to clipboard"
+          onClose={() => setShowCopiedToast(false)}
+        />
+      )}
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
+    </>
   );
 };
 

@@ -36,7 +36,7 @@ import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
-import EthereumWalletService from '@/services/EthereumWalletService';
+import TransactionMonitorService from '@/services/TransactionMonitorService';
 import transactionStore from '@/utils/transactionStore';
 import logger from '@/utils/logger';
 
@@ -74,6 +74,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     loadBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   const loadBalance = async () => {
@@ -142,24 +143,36 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     try {
       await ICPBridgeService.initialize();
 
-      const result = await ICPBridgeService.mintMUSDOnMezo(btcValue);
+      ICPBridgeService.mintMUSDOnMezo(btcValue)
+        .then(async (result) => {
+          await transactionStore.updateTransaction(tx.id, {
+            status: 'confirmed',
+            mezoTxHash: result.transaction_hash,
+            amount: Number(result.musd_amount) / 1e18,
+          });
 
-      await transactionStore.updateTransaction(tx.id, {
-        status: 'confirmed',
-        mezoTxHash: result.transaction_hash,
-        amount: Number(result.musd_amount) / 1e18,
-      });
+          setMintResult({
+            txHash: result.transaction_hash,
+            musdAmount: Number(result.musd_amount) / 1e18,
+            newLtv: result.new_ltv,
+          });
 
-      setMintResult({
-        txHash: result.transaction_hash,
-        musdAmount: Number(result.musd_amount) / 1e18,
-        newLtv: result.new_ltv,
-      });
+          setIsConfirmed(true);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        })
+        .catch(async (error) => {
+          logger.error('Mint failed', error);
+          await transactionStore.updateTransaction(tx.id, {
+            status: 'failed',
+            errorMessage: error.message || 'Failed to mint mUSD',
+          });
+          setError(error.message || 'Failed to mint mUSD');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        });
 
-      setIsConfirmed(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      TransactionMonitorService.startMonitoring(tx.id, 'mint');
     } catch (error: any) {
-      logger.error('Mint failed', error);
+      logger.error('Mint initialization failed', error);
       await transactionStore.updateTransaction(tx.id, {
         status: 'failed',
         errorMessage: error.message || 'Failed to mint mUSD',
@@ -246,10 +259,10 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
         <Animated.View entering={FadeInDown.duration(600).delay(700)}>
           <SectionCard borderRadius="none" padding="xl">
             <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Transaction Proof</Text>
-            <ProofBox 
-              label="Transaction Hash" 
-              value={mintResult?.txHash || '0x...'} 
-              themeColors={themeColors} 
+            <ProofBox
+              label="Transaction Hash"
+              value={mintResult?.txHash || '0x...'}
+              themeColors={themeColors}
             />
             <View style={[styles.detailRow, { marginTop: Spacing.md }]}>
               <View style={styles.detailLeft}>
@@ -501,6 +514,7 @@ const SuccessIcon: React.FC = () => {
       -1,
       true
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -558,6 +572,7 @@ const PremiumAmountCard: React.FC<{ value: number; themeColors: ReturnType<typeo
     }, 100);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const shimmerStyle = useAnimatedStyle(() => ({
@@ -649,6 +664,7 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({ value, decimals = 2, 
     };
 
     requestAnimationFrame(animate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const animatedTextStyle = useAnimatedStyle(() => ({

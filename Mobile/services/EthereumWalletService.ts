@@ -20,6 +20,13 @@ export interface BorrowParams {
     musdAmount: string;
 }
 
+export interface TransactionReceipt {
+    status: number;
+    blockNumber: number;
+    transactionHash: string;
+    gasUsed: string;
+}
+
 class EthereumWalletService {
     async getProvider(): Promise<BrowserProvider | null> {
         try {
@@ -28,6 +35,26 @@ class EthereumWalletService {
             return new BrowserProvider(walletProvider);
         } catch (error) {
             console.error('Error getting provider:', error);
+            return null;
+        }
+    }
+
+    async getTransactionReceipt(txHash: string): Promise<TransactionReceipt | null> {
+        try {
+            const provider = await this.getProvider();
+            if (!provider) return null;
+
+            const receipt = await provider.getTransactionReceipt(txHash);
+            if (!receipt) return null;
+
+            return {
+                status: receipt.status || 0,
+                blockNumber: receipt.blockNumber,
+                transactionHash: receipt.hash,
+                gasUsed: receipt.gasUsed.toString(),
+            };
+        } catch (error) {
+            console.error('Error getting transaction receipt:', error);
             return null;
         }
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeInUp,
@@ -7,6 +7,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { Typography, Spacing, Layout, Borders } from '../constants/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
+import { CustomAlert } from '../components/ui/CustomAlert';
 import {
   authenticateWithBiometric,
   checkBiometricCapability,
@@ -27,6 +28,22 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
   const { colors, actualTheme } = useTheme();
   const [biometricType, setBiometricType] = useState('Biometric');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'error' | 'info';
+    onConfirm: () => void;
+    onCancel?: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {},
+  });
 
   const isDark = actualTheme === 'dark';
   const borderColor = isDark ? '#FFFFFF' : '#000000';
@@ -55,29 +72,38 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
         onAuthSuccess();
       } else {
         setIsAuthenticating(false);
-        Alert.alert(
-          'Authentication Failed',
-          result.error || 'Please try again or use wallet connection.',
-          [
-            {
-              text: 'Try Again',
-              onPress: () => handleBiometricAuth(),
-            },
-            {
-              text: 'Use Wallet',
-              onPress: onUseWalletConnect,
-            },
-          ]
-        );
+        setAlertConfig({
+          visible: true,
+          title: 'Authentication Failed',
+          message: result.error || 'Please try again or use wallet connection.',
+          type: 'error',
+          confirmText: 'Try Again',
+          cancelText: 'Use Wallet',
+          onConfirm: () => {
+            setAlertConfig({ ...alertConfig, visible: false });
+            handleBiometricAuth();
+          },
+          onCancel: () => {
+            setAlertConfig({ ...alertConfig, visible: false });
+            onUseWalletConnect();
+          },
+        });
       }
     } catch (error: any) {
       setIsAuthenticating(false);
-      Alert.alert('Error', 'Authentication error occurred');
+      setAlertConfig({
+        visible: true,
+        title: 'Error',
+        message: 'Authentication error occurred',
+        type: 'error',
+        onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
+      });
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Animated.View
         entering={FadeInDown.duration(600).delay(100)}
         style={styles.content}
@@ -154,7 +180,19 @@ const BiometricPromptScreen: React.FC<BiometricPromptScreenProps> = ({
           </Pressable>
         </Animated.View>
       </Animated.View>
-    </View>
+      </View>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onConfirm={alertConfig.onConfirm}
+        onCancel={alertConfig.onCancel}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
+    </>
   );
 };
 

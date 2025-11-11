@@ -28,7 +28,7 @@ class Logger {
     try {
       const serialized = JSON.stringify(args, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value
-      , 2);
+        , 2);
       return `${prefix} ${message} ${serialized}`;
     } catch {
       return `${prefix} ${message} [Unable to serialize arguments]`;
@@ -59,7 +59,7 @@ class Logger {
         console.error(this.formatMessage('error', message));
         return;
       }
-      const errorDetails = error instanceof Error 
+      const errorDetails = error instanceof Error
         ? { message: error.message, stack: error.stack }
         : error;
       console.error(
@@ -69,6 +69,6 @@ class Logger {
   }
 }
 
-export const logger = new Logger();
-export default logger;
+const loggerInstance = new Logger();
+export default loggerInstance;
 

@@ -259,7 +259,9 @@ icp_bridge/.env.local
 
 # Canister deployment IDs (local only - mainnet IDs should be tracked)
 .dfx/local/
+icp_bridge/canister_ids.json
 canister_ids.json
+*.canister_ids.json
 
 # Generated declarations (frontend bindings)
 # Note: These should generally be regenerated, but you may choose to commit them
@@ -280,6 +282,7 @@ canister_ids.json
 Mobile/.env
 Mobile/.env.icp
 Mobile/.env.local
+Mobile/.env.production
 Mobile/node_modules/
 Mobile/.expo/
 Mobile/dist/

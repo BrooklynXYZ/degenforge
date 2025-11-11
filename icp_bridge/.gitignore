@@ -1,2 +1,40 @@
+# Kybra Python CDK
 .kybra/
+
+# Node modules
 node_modules
+
+# dfx local state
+.dfx/
+canister_ids.json
+*.canister_ids.json
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Build artifacts
+target/
+*.wasm
+*.wasm.gz
+
+# Backup files
+*.bak
+*.backup
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

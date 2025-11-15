@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   title: {
-    ...Typography.heading.h3,
+    ...Typography.h3,
     textAlign: 'center',
     marginBottom: Spacing.xs,
   },

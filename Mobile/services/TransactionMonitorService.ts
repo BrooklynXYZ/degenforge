@@ -156,18 +156,23 @@ class TransactionMonitorService {
         return { status: 'pending' };
       }
 
-      // Get position to check if bridge completed
-      const position = await ICPBridgeService.getMyPosition();
-      
-      const tx = await transactionStore.getTransactions();
-      const targetTx = tx.find(t => t.id === txId);
+      const transactions = await transactionStore.getTransactions();
+      const targetTx = transactions.find(t => t.id === txId);
       
       if (!targetTx) {
         return { status: 'failed', error: 'Transaction not found' };
       }
 
-      if (position.sol_deployed > 0) {
-        return { status: 'confirmed', txHash: 'sol_bridge_success' };
+      if (!targetTx.solanaTxSig) {
+        return { status: 'pending' };
+      }
+
+      const solanaStatus = await ICPBridgeService.getSolanaTransactionStatus(targetTx.solanaTxSig);
+
+      if (solanaStatus === 'finalized') {
+        return { status: 'confirmed', txHash: targetTx.solanaTxSig };
+      } else if (solanaStatus === 'error') {
+        return { status: 'failed', error: 'Solana transaction failed', txHash: targetTx.solanaTxSig };
       }
 
       return { status: 'pending' };

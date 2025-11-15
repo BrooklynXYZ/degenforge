@@ -4,8 +4,12 @@ use sha2::Digest;
 use ic_stable_structures::{memory_manager::{MemoryManager, VirtualMemory, MemoryId}, StableBTreeMap, DefaultMemoryImpl, Storable, storable::Bound};
 use std::cell::RefCell;
 use std::borrow::Cow;
+use std::time::Duration;
+use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
+use getrandom::register_custom_getrandom;
 
-const _KEY_NAME: &str = "test_key_1"; // Reserved for future Schnorr/Ed25519 key derivation
+const _KEY_NAME: &str = "test_key_1";
 const SOLANA_DEVNET_RPC: &str = "https://api.devnet.solana.com";
 // SOL_RPC_CANISTER_ID reserved for future use with SOL RPC canister
 // const SOL_RPC_CANISTER_ID: &str = "titvo-eiaaa-aaaar-qaogq-cai";
@@ -99,6 +103,45 @@ pub struct TransactionResult {
     pub signature: String,
     pub status: String,
     pub message: String,
+}
+
+thread_local! {
+    static RNG: RefCell<Option<StdRng>> = RefCell::new(None);
+}
+
+#[ic_cdk::init]
+fn init() {
+    init_rng();
+}
+
+#[ic_cdk::post_upgrade]
+fn post_upgrade() {
+    init_rng();
+}
+
+fn init_rng() {
+    ic_cdk_timers::set_timer(Duration::ZERO, || ic_cdk::spawn(async {
+        let (seed,): (Vec<u8>,) = ic_cdk::api::management_canister::main::raw_rand()
+            .await
+            .expect("Failed to get random seed");
+        RNG.with(|rng| {
+            *rng.borrow_mut() = Some(StdRng::from_seed(
+                seed.try_into().expect("Invalid seed length")
+            ))
+        });
+    }));
+}
+
+register_custom_getrandom!(custom_getrandom);
+fn custom_getrandom(buf: &mut [u8]) -> Result<(), getrandom::Error> {
+    RNG.with(|rng| {
+        if let Some(rng) = rng.borrow_mut().as_mut() {
+            rng.fill_bytes(buf);
+            Ok(())
+        } else {
+            Err(getrandom::Error::UNAVAILABLE)
+        }
+    })
 }
 
 fn ed25519_to_solana_address(pubkey: &[u8]) -> String {
@@ -338,95 +381,167 @@ fn build_solana_transaction(from: &str, to: &str, lamports: u64, recent_blockhas
 
 #[ic_cdk::update]
 async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
+    use sol_rpc_client::{SolRpcClient, ed25519::{sign_message, get_pubkey, Ed25519KeyId, DerivationPath as SolDerivationPath}};
+    use sol_rpc_types::{RpcSources, SolanaCluster};
+    use solana_message::legacy::Message as SolMessage;
+    use solana_transaction::Transaction;
+    use solana_program::{pubkey::Pubkey, system_instruction};
+    
     let caller = ic_cdk::caller();
     
-    // Get canister's Solana account
-    let account = SOLANA_ADDRESSES.with(|map| {
-        map.borrow().get(&caller).unwrap_or_else(|| {
-            ic_cdk::trap("No Solana address found. Generate one first.")
-        })
-    });
+    // Build SOL RPC client for MAINNET (production)
+    let client = SolRpcClient::builder_for_ic()
+        .with_rpc_sources(RpcSources::Default(SolanaCluster::Mainnet))
+        .build();
     
-    // Get recent blockhash
-    let recent_blockhash = get_recent_blockhash().await;
-    if recent_blockhash.is_empty() {
-        return TransactionResult {
-            signature: "".to_string(),
-            status: "error".to_string(),
-            message: "Failed to get recent blockhash".to_string(),
-        };
-    }
+    // Use PRODUCTION key for mainnet (costs ~26B cycles per signature)
+    let key_id = Ed25519KeyId::MainnetProdKey1;
+    let derivation_path = SolDerivationPath::from(caller);
     
-    // Build transaction
-    let tx_data = build_solana_transaction(&account.pubkey, &to_address, lamports, &recent_blockhash);
-    
-    // Hash transaction for signing (reserved for future Schnorr signature)
-    let _tx_hash = sha2::Sha256::digest(&tx_data);
-    
-    // Note: In production, sign with threshold Schnorr/Ed25519
-    // For now, we'll submit the transaction unsigned (which will fail, but demonstrates the flow)
-    // In a real implementation, you would:
-    // 1. Call threshold Schnorr API to sign the transaction hash
-    // 2. Add signature to transaction
-    // 3. Submit via sendTransaction RPC
-    
-    // Submit transaction via HTTPS outcall
-    let json_rpc_request = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "sendTransaction",
-        "params": [
-            bs58::encode(&tx_data).into_string(),
-            {
-                "encoding": "base58",
-                "skipPreflight": false
-            }
-        ]
-    });
-    
-    let request = CanisterHttpRequestArgument {
-        url: SOLANA_DEVNET_RPC.to_string(),
-        method: HttpMethod::POST,
-        headers: vec![
-            HttpHeader {
-                name: "Content-Type".to_string(),
-                value: "application/json".to_string(),
-            },
-        ],
-        body: Some(serde_json::to_string(&json_rpc_request).unwrap().into_bytes()),
-        max_response_bytes: Some(2000),
-        transform: None,
+    // Step 1: Get Ed25519 public key using threshold signatures
+    let (payer, _) = match get_pubkey(
+        client.runtime(),
+        None,
+        Some(&derivation_path),
+        key_id,
+    ).await {
+        Ok(key) => key,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to get pubkey: {:?}", e),
+            };
+        }
     };
     
-    let signature = match ic_cdk::api::management_canister::http_request::http_request(request, 3_000_000_000u128).await {
-        Ok((response,)) => {
-            if response.status == 200u64 {
-                let response_text = String::from_utf8(response.body.to_vec()).unwrap_or_default();
-                let json: serde_json::Value = serde_json::from_str(&response_text).unwrap_or(serde_json::json!({}));
-                
-                if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-                    result.to_string()
-                } else {
-                    format!("Error: {:?}", json.get("error"))
-                }
-            } else {
-                format!("HTTP error: {}", response.status)
-            }
+    // Step 2: Get recent blockhash from Solana
+    let blockhash = match client
+        .get_latest_blockhash()
+        .expect("Invalid blockhash request")
+        .send()
+        .await
+        .expect_consistent()
+    {
+        Ok(hash) => hash,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to get blockhash: {:?}", e),
+            };
         }
-        Err(err) => {
-            format!("Request failed: {:?}", err)
+    };
+    
+    // Step 3: Parse recipient address
+    let recipient = match Pubkey::try_from(to_address.as_str()) {
+        Ok(addr) => addr,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Invalid recipient address: {:?}", e),
+            };
+        }
+    };
+    
+    // Step 4: Build transfer instruction
+    let transfer_ix = system_instruction::transfer(&payer, &recipient, lamports);
+    
+    // Step 5: Create message
+    let message = SolMessage::new_with_blockhash(
+        &[transfer_ix],
+        Some(&payer),
+        &blockhash,
+    );
+    
+    // Step 6: Sign message using THRESHOLD ED25519 (distributed across subnet nodes)
+    // This is where the magic happens - private key never exists in one place!
+    let signature = match sign_message(
+        client.runtime(),
+        &message,
+        key_id,
+        Some(&derivation_path),
+    ).await {
+        Ok(sig) => sig,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to sign transaction: {:?}", e),
+            };
+        }
+    };
+    
+    // Step 7: Create properly signed transaction
+    let transaction = Transaction {
+        message,
+        signatures: vec![signature],
+    };
+    
+    // Step 8: Send signed transaction to Solana
+    let tx_signature = match client
+        .send_transaction(&transaction)
+        .expect("Invalid transaction")
+        .send()
+        .await
+        .expect_consistent()
+    {
+        Ok(sig) => sig,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to send transaction: {:?}", e),
+            };
         }
     };
     
     TransactionResult {
-        signature: signature.clone(),
-        status: if signature.starts_with("Error") || signature.starts_with("HTTP") || signature.starts_with("Request") {
-            "error".to_string()
-        } else {
-            "pending".to_string()
-        },
-        message: format!("Transaction submitted: {} lamports to {}", lamports, to_address),
+        signature: tx_signature.to_string(),
+        status: "submitted".to_string(),
+        message: format!("Transaction successfully submitted to Solana mainnet: {} lamports", lamports),
     }
+}
+
+#[ic_cdk::query]
+async fn get_solana_transaction_status(signature_str: String) -> String {
+    use sol_rpc_client::SolRpcClient;
+    use sol_rpc_types::{RpcSources, SolanaCluster, ConfirmationStatus};
+    use solana_signature::Signature;
+    use std::str::FromStr;
+    
+    let signature = match Signature::from_str(&signature_str) {
+        Ok(sig) => sig,
+        Err(_) => return "error".to_string(),
+    };
+    
+    let client = SolRpcClient::builder_for_ic()
+        .with_rpc_sources(RpcSources::Default(SolanaCluster::Mainnet))
+        .build();
+    
+    let statuses = match client
+        .get_signature_statuses(&[signature])
+        .expect("Invalid request")
+        .send()
+        .await
+        .expect_consistent()
+    {
+        Ok(statuses) => statuses,
+        Err(_) => return "pending".to_string(),
+    };
+    
+    if let Some(Some(status)) = statuses.first() {
+        if let Some(confirmation) = &status.confirmation_status {
+            return match confirmation {
+                ConfirmationStatus::Processed => "processed".to_string(),
+                ConfirmationStatus::Confirmed => "confirmed".to_string(),
+                ConfirmationStatus::Finalized => "finalized".to_string(),
+            };
+        }
+    }
+    
+    "pending".to_string()
 }
 
 #[ic_cdk::update]

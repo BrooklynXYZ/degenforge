@@ -318,13 +318,13 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     
     let caller = ic_cdk::caller();
     
-    // Build SOL RPC client for MAINNET (production)
+    // Build SOL RPC client for DEVNET (testing)
     let client = SolRpcClient::builder_for_ic()
-        .with_rpc_sources(RpcSources::Default(SolanaCluster::Mainnet))
+        .with_rpc_sources(RpcSources::Default(SolanaCluster::Devnet))
         .build();
     
-    // Use PRODUCTION key for mainnet (costs ~26B cycles per signature)
-    let key_id = Ed25519KeyId::MainnetProdKey1;
+    // Use TEST key for devnet (no cycles cost for testing)
+    let key_id = Ed25519KeyId::MainnetTestKey1;
     let derivation_path = SolDerivationPath::from(caller);
     
     // Step 1: Get Ed25519 public key using threshold signatures
@@ -443,7 +443,7 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     TransactionResult {
         signature: tx_signature.to_string(),
         status: "submitted".to_string(),
-        message: format!("Transaction successfully submitted to Solana mainnet: {} lamports", lamports),
+        message: format!("Transaction successfully submitted to Solana devnet: {} lamports", lamports),
     }
 }
 
@@ -460,7 +460,7 @@ async fn get_solana_transaction_status(signature_str: String) -> String {
     };
     
     let client = SolRpcClient::builder_for_ic()
-        .with_rpc_sources(RpcSources::Default(SolanaCluster::Mainnet))
+        .with_rpc_sources(RpcSources::Default(SolanaCluster::Devnet))
         .build();
     
     let statuses = match client
@@ -506,8 +506,8 @@ fn get_canister_stats() -> CanisterStats {
     });
     
     CanisterStats {
-        network: "mainnet".to_string(),
-        rpc_endpoint: "https://api.mainnet-beta.solana.com".to_string(),
+        network: "devnet".to_string(),
+        rpc_endpoint: SOLANA_DEVNET_RPC.to_string(),
         total_addresses_generated: total_addresses,
     }
 }

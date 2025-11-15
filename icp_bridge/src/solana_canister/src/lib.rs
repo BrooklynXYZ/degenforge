@@ -308,81 +308,10 @@ async fn get_recent_blockhash() -> String {
     "".to_string()
 }
 
-// Helper function to decode Solana public key from base58
-fn decode_solana_pubkey(address: &str) -> Vec<u8> {
-    bs58::decode(address).into_vec().unwrap_or_else(|_| {
-        // If decoding fails, return 32 zero bytes
-        vec![0u8; 32]
-    })
-}
-
-// Helper function to build Solana transaction
-// Solana transaction format: [signatures_count, signatures..., message]
-// Message format: [header, account_keys[], recent_blockhash, instructions[]]
-// Header: [num_required_signatures, num_readonly_signed_accounts, num_readonly_unsigned_accounts]
-fn build_solana_transaction(from: &str, to: &str, lamports: u64, recent_blockhash: &str) -> Vec<u8> {
-    // Decode addresses
-    let from_pubkey = decode_solana_pubkey(from);
-    let to_pubkey = decode_solana_pubkey(to);
-    
-    // System Program ID (11111111111111111111111111111111)
-    let system_program_id = vec![0u8; 32];
-    
-    // Decode recent blockhash
-    let blockhash_bytes = bs58::decode(recent_blockhash).into_vec().unwrap_or_else(|_| vec![0u8; 32]);
-    let blockhash = if blockhash_bytes.len() == 32 {
-        blockhash_bytes
-    } else {
-        vec![0u8; 32]
-    };
-    
-    // Build message
-    let mut message = Vec::new();
-    
-    // Message header
-    message.push(1u8); // num_required_signatures (payer signs)
-    message.push(0u8); // num_readonly_signed_accounts
-    message.push(1u8); // num_readonly_unsigned_accounts (system program is readonly)
-    
-    // Account keys: [payer (from), recipient (to), system_program]
-    message.push(3u8); // num_accounts
-    message.extend_from_slice(&from_pubkey); // Account 0: payer
-    message.extend_from_slice(&to_pubkey);   // Account 1: recipient
-    message.extend_from_slice(&system_program_id); // Account 2: system program
-    
-    // Recent blockhash
-    message.extend_from_slice(&blockhash);
-    
-    // Instructions array
-    message.push(1u8); // num_instructions
-    
-    // Instruction: System Program Transfer
-    // Instruction format: [program_id_index, accounts[], data[]]
-    message.push(2u8); // program_id_index (system program is account 2)
-    
-    // Account indices: [payer (writable, signer), recipient (writable)]
-    message.push(2u8); // num_accounts in instruction
-    message.push(0u8); // Account 0: payer (writable, signer) = 0b00000000
-    message.push(1u8); // Account 1: recipient (writable) = 0b00000001
-    
-    // Instruction data: System Program Transfer instruction (4 bytes instruction id + 8 bytes lamports)
-    message.push(12u8); // data length
-    message.extend_from_slice(&[2u8, 0u8, 0u8, 0u8]); // Transfer instruction ID = 2
-    message.extend_from_slice(&lamports.to_le_bytes()); // lamports (8 bytes, little-endian)
-    
-    // Build transaction: [signatures_count, signatures..., message]
-    let mut tx_data = Vec::new();
-    tx_data.push(1u8); // 1 signature (from payer)
-    tx_data.extend_from_slice(&[0u8; 64]); // Placeholder for signature (64 bytes)
-    tx_data.extend_from_slice(&message); // Message
-    
-    tx_data
-}
-
 #[ic_cdk::update]
 async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     use sol_rpc_client::{SolRpcClient, ed25519::{sign_message, get_pubkey, Ed25519KeyId, DerivationPath as SolDerivationPath}};
-    use sol_rpc_types::{RpcSources, SolanaCluster};
+    use sol_rpc_types::{RpcSources, SolanaCluster, SendTransactionParams, SendTransactionEncoding};
     use solana_message::legacy::Message as SolMessage;
     use solana_transaction::Transaction;
     use solana_program::{pubkey::Pubkey, system_instruction};
@@ -417,8 +346,7 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     
     // Step 2: Get recent blockhash from Solana
     let blockhash = match client
-        .get_latest_blockhash()
-        .expect("Invalid blockhash request")
+        .estimate_recent_blockhash()
         .send()
         .await
         .expect_consistent()
@@ -479,10 +407,25 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
         signatures: vec![signature],
     };
     
-    // Step 8: Send signed transaction to Solana
+    // Step 8: Serialize and encode transaction
+    let tx_bytes = match bincode::serialize(&transaction) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to serialize transaction: {:?}", e),
+            };
+        }
+    };
+    let tx_base64 = base64::encode(&tx_bytes);
+    
+    // Step 9: Send signed transaction to Solana
     let tx_signature = match client
-        .send_transaction(&transaction)
-        .expect("Invalid transaction")
+        .send_transaction(SendTransactionParams::from_encoded_transaction(
+            tx_base64,
+            SendTransactionEncoding::Base64,
+        ))
         .send()
         .await
         .expect_consistent()
@@ -504,10 +447,10 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     }
 }
 
-#[ic_cdk::query]
+#[ic_cdk::update]
 async fn get_solana_transaction_status(signature_str: String) -> String {
     use sol_rpc_client::SolRpcClient;
-    use sol_rpc_types::{RpcSources, SolanaCluster, ConfirmationStatus};
+    use sol_rpc_types::{RpcSources, SolanaCluster, TransactionConfirmationStatus};
     use solana_signature::Signature;
     use std::str::FromStr;
     
@@ -534,9 +477,9 @@ async fn get_solana_transaction_status(signature_str: String) -> String {
     if let Some(Some(status)) = statuses.first() {
         if let Some(confirmation) = &status.confirmation_status {
             return match confirmation {
-                ConfirmationStatus::Processed => "processed".to_string(),
-                ConfirmationStatus::Confirmed => "confirmed".to_string(),
-                ConfirmationStatus::Finalized => "finalized".to_string(),
+                TransactionConfirmationStatus::Processed => "processed".to_string(),
+                TransactionConfirmationStatus::Confirmed => "confirmed".to_string(),
+                TransactionConfirmationStatus::Finalized => "finalized".to_string(),
             };
         }
     }
@@ -563,14 +506,8 @@ fn get_canister_stats() -> CanisterStats {
     });
     
     CanisterStats {
-        network: "devnet".to_string(),
-        rpc_endpoint: SOLANA_DEVNET_RPC.to_string(),
+        network: "mainnet".to_string(),
+        rpc_endpoint: "https://api.mainnet-beta.solana.com".to_string(),
         total_addresses_generated: total_addresses,
     }
 }
-
-#[ic_cdk::init]
-fn init() {}
-
-#[ic_cdk::post_upgrade]
-fn post_upgrade() {}

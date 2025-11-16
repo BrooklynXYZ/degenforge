@@ -18,15 +18,6 @@
       "package": "solana_handler_backend",
       "candid": "src/solana_canister/solana_rpc.did",
       "source": ["src/solana_canister"]
-    },
-    "evm_rpc": {
-      "type": "custom",
-      "candid": "https://raw.githubusercontent.com/dfinity/evm-rpc-canister/refs/heads/main/candid/evm_rpc.did",
-      "remote": {
-        "id": {
-          "ic": "7hfb6-caaaa-aaaar-qadga-cai"
-        }
-      }
     }
   },
   "defaults": {

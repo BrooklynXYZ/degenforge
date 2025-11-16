@@ -14,6 +14,17 @@ const SOLANA_DEVNET_RPC: &str = "https://api.devnet.solana.com";
 // SOL_RPC_CANISTER_ID reserved for future use with SOL RPC canister
 // const SOL_RPC_CANISTER_ID: &str = "titvo-eiaaa-aaaar-qaogq-cai";
 
+// Network configuration - using Devnet for PoC
+// When moving to production, change to SolanaCluster::Mainnet
+const SOLANA_NETWORK: &str = "devnet"; // Used for stats and logging
+
+// Constants for validation and limits
+const MAX_LAMPORTS: u64 = 1_000_000_000_000_000_000; // 1 billion SOL (safety limit)
+const MIN_LAMPORTS: u64 = 1; // Minimum 1 lamport
+const SOLANA_TX_MAX_SIZE: usize = 1232; // Solana transaction max size in bytes
+const SOLANA_ADDRESS_LENGTH: usize = 44; // Base58 encoded Solana address length (32 bytes = 44 base58 chars)
+const SOLANA_TRANSACTION_FEE: u64 = 5000; // Estimated transaction fee in lamports
+
 // Wrapper to make Vec<Vec<u8>> Storable
 #[derive(Clone, Debug, CandidType, Deserialize, serde::Serialize)]
 struct DerivationPath(Vec<Vec<u8>>);
@@ -121,14 +132,23 @@ fn post_upgrade() {
 
 fn init_rng() {
     ic_cdk_timers::set_timer(Duration::ZERO, || ic_cdk::spawn(async {
-        let (seed,): (Vec<u8>,) = ic_cdk::api::management_canister::main::raw_rand()
-            .await
-            .expect("Failed to get random seed");
-        RNG.with(|rng| {
-            *rng.borrow_mut() = Some(StdRng::from_seed(
-                seed.try_into().expect("Invalid seed length")
-            ))
-        });
+        match ic_cdk::api::management_canister::main::raw_rand().await {
+            Ok((seed,)) => {
+                match seed.try_into() {
+                    Ok(seed_array) => {
+                        RNG.with(|rng| {
+                            *rng.borrow_mut() = Some(StdRng::from_seed(seed_array));
+                        });
+                    }
+                    Err(_) => {
+                        ic_cdk::println!("Warning: Invalid seed length, RNG may not be initialized");
+                    }
+                }
+            }
+            Err(e) => {
+                ic_cdk::println!("Warning: Failed to get random seed: {:?}, RNG may not be initialized", e);
+            }
+        }
     }));
 }
 
@@ -230,7 +250,16 @@ async fn get_solana_balance(address: String) -> SolanaBalance {
                 value: "application/json".to_string(),
             },
         ],
-        body: Some(serde_json::to_string(&json_rpc_request).unwrap().into_bytes()),
+        body: match serde_json::to_string(&json_rpc_request) {
+            Ok(body_str) => Some(body_str.into_bytes()),
+            Err(e) => {
+                ic_cdk::println!("Failed to serialize JSON request: {:?}", e);
+                return SolanaBalance {
+                    lamports: 0,
+                    sol: "0.0".to_string(),
+                };
+            }
+        },
         max_response_bytes: Some(2000),
         transform: None,
     };
@@ -238,8 +267,26 @@ async fn get_solana_balance(address: String) -> SolanaBalance {
     match ic_cdk::api::management_canister::http_request::http_request(request, 3_000_000_000u128).await {
         Ok((response,)) => {
             if response.status == 200u64 {
-                let response_text = String::from_utf8(response.body.to_vec()).unwrap_or_default();
-                let json: serde_json::Value = serde_json::from_str(&response_text).unwrap_or(serde_json::json!({}));
+                let response_text = match String::from_utf8(response.body.to_vec()) {
+                    Ok(text) => text,
+                    Err(e) => {
+                        ic_cdk::println!("Failed to decode response body: {:?}", e);
+                        return SolanaBalance {
+                            lamports: 0,
+                            sol: "0.0".to_string(),
+                        };
+                    }
+                };
+                let json: serde_json::Value = match serde_json::from_str(&response_text) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        ic_cdk::println!("Failed to parse JSON response: {:?}", e);
+                        return SolanaBalance {
+                            lamports: 0,
+                            sol: "0.0".to_string(),
+                        };
+                    }
+                };
                 
                 if let Some(result) = json.get("result").and_then(|r| r.as_u64()) {
                     let lamports = result;
@@ -281,7 +328,16 @@ async fn get_recent_blockhash() -> String {
                 value: "application/json".to_string(),
             },
         ],
-        body: Some(serde_json::to_string(&json_rpc_request).unwrap().into_bytes()),
+        body: match serde_json::to_string(&json_rpc_request) {
+            Ok(body_str) => Some(body_str.into_bytes()),
+            Err(e) => {
+                ic_cdk::println!("Failed to serialize JSON request: {:?}", e);
+                return SolanaBalance {
+                    lamports: 0,
+                    sol: "0.0".to_string(),
+                };
+            }
+        },
         max_response_bytes: Some(2000),
         transform: None,
     };
@@ -289,8 +345,26 @@ async fn get_recent_blockhash() -> String {
     match ic_cdk::api::management_canister::http_request::http_request(request, 3_000_000_000u128).await {
         Ok((response,)) => {
             if response.status == 200u64 {
-                let response_text = String::from_utf8(response.body.to_vec()).unwrap_or_default();
-                let json: serde_json::Value = serde_json::from_str(&response_text).unwrap_or(serde_json::json!({}));
+                let response_text = match String::from_utf8(response.body.to_vec()) {
+                    Ok(text) => text,
+                    Err(e) => {
+                        ic_cdk::println!("Failed to decode response body: {:?}", e);
+                        return SolanaBalance {
+                            lamports: 0,
+                            sol: "0.0".to_string(),
+                        };
+                    }
+                };
+                let json: serde_json::Value = match serde_json::from_str(&response_text) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        ic_cdk::println!("Failed to parse JSON response: {:?}", e);
+                        return SolanaBalance {
+                            lamports: 0,
+                            sol: "0.0".to_string(),
+                        };
+                    }
+                };
                 
                 if let Some(blockhash) = json.get("result")
                     .and_then(|r| r.get("value"))
@@ -315,6 +389,49 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
     use solana_message::legacy::Message as SolMessage;
     use solana_transaction::Transaction;
     use solana_program::{pubkey::Pubkey, system_instruction};
+    
+    // Input validation: Check lamports amount
+    if lamports < MIN_LAMPORTS {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: format!("Invalid amount: must be at least {} lamports", MIN_LAMPORTS),
+        };
+    }
+    
+    if lamports > MAX_LAMPORTS {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: format!("Amount too large: maximum {} lamports allowed", MAX_LAMPORTS),
+        };
+    }
+    
+    // Input validation: Check address format
+    if to_address.is_empty() {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: "Invalid address: recipient address cannot be empty".to_string(),
+        };
+    }
+    
+    if to_address.len() != SOLANA_ADDRESS_LENGTH {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: format!("Invalid address length: expected {} characters, got {}", SOLANA_ADDRESS_LENGTH, to_address.len()),
+        };
+    }
+    
+    // Validate base58 encoding
+    if bs58::decode(&to_address).into_vec().is_err() {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: "Invalid address format: not a valid base58 string".to_string(),
+        };
+    }
     
     let caller = ic_cdk::caller();
     
@@ -349,9 +466,19 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
         .estimate_recent_blockhash()
         .send()
         .await
-        .expect_consistent()
     {
-        Ok(hash) => hash,
+        Ok(result) => {
+            match result.expect_consistent() {
+                Ok(hash) => hash,
+                Err(e) => {
+                    return TransactionResult {
+                        signature: "".to_string(),
+                        status: "error".to_string(),
+                        message: format!("Inconsistent blockhash response from RPC providers: {:?}", e),
+                    };
+                }
+            }
+        }
         Err(e) => {
             return TransactionResult {
                 signature: "".to_string(),
@@ -368,10 +495,52 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
             return TransactionResult {
                 signature: "".to_string(),
                 status: "error".to_string(),
-                message: format!("Invalid recipient address: {:?}", e),
+                message: format!("Invalid recipient address format: {}", e),
             };
         }
     };
+    
+    // Step 3.5: Check payer balance before proceeding
+    let payer_balance = match client
+        .get_balance(&payer)
+        .send()
+        .await
+    {
+        Ok(result) => {
+            match result.expect_consistent() {
+                Ok(balance) => balance,
+                Err(e) => {
+                    return TransactionResult {
+                        signature: "".to_string(),
+                        status: "error".to_string(),
+                        message: format!("Failed to check balance: inconsistent RPC response: {:?}", e),
+                    };
+                }
+            }
+        }
+        Err(e) => {
+            return TransactionResult {
+                signature: "".to_string(),
+                status: "error".to_string(),
+                message: format!("Failed to check balance: {:?}", e),
+            };
+        }
+    };
+    
+    let required_balance = lamports
+        .checked_add(SOLANA_TRANSACTION_FEE)
+        .unwrap_or(u64::MAX);
+    
+    if payer_balance < required_balance {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: format!(
+                "Insufficient balance: need {} lamports ({} + {} fee), have {} lamports",
+                required_balance, lamports, SOLANA_TRANSACTION_FEE, payer_balance
+            ),
+        };
+    }
     
     // Step 4: Build transfer instruction
     let transfer_ix = system_instruction::transfer(&payer, &recipient, lamports);
@@ -418,6 +587,19 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
             };
         }
     };
+    
+    // Step 8.5: Validate transaction size
+    if tx_bytes.len() > SOLANA_TX_MAX_SIZE {
+        return TransactionResult {
+            signature: "".to_string(),
+            status: "error".to_string(),
+            message: format!(
+                "Transaction too large: {} bytes exceeds Solana limit of {} bytes",
+                tx_bytes.len(), SOLANA_TX_MAX_SIZE
+            ),
+        };
+    }
+    
     let tx_base64 = base64::encode(&tx_bytes);
     
     // Step 9: Send signed transaction to Solana
@@ -428,9 +610,19 @@ async fn send_sol(to_address: String, lamports: u64) -> TransactionResult {
         ))
         .send()
         .await
-        .expect_consistent()
     {
-        Ok(sig) => sig,
+        Ok(result) => {
+            match result.expect_consistent() {
+                Ok(sig) => sig,
+                Err(e) => {
+                    return TransactionResult {
+                        signature: "".to_string(),
+                        status: "error".to_string(),
+                        message: format!("Inconsistent response when sending transaction: {:?}", e),
+                    };
+                }
+            }
+        }
         Err(e) => {
             return TransactionResult {
                 signature: "".to_string(),
@@ -463,14 +655,18 @@ async fn get_solana_transaction_status(signature_str: String) -> String {
         .with_rpc_sources(RpcSources::Default(SolanaCluster::Devnet))
         .build();
     
-    let statuses = match client
-        .get_signature_statuses(&[signature])
-        .expect("Invalid request")
-        .send()
-        .await
-        .expect_consistent()
-    {
-        Ok(statuses) => statuses,
+    let request = match client.get_signature_statuses(&[signature]) {
+        Ok(req) => req,
+        Err(_) => return "error".to_string(),
+    };
+    
+    let statuses = match request.send().await {
+        Ok(result) => {
+            match result.expect_consistent() {
+                Ok(statuses) => statuses,
+                Err(_) => return "pending".to_string(),
+            }
+        }
         Err(_) => return "pending".to_string(),
     };
     
@@ -506,7 +702,7 @@ fn get_canister_stats() -> CanisterStats {
     });
     
     CanisterStats {
-        network: "devnet".to_string(),
+        network: SOLANA_NETWORK.to_string(),
         rpc_endpoint: SOLANA_DEVNET_RPC.to_string(),
         total_addresses_generated: total_addresses,
     }

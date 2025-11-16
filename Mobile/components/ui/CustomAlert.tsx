@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius } from '@/constants/designTokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -57,8 +57,8 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
         />
         
         <Animated.View
-          entering={SlideInDown.springify().damping(15)}
-          exiting={SlideOutDown.springify().damping(15)}
+          entering={FadeIn.duration(250)}
+          exiting={FadeOut.duration(200)}
           style={[styles.alertContainer, { backgroundColor: colors.surface }]}
         >
           <View style={[styles.iconContainer, { backgroundColor: iconConfig.color + '15' }]}>

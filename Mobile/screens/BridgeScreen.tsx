@@ -105,37 +105,24 @@ export const BridgeScreen: React.FC<BridgeScreenProps> = ({ onNavigate }) => {
   const loadPosition = async () => {
     if (!address) return;
     try {
-      logger.debug('BridgeScreen: Loading mUSD balance', { address });
+      logger.debug('BridgeScreen: Loading tracked mUSD balance from bridge', { address });
 
-      // Try ICP first (with timeout), fallback to Mezo
-      const timeout = (ms: number) => new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), ms)
-      );
-
-      let musdAmount = 0;
-
-      try {
-        const position = await Promise.race([
-          ICPBridgeService.getMyPosition(),
-          timeout(2000)
-        ]);
-        musdAmount = Number((position as any).musd_minted) / 1e18;
-        logger.debug('BridgeScreen: Got mUSD from ICP', { musdAmount });
-      } catch (icpError) {
-        logger.debug('BridgeScreen: ICP failed, using Mezo balance');
-        const balances = await EthereumWalletService.getBalances(address);
-        musdAmount = parseFloat(balances.musdBalance);
-        logger.debug('BridgeScreen: Got mUSD from Mezo', { musdAmount });
-      }
+      const position = await ICPBridgeService.getMyPosition();
+      const musdAmount = Number((position as any).musd_minted) / 1e18;
+      
+      logger.debug('BridgeScreen: Got tracked mUSD from bridge position', { musdAmount });
 
       setBridgeAmount(musdAmount);
 
       if (musdAmount > 0) {
-        updateStepStatus(0, 'confirmed', `✓ Position verified: ${musdAmount.toFixed(2)} mUSD`);
+        updateStepStatus(0, 'confirmed', `✓ Position verified: ${musdAmount.toFixed(2)} mUSD available to bridge`);
+      } else {
+        updateStepStatus(0, 'pending', 'No mUSD available. Mint mUSD first using the Mint screen.');
       }
     } catch (error) {
-      logger.error('BridgeScreen: Failed to load position', error);
+      logger.error('BridgeScreen: Failed to load bridge position', error);
       setBridgeAmount(0);
+      updateStepStatus(0, 'pending', 'Unable to verify position. Please mint mUSD first.');
     }
   };
 

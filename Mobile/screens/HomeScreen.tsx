@@ -123,17 +123,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
       logger.debug('Parsed balance values', { mezoBTC, mezoMUSD });
 
-      const btcCollateral = (bridgePosition && typeof bridgePosition === 'object' && 'btc_collateral' in bridgePosition)
+      const bridgeBTC = (bridgePosition && typeof bridgePosition === 'object' && 'btc_collateral' in bridgePosition)
         ? Number((bridgePosition as any).btc_collateral) / 100_000_000
-        : mezoBTC;
-
-      const musdMinted = (bridgePosition && typeof bridgePosition === 'object' && 'musd_minted' in bridgePosition)
+        : 0;
+      
+      const bridgeMUSD = (bridgePosition && typeof bridgePosition === 'object' && 'musd_minted' in bridgePosition)
         ? Number((bridgePosition as any).musd_minted) / 1e18
-        : mezoMUSD;
+        : 0;
 
       const solDeployed = (bridgePosition && typeof bridgePosition === 'object' && 'sol_deployed' in bridgePosition)
         ? Number((bridgePosition as any).sol_deployed) / 1e9
         : 0;
+
+      const btcCollateral = bridgeBTC > 0 ? bridgeBTC : mezoBTC;
+      const musdMinted = bridgeMUSD > 0 ? bridgeMUSD : mezoMUSD;
 
       const btcPrice = 65000;
       const totalValue = (btcCollateral * btcPrice) + musdMinted + (solDeployed * 150);

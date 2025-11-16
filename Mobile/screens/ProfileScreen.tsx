@@ -161,34 +161,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate }) => {
   };
 
   const handleDisconnect = async () => {
-    setAlertConfig({
-      visible: true,
-      title: 'Disconnect Wallet',
-      message: 'Are you sure you want to disconnect your wallet?',
-      type: 'warning',
-      confirmText: 'Disconnect',
-      cancelText: 'Cancel',
-      onConfirm: async () => {
-        setAlertConfig({ ...alertConfig, visible: false });
-        try {
-          setIsDisconnecting(true);
-          await disconnect();
-          await logout();
-        } catch (error) {
-          console.error('Error during disconnect:', error);
-          setAlertConfig({
-            visible: true,
-            title: 'Error',
-            message: 'Failed to disconnect wallet',
-            type: 'error',
-            onConfirm: () => setAlertConfig({ ...alertConfig, visible: false }),
-          });
-        } finally {
-          setIsDisconnecting(false);
-        }
-      },
-      onCancel: () => setAlertConfig({ ...alertConfig, visible: false }),
-    });
+    try {
+      setIsDisconnecting(true);
+      await disconnect();
+      await logout();
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   const handleBiometricToggle = async () => {

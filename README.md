@@ -674,20 +674,6 @@ We're building Ghala in public and welcome contributions from developers, design
 
 ---
 
-## 📚 Documentation and Resources
-
-**Project Documentation**:
-- Backend API Documentation: See backend/README.md for detailed API endpoints and usage
-- ICP Canister Documentation: See icp_bridge/README.md for canister architecture and deployment
-- mUSD Protocol Documentation: See musd/README.md for smart contract specifications
-- Mobile App Build Guide: See Mobile/BUILD.md for production build instructions
-
-**External Resources**:
-- Mezo Network: Learn about Bitcoin L2 and native BTC collateral
-- Internet Computer: Understanding chain fusion and cross-chain communication
-- Solana DeFi: Explore the Solana ecosystem and yield protocols
-
----
 
 ## 📄 License
 
@@ -697,7 +683,7 @@ MIT License - This project is open source and available for anyone to use, modif
 
 ## 🏆 Acknowledgments
 
-Built with ❤️ for the Mezo Hackathon, bringing together the best of Bitcoin security, Internet Computer innovation, and Solana DeFi performance.
+Built with ❤️ for the ICP Hackathon, bringing together the best of Bitcoin security, Internet Computer innovation, and Solana DeFi performance.
 
 ---
 

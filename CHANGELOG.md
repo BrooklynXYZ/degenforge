@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to the DegenForge project since November 5th, 2024.
+All notable changes to the DegenForge project since November 5th, 2025.
 
-## [Unreleased] - 2024-11-17
+## [Unreleased] - 2025-11-17
 
 ### Security Fixes
 - **CRITICAL**: Fixed BTC deposit recognition bug in `deposit_btc_for_musd`
@@ -31,7 +31,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-17] - Backend Cleanup
+## [2025-11-17] - Backend Cleanup
 
 ### Changed
 - Backend cleanup and optimization
@@ -40,7 +40,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-16] - Bitcoin Canister Fixes
+## [2025-11-16] - Bitcoin Canister Fixes
 
 ### Fixed
 - **Bitcoin Canister**: Fixed deposit recognition issues
@@ -54,7 +54,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-15] - Solana Integration Enhancements
+## [2025-11-15] - Solana Integration Enhancements
 
 ### Added
 - **Solana Canister**: Full Devnet integration
@@ -75,7 +75,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-11] - Chain Fusion & Transaction Tracking
+## [2025-11-11] - Chain Fusion & Transaction Tracking
 
 ### Added
 - **Chain Fusion Integration**: EVM RPC canister integration
@@ -101,7 +101,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-10] - Logging & Error Handling
+## [2025-11-10] - Logging & Error Handling
 
 ### Added
 - **Centralized Logger**: Unified logging system
@@ -121,7 +121,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-08] - Configuration & Transaction Tracking
+## [2025-11-08] - Configuration & Transaction Tracking
 
 ### Added
 - **Transaction Tracking**: Initial implementation
@@ -136,7 +136,7 @@ All notable changes to the DegenForge project since November 5th, 2024.
 
 ---
 
-## [2024-11-06] - Rust Migration & RPC Integration
+## [2025-11-06] - Rust Migration & RPC Integration
 
 ### Major Changes
 - **Rust Migration**: Migrated canisters from Python/Kybra to Rust

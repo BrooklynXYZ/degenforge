@@ -69,7 +69,7 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
 
 ## Deployment Details
 
-- **Deployment Date**: November 17, 2024
+- **Deployment Date**: November 17, 2025
 - **Deployment Method**: Upgrade mode (preserves all data)
 - **Identity Used**: `mainnet-deploy`
 - **Network**: ICP Mainnet (`ic`)

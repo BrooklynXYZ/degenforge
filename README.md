@@ -377,7 +377,7 @@ Ghala's power comes from how seamlessly these components work together:
 ### What's In Progress
 
 **Bitcoin Balance Recognition - FIXED**:
-- ✅ **Status**: Fixed in latest update (November 17, 2024)
+- ✅ **Status**: Fixed in latest update (November 17, 2025)
 - ✅ **Fix**: Updated `deposit_btc_for_musd` to use actual balance from address instead of requested amount
 - ✅ **Impact**: Canister now recognizes pre-existing funds from faucets or previous deposits
 - ✅ **Details**: Changed verification to use minimum 1 satoshi check, then uses actual on-chain balance
@@ -398,7 +398,7 @@ Ghala's power comes from how seamlessly these components work together:
 ### What's Pending
 
 **Immediate Priorities**:
-1. ✅ **Resolve Bitcoin balance recognition issue** - FIXED (November 17, 2024)
+1. ✅ **Resolve Bitcoin balance recognition issue** - FIXED (November 17, 2025)
 2. **Complete end-to-end testing** - Validate entire flow on testnets with fixed deposit recognition
 3. **Redeploy canisters** - Deploy updated code to mainnet (see `REDEPLOYMENT_GUIDE.md`)
 4. **Finalize yield protocol integrations** - Select and integrate Solana DeFi protocols

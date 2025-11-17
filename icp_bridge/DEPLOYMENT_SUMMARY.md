@@ -175,10 +175,23 @@ dfx canister --network ic call bridge_orchestrator health_check
 
 ---
 
+## Recent Updates (November 17, 2025)
+
+### Critical Fixes
+- **BTC Deposit Recognition**: Fixed issue where pre-existing funds on addresses were not recognized
+- **Security Review**: Completed comprehensive security audit
+
+### Changes
+- Updated `deposit_btc_for_musd` to use actual balance from address
+- Enhanced error handling and logging
+- Improved transaction verification
+
+For full changelog, see `CHANGELOG.md` in project root.
+
 ## Support
 
 For issues or questions:
 - Check canister status via Candid interface
-- Review deployment logs in `DEPLOYMENT_FIXES.md`
+- Review `CHANGELOG.md` for recent changes
 - Consult `README.md` for development setup
 

@@ -245,17 +245,18 @@ async fn set_canister_ids(btc_canister: String, solana_canister: String) -> Stri
 }
 
 // Helper function to verify BTC deposit by checking balance
-async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, required_amount: u64) -> Result<u64, String> {
+// Returns the actual balance on the address if it meets the minimum requirement
+async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, min_required: u64) -> Result<u64, String> {
     // Get BTC balance from BTC canister (with 6 confirmations minimum)
     let balance_result: Result<(u64,), _> = ic_cdk::call(btc_canister, "get_btc_balance", (btc_address.to_string(),))
         .await;
     
     match balance_result {
         Ok((balance,)) => {
-            if balance >= required_amount {
+            if balance >= min_required {
                 Ok(balance)
             } else {
-                Err(format!("Insufficient BTC deposit. Required: {}, Found: {}", required_amount, balance))
+                Err(format!("Insufficient BTC deposit. Required minimum: {}, Found: {}", min_required, balance))
             }
         }
         Err(e) => Err(format!("Failed to get BTC balance: {:?}", e))
@@ -296,37 +297,51 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
     };
     
     // CRITICAL FIX: Verify BTC deposit before updating position
-    match verify_btc_deposit(btc_canister, &btc_address, btc_amount).await {
+    // Use minimum amount of 1 satoshi to check for any balance (handles pre-existing funds)
+    match verify_btc_deposit(btc_canister, &btc_address, 1).await {
         Ok(verified_balance) => {
             // Check if position already exists
             let existing = POSITIONS.with(|map| {
                 map.borrow().get(&caller)
             });
             
-            // Use checked arithmetic to prevent overflow
-            let updated_position = if let Some(existing) = existing {
-                let new_collateral = existing.btc_collateral.checked_add(btc_amount)
-                    .unwrap_or_else(|| ic_cdk::trap("Overflow: BTC collateral addition would overflow"));
+            // CRITICAL FIX: Use actual balance from address, not requested amount
+            // This handles pre-existing funds from faucets or previous deposits
+            // The actual balance on the address is the source of truth
+            let (updated_position, newly_recognized) = if let Some(existing) = existing.clone() {
+                // Calculate newly recognized funds
+                let newly_recognized = if verified_balance > existing.btc_collateral {
+                    verified_balance - existing.btc_collateral
+                } else {
+                    0
+                };
                 
-                BridgePosition {
+                // Always use the actual balance from the address (handles pre-existing funds)
+                // If balance decreased, it means funds were withdrawn - update to reflect reality
+                let updated = BridgePosition {
                     user: caller,
-                    btc_collateral: new_collateral,
+                    btc_collateral: verified_balance, // Use actual balance, not requested amount
                     musd_minted: existing.musd_minted,
                     sol_deployed: existing.sol_deployed,
                     status: "btc_deposited".to_string(),
                     btc_address: btc_address.clone(),
                     sol_address: existing.sol_address,
-                }
+                };
+                
+                (updated, newly_recognized)
             } else {
-                BridgePosition {
+                // New position: use actual balance from address (handles pre-existing funds)
+                let updated = BridgePosition {
                     user: caller,
-                    btc_collateral: btc_amount,
+                    btc_collateral: verified_balance, // Use actual balance, not requested amount
                     musd_minted: 0,
                     sol_deployed: 0,
                     status: "btc_deposited".to_string(),
                     btc_address: btc_address.clone(),
                     sol_address: "".to_string(),
-                }
+                };
+                
+                (updated, verified_balance)
             };
             
             POSITIONS.with(|map| {
@@ -335,7 +350,7 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
             
             DepositResponse {
                 btc_address,
-                message: format!("Deposit {} satoshis verified. Balance: {} satoshis", btc_amount, verified_balance),
+                message: format!("Deposit verified. Total balance: {} satoshis (newly recognized: {} satoshis)", verified_balance, newly_recognized),
                 status: "confirmed".to_string(),
             }
         }

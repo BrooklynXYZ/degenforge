@@ -301,6 +301,17 @@ export class SolanaCanisterAPI {
       throw error;
     }
   }
+
+  async getSolanaTransactionStatus(signature: string): Promise<string> {
+    try {
+      const actor = await this.actorPromise;
+      const status = await actor.get_solana_transaction_status(signature);
+      return status;
+    } catch (error) {
+      logger.error('Error getting Solana transaction status', error);
+      throw error;
+    }
+  }
 }
 
 export const satoshisToBTC = (satoshis: bigint): string => {

@@ -157,6 +157,17 @@ class ICPBridgeService {
     return solanaCanisterAPI.requestAirdrop(address, solToLamports(solAmount));
   }
 
+  async getSolanaTransactionStatus(signature: string): Promise<string> {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    try {
+      const status = await solanaCanisterAPI.getSolanaTransactionStatus(signature);
+      return status;
+    } catch (error) {
+      logger.error('Error getting Solana transaction status', error);
+      return 'pending';
+    }
+  }
+
   async completeBridgeFlow(btcAmount: number): Promise<{
     deposit: DepositResponse;
     mint: MintResponse;

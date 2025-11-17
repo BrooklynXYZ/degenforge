@@ -13,7 +13,6 @@ mod bitcoin_address;
 const KEY_NAME: &str = "test_key_1";
 const BTC_NETWORK: BitcoinNetwork = BitcoinNetwork::Testnet;
 
-// Wrapper to make Vec<Vec<u8>> Storable
 #[derive(Clone, Debug, CandidType, Deserialize)]
 struct DerivationPath(Vec<Vec<u8>>);
 
@@ -34,8 +33,7 @@ impl Storable for DerivationPath {
         match bincode::deserialize(&bytes) {
             Ok(path) => DerivationPath(path),
             Err(e) => {
-                ic_cdk::println!("Error deserializing DerivationPath: {:?}", e);
-                DerivationPath(vec![])
+                ic_cdk::trap(&format!("Failed to deserialize DerivationPath: {:?}. This could lead to using the wrong Bitcoin address.", e));
             }
         }
     }
@@ -74,17 +72,12 @@ pub struct CanisterStats {
 async fn generate_btc_address() -> String {
     let caller = ic_cdk::caller();
     
-    // Check if address already exists
-    if let Some(addr) = BTC_ADDRESSES.with(|map| {
-        map.borrow().get(&caller)
-    }) {
+    if let Some(addr) = BTC_ADDRESSES.with(|map| map.borrow().get(&caller)) {
         return addr;
     }
     
-    // Derive unique path for this caller
     let derivation_path = DerivationPath(vec![caller.as_slice().to_vec()]);
     
-    // Request ECDSA public key from ICP
     let public_key_response = match ic_cdk::api::management_canister::ecdsa::ecdsa_public_key(
         ic_cdk::api::management_canister::ecdsa::EcdsaPublicKeyArgument {
             canister_id: None,
@@ -99,20 +92,15 @@ async fn generate_btc_address() -> String {
     {
         Ok((response,)) => response,
         Err(err) => {
-            ic_cdk::trap(&format!(
-                "Failed to get ECDSA public key: {:?}. Make sure the ECDSA key '{}' is configured in dfx.json and the local replica has access to it.",
-                err, KEY_NAME
-            ));
+            ic_cdk::trap(&format!("Failed to get ECDSA public key: {:?}", err));
         }
     };
     
-    // Convert public key to P2PKH address
     let btc_address = bitcoin_address::public_key_to_p2pkh(
         &public_key_response.public_key,
         BTC_NETWORK == BitcoinNetwork::Mainnet,
     );
     
-    // Store mapping
     BTC_ADDRESSES.with(|map| {
         map.borrow_mut().insert(caller, btc_address.clone());
     });
@@ -134,10 +122,11 @@ fn get_my_btc_address() -> String {
 
 #[ic_cdk::update]
 async fn get_btc_balance(address: String) -> u64 {
-    // Validate address format
     if address.is_empty() {
         ic_cdk::trap("Address cannot be empty");
     }
+    
+    ic_cdk::println!("Querying BTC balance for address: {} on network: {:?} with min_confirmations: 6", address, BTC_NETWORK);
     
     match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(
         GetBalanceRequest {
@@ -148,23 +137,20 @@ async fn get_btc_balance(address: String) -> u64 {
     )
     .await
     {
-        Ok((balance,)) => balance,
+        Ok((balance,)) => {
+            ic_cdk::println!("Successfully retrieved balance: {} satoshis for address: {}", balance, address);
+            balance
+        }
         Err(err) => {
-            let error_msg = format!(
-                "Failed to fetch BTC balance for address {}: {:?}. \
-                Ensure the address is valid and the Bitcoin network is accessible.",
-                address, err
-            );
-            ic_cdk::println!("{}", error_msg);
-            // Return 0 instead of trapping to allow graceful error handling
-            0
+            let error_msg = format!("ICP Bitcoin API Error for address {}: {:?}", address, err);
+            ic_cdk::println!("ERROR: {}", error_msg);
+            ic_cdk::trap(&error_msg);
         }
     }
 }
 
 #[ic_cdk::update]
 async fn get_utxos(address: String) -> Vec<UTXOInfo> {
-    // Validate address format
     if address.is_empty() {
         ic_cdk::trap("Address cannot be empty");
     }
@@ -182,12 +168,7 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
         Ok((response,)) => {
             response.utxos.into_iter().map(|utxo| {
                 let mut outpoint = utxo.outpoint.txid.to_vec();
-                // Safely convert vout to u8, handling potential overflow
-                let vout = utxo.outpoint.vout;
-                if vout > u8::MAX as u32 {
-                    ic_cdk::println!("Warning: vout {} exceeds u8::MAX, truncating", vout);
-                }
-                outpoint.push(vout as u8);
+                outpoint.extend_from_slice(&utxo.outpoint.vout.to_le_bytes());
                 UTXOInfo {
                     outpoint: ByteBuf::from(outpoint),
                     value: utxo.value,
@@ -196,12 +177,7 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
             }).collect()
         }
         Err(err) => {
-            let error_msg = format!(
-                "Failed to fetch UTXOs for address {}: {:?}. \
-                Ensure the address is valid and the Bitcoin network is accessible.",
-                address, err
-            );
-            ic_cdk::trap(&error_msg);
+            ic_cdk::trap(&format!("Failed to fetch UTXOs for address {}: {:?}", address, err));
         }
     }
 }
@@ -210,7 +186,6 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
 async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
     let caller = ic_cdk::caller();
     
-    // Get caller's derivation path
     let derivation_path = DERIVATION_PATHS.with(|map| {
         map.borrow().get(&caller).unwrap_or_else(|| {
             ic_cdk::trap("No BTC address found for caller")
@@ -232,11 +207,7 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
     let signature = match signature_result {
         Ok((response,)) => response.signature,
         Err(err) => {
-            ic_cdk::trap(&format!(
-                "Failed to sign transaction: {:?}. \
-                Ensure the ECDSA key '{}' is configured in dfx.json.",
-                err, KEY_NAME
-            ));
+            ic_cdk::trap(&format!("Failed to sign transaction: {:?}", err));
         }
     };
     
@@ -244,26 +215,8 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
 }
 
 #[ic_cdk::update]
-async fn send_btc(to_address: String, amount_satoshis: u64) -> String {
-    let caller = ic_cdk::caller();
-    
-    let from_address = BTC_ADDRESSES.with(|map| {
-        map.borrow().get(&caller).unwrap_or_else(|| {
-            ic_cdk::trap("No BTC address found for caller")
-        })
-    });
-    
-    // Fetch UTXOs
-    let utxos = get_utxos(from_address.clone()).await;
-    
-    if utxos.is_empty() {
-        ic_cdk::trap("No UTXOs available for transaction");
-    }
-    
-    // Note: Building and broadcasting Bitcoin transactions requires proper transaction construction
-    // This is a simplified placeholder - in production, use a proper Bitcoin library
-    // For now, return success message
-    format!("Transaction prepared: {} satoshis from {} to {}", amount_satoshis, from_address, to_address)
+async fn send_btc(_to_address: String, _amount_satoshis: u64) -> String {
+    ic_cdk::trap("Bitcoin sending not implemented. Use external wallet for now.");
 }
 
 #[ic_cdk::query]

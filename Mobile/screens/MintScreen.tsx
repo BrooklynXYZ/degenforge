@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Clipboard,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -33,6 +34,7 @@ import {
 import { ActionButton } from '@/components/ui/ActionButton';
 import { SectionCard } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { SuccessToast } from '@/components/ui/SuccessToast';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletProvider';
 import ICPBridgeService from '@/services/ICPBridgeService';
@@ -53,6 +55,8 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [btcDepositAddress, setBtcDepositAddress] = useState('');
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [mintResult, setMintResult] = useState<{
     txHash: string;
     musdAmount: number;
@@ -81,11 +85,19 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     if (!address) return;
     try {
       const btcAddr = await ICPBridgeService.getBTCDepositAddress();
+      setBtcDepositAddress(btcAddr);
       const { btc } = await ICPBridgeService.getBTCBalance(btcAddr);
       setWalletBalance(parseFloat(btc));
     } catch (error) {
       logger.error('Failed to load BTC balance', error);
       setWalletBalance(0);
+    }
+  };
+
+  const copyAddressToClipboard = async () => {
+    if (btcDepositAddress) {
+      await Clipboard.setString(btcDepositAddress);
+      setShowCopiedToast(true);
     }
   };
 
@@ -311,6 +323,40 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
           </Text>
         </Animated.View>
 
+        {walletBalance === 0 && btcDepositAddress && (
+          <Animated.View entering={FadeInDown.duration(500).delay(150)}>
+            <SectionCard borderRadius="none" padding="xl">
+              <View style={styles.depositAddressSection}>
+                <View style={styles.depositAddressHeader}>
+                  <Feather name="download" size={20} color={themeColors.textPrimary} />
+                  <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>
+                    Deposit Bitcoin
+                  </Text>
+                </View>
+                <Text style={[styles.depositAddressDescription, { color: themeColors.textSecondary }]}>
+                  Send testnet BTC to this address to add collateral
+                </Text>
+                <TouchableOpacity
+                  onPress={copyAddressToClipboard}
+                  style={[styles.addressBox, { backgroundColor: themeColors.surfaceSecondary, borderColor: themeColors.border }]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.addressText, { color: themeColors.textPrimary }]} numberOfLines={1}>
+                    {btcDepositAddress}
+                  </Text>
+                  <Feather name="copy" size={18} color={themeColors.textSecondary} />
+                </TouchableOpacity>
+                <View style={styles.depositAddressFooter}>
+                  <Feather name="info" size={14} color={themeColors.textTertiary} />
+                  <Text style={[styles.depositAddressNote, { color: themeColors.textTertiary }]}>
+                    Get testnet BTC from a faucet, then use it here to mint mUSD
+                  </Text>
+                </View>
+              </View>
+            </SectionCard>
+          </Animated.View>
+        )}
+
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
           <SectionCard borderRadius="none" padding="xl">
             <View style={styles.inputHeader}>
@@ -357,6 +403,9 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
                 <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
                   Balance: {walletBalance} BTC
                 </Text>
+                <TouchableOpacity onPress={loadBalance} style={styles.refreshButton}>
+                  <Feather name="refresh-cw" size={14} color={Colors.accent.primary} />
+                </TouchableOpacity>
               </View>
               <View style={styles.balanceItem}>
                 <Feather name="trending-up" size={14} color={themeColors.textSecondary} />
@@ -483,6 +532,13 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {showCopiedToast && (
+        <SuccessToast
+          message="Bitcoin address copied to clipboard"
+          onClose={() => setShowCopiedToast(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 };
@@ -829,6 +885,10 @@ const styles = StyleSheet.create({
   balanceLabel: {
     ...Typography.bodySmall,
   },
+  refreshButton: {
+    padding: Spacing.xxs,
+    marginLeft: Spacing.xxs,
+  },
   priceLabel: {
     ...Typography.bodySmallSemibold,
   },
@@ -1097,5 +1157,44 @@ const styles = StyleSheet.create({
   },
   proofText: {
     ...Typography.mono,
+  },
+  depositAddressSection: {
+    gap: Spacing.md,
+  },
+  depositAddressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  depositAddressDescription: {
+    ...Typography.bodySmall,
+    marginBottom: Spacing.md,
+    lineHeight: 20,
+  },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderWidth: Borders.width.thin,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+  },
+  addressText: {
+    ...Typography.mono,
+    fontSize: 13,
+    flex: 1,
+  },
+  depositAddressFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  depositAddressNote: {
+    ...Typography.caption,
+    flex: 1,
+    lineHeight: 16,
   },
 });

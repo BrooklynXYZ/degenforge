@@ -129,7 +129,7 @@ dfx canister call btc_handler generate_btc_address
 
 # Output: "tb1q..."
 
-# Fund the address from faucet: https://coinfaucet.eu/en/btc-testnet/
+# Fund the address from a testnet faucet
 
 # Check balance (wait 10-60 mins for confirmations)
 dfx canister call btc_handler get_btc_balance '("tb1q...")'
@@ -170,9 +170,7 @@ dfx canister call bridge_orchestrator get_my_position
 
 ### 1. Get Cycles
 
-Request free cycles from the faucet:
-- Visit: https://faucet.dfinity.org
-- Minimum 3T cycles per canister (9T total recommended)
+Request free cycles from the faucet (minimum 3T cycles per canister, 9T total recommended)
 
 ### 2. Deploy to Mainnet
 
@@ -253,9 +251,9 @@ This script:
 8. Displays explorer links for verification
 
 **Verification Steps:**
-- Check BTC address on Blockstream: https://blockstream.info/testnet/address/YOUR_ADDRESS
-- Check Mezo transaction on explorer: https://explorer.mezo.org/tx/YOUR_TX_HASH
-- Check Solana address/transaction on Solana Explorer: https://explorer.solana.com/?cluster=devnet
+- Check BTC address on a testnet explorer
+- Check Mezo transaction on the Mezo explorer
+- Check Solana address/transaction on Solana Explorer
 
 ## API Reference
 
@@ -290,26 +288,20 @@ This script:
 - RPC: `https://rpc.test.mezo.org`
 - Chain ID: `31611`
 - mUSD Token: `0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186`
-  - Explorer: https://explorer.mezo.org/address/0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186
 - BorrowManager: `0xd02E8c38a8E3db71f8b2ae30B8186d7874934e12`
-  - Explorer: https://explorer.mezo.org/address/0xd02E8c38a8E3db71f8b2ae30B8186d7874934e12
   - Alternative candidate: `0x4411cc69aE69cE444c20603FcF75a209ddd25c0d`
-- Documentation: https://mezo.org/docs/users/musd/
 
 ### Bitcoin Testnet
 
 - Network: `testnet`
 - Key Name: `test_key_1` (threshold ECDSA)
 - Confirmations: 6 blocks
-- Faucet: https://coinfaucet.eu/en/btc-testnet/
-- Explorer: https://blockstream.info/testnet/
 
 ### Solana Devnet
 
 - RPC: `https://api.devnet.solana.com`
 - SOL RPC Canister: `titvo-eiaaa-aaaar-qaogq-cai`
 - Rate Limit: 100 requests per 10 seconds
-- Explorer: https://explorer.solana.com/?cluster=devnet
 
 ## Cost Estimates
 
@@ -342,9 +334,7 @@ This script:
    dfx canister call btc_handler generate_btc_address
    ```
 
-3. **Fund address from Bitcoin testnet faucet:**
-   - Faucet: https://coinfaucet.eu/en/btc-testnet/
-   - Explorer: https://blockstream.info/testnet/
+3. **Fund address from Bitcoin testnet faucet**
 
 4. **Wait for 6 confirmations (~60 minutes)**
 
@@ -375,9 +365,8 @@ This script:
    dfx canister call bridge_orchestrator mint_musd_on_mezo '(100000 : nat64)'
    ```
 
-4. **Verify transaction on Mezo explorer:**
+4. **Verify transaction on Mezo explorer**
    - Check transaction hash in response
-   - Visit: https://explorer.mezo.org/tx/{tx_hash}
 
 #### 3. Solana Canister Testing
 
@@ -396,8 +385,7 @@ This script:
    dfx canister call solana_canister get_solana_balance '("YOUR_SOL_ADDRESS")'
    ```
 
-4. **Verify on Solana explorer:**
-   - Visit: https://explorer.solana.com/address/{address}?cluster=devnet
+4. **Verify on Solana explorer**
 
 ### Integration Testing
 
@@ -478,7 +466,7 @@ dfx canister call bridge_orchestrator set_canister_ids "(\"$BTC_ID\", \"$SOL_ID\
 **Solution:**
 - Wait for 6 confirmations (~60 minutes)
 - Verify address format (should start with `tb1` for testnet)
-- Check faucet transaction on explorer: https://blockstream.info/testnet/
+- Check faucet transaction on a testnet explorer
 - Ensure min_confirmations is set correctly (default: 6)
 
 ### Solana RPC Rate Limit
@@ -578,20 +566,11 @@ This returns:
 7. **Cycles Monitoring**: Health check endpoint provides cycles balance
 8. **Secure Key Management**: ECDSA keys managed by ICP threshold cryptography
 
-## Resources
-
-- [ICP Bitcoin Integration](https://internetcomputer.org/docs/references/bitcoin-how-it-works)
-- [ICP Solana Integration](https://internetcomputer.org/docs/building-apps/chain-fusion/solana/overview/)
-- [Kybra Documentation](https://demergent-labs.github.io/kybra/)
-- [Mezo Testnet Docs](https://mezo.org/docs/developers/getting-started/)
-- [Threshold Signatures](https://internetcomputer.org/docs/building-apps/network-features/signatures/t-ecdsa)
-
 ## Support
 
 For issues or questions:
 1. Check the troubleshooting section above
-2. Review ICP developer forum: https://forum.dfinity.org
-3. Consult Mezo documentation: https://mezo.org/docs
+2. Create a GitHub issue for bugs or feature requests
 
 ## License
 

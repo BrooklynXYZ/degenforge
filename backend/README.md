@@ -203,9 +203,6 @@ npm run test:integration
 ## Documentation
 
 - [API Documentation](../endpoints/api.txt)
-- [Mezo Documentation](https://mezo.org/docs/)
-- [Mezo GitHub](https://github.com/mezo-org/)
-- [Ethers.js Documentation](https://docs.ethers.io/)
 
 ## Contributing
 
@@ -221,9 +218,7 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-- **Discord**: [Mezo Community](https://discord.mezo.org)
 - **GitHub Issues**: Create an issue for bugs or feature requests
-- **Email**: support@ghala.io
 
 ## Version History
 

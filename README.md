@@ -6,7 +6,7 @@ Ghala is the first fully non-custodial platform that enables Bitcoin holders to 
 
 ---
 
-## 🎯 The Problem We're Solving
+## The Problem We're Solving
 
 **Bitcoin holders are locked out of DeFi yield opportunities.**
 
@@ -41,7 +41,7 @@ If you want to earn yield on your Bitcoin today, you're forced to:
 
 ---
 
-## 💡 Our Solution: The Ghala Bridge
+## Our Solution: The Ghala Bridge
 
 Ghala solves this problem by creating the first **truly non-custodial** bridge from Bitcoin to Solana DeFi, powered by three innovative technologies working together:
 
@@ -121,7 +121,7 @@ When a user wants to earn yield on their Bitcoin, here's what happens:
 
 ---
 
-## 🌟 What Makes Ghala Unique
+## What Makes Ghala Unique
 
 ### 1. True Non-Custodial Design
 
@@ -167,7 +167,7 @@ When a user wants to earn yield on their Bitcoin, here's what happens:
 
 ---
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 Ghala is built on four major components that work together seamlessly:
 
@@ -275,7 +275,7 @@ The Bridge Orchestrator implements a critical security feature: only mUSD that w
 
 ---
 
-## 🔄 How Everything Integrates
+## How Everything Integrates
 
 Ghala's power comes from how seamlessly these components work together:
 
@@ -328,7 +328,7 @@ Ghala's power comes from how seamlessly these components work together:
 
 ---
 
-## ✅ Current Status and Achievements
+## Current Status and Achievements
 
 ### What's Been Completed
 
@@ -414,7 +414,7 @@ Ghala's power comes from how seamlessly these components work together:
 
 ---
 
-## 🚀 Installation and Running the Project
+## Installation and Running the Project
 
 ### Prerequisites
 
@@ -497,7 +497,7 @@ All components will communicate locally for development and testing.
 
 ---
 
-## 🎯 Why This Project Matters
+## Why This Project Matters
 
 ### The Broader Impact
 
@@ -552,7 +552,7 @@ All components will communicate locally for development and testing.
 
 ---
 
-## 🔮 Vision and Roadmap
+## Vision and Roadmap
 
 ### Near-Term Goals
 
@@ -616,7 +616,7 @@ All components will communicate locally for development and testing.
 
 ---
 
-## 🌐 Ecosystem and Technology
+## Ecosystem and Technology
 
 ### Why These Technologies?
 
@@ -655,11 +655,12 @@ All components will communicate locally for development and testing.
 
 ---
 
-## 🤝 Contributing and Community
+## Contributing and Community
 
 We're building Ghala in public and welcome contributions from developers, designers, and Bitcoin enthusiasts.
 
 **Ways to Contribute**:
+
 - Report bugs and issues you encounter
 - Suggest features and improvements
 - Contribute to documentation
@@ -667,6 +668,7 @@ We're building Ghala in public and welcome contributions from developers, design
 - Spread the word in Bitcoin and DeFi communities
 
 **Future Plans**:
+
 - Open source key components
 - Launch developer documentation
 - Create contribution guidelines
@@ -675,13 +677,13 @@ We're building Ghala in public and welcome contributions from developers, design
 ---
 
 
-## 📄 License
+## License
 
 MIT License - This project is open source and available for anyone to use, modify, and distribute.
 
 ---
 
-## 🏆 Acknowledgments
+## Acknowledgments
 
 Built with ❤️ for the ICP Hackathon, bringing together the best of Bitcoin security, Internet Computer innovation, and Solana DeFi performance.
 

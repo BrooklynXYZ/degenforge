@@ -1,8 +1,8 @@
-# DegenForge Backend - BTC-Backed Cross-Chain Yield Maximizer
+# Ghala Backend - BTC-Backed Cross-Chain Yield Maximizer
 
 A Node.js/TypeScript backend service that integrates with Mezo testnet for BTC deposit and mUSD minting, providing a foundation for cross-chain yield deployment on Solana.
 
-## 🚀 Features
+## Features
 
 - **Mezo Integration**: BTC deposits → mUSD minting at 1% APR via Mezo testnet
 - **Authentication**: Mezo Passport + Phantom Wallet support with JWT tokens
@@ -12,14 +12,14 @@ A Node.js/TypeScript backend service that integrates with Mezo testnet for BTC d
 - **Error Handling**: Structured error responses and logging
 - **Security**: Input validation, rate limiting, CORS protection
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js 18+ 
 - npm or yarn
 - Access to Mezo testnet
 - BTC testnet funds for testing
 
-## 🛠️ Installation
+## Installation
 
 1. **Clone and navigate to backend directory**
    ```bash
@@ -56,7 +56,7 @@ A Node.js/TypeScript backend service that integrates with Mezo testnet for BTC d
    JWT_EXPIRES_IN=24h
    ```
 
-## 🚀 Development
+## Development
 
 **Start development server:**
 ```bash
@@ -74,7 +74,7 @@ npm start
 npm test
 ```
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /api/auth/connect-wallet` - Connect wallet and authenticate
@@ -94,7 +94,7 @@ npm test
 - `GET /api/health` - Health check
 - `GET /` - API information
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -120,7 +120,7 @@ The backend connects to Mezo testnet with the following settings:
 - **Interest Rate**: 1% APR
 - **Min Collateral**: $1,800 USD
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 backend/
@@ -146,7 +146,7 @@ backend/
 └── .env.example
 ```
 
-## 🔐 Security Features
+## Security Features
 
 - **Input Validation**: Joi schema validation for all inputs
 - **Authentication**: JWT-based authentication with wallet signatures
@@ -155,7 +155,7 @@ backend/
 - **Rate Limiting**: Request rate limiting (to be implemented)
 - **Error Handling**: Structured error responses without sensitive data
 
-## 🧪 Testing
+## Testing
 
 ### Unit Tests
 ```bash
@@ -173,7 +173,7 @@ npm run test:integration
 3. **Mint mUSD**: Mint mUSD against your collateral
 4. **Query Position**: Check your loan position and risk level
 
-## 📊 Monitoring
+## Monitoring
 
 ### Logging
 - Request/response logging
@@ -187,7 +187,7 @@ npm run test:integration
 - Database status
 - External service status
 
-## 🚧 Future Enhancements
+## Future Enhancements
 
 ### Phase 7: ICP Canister Bridge
 - Cross-chain asset bridging
@@ -200,14 +200,14 @@ npm run test:integration
 - Meteora liquidity pools
 - Pendle yield tokenization
 
-## 📚 Documentation
+## Documentation
 
 - [API Documentation](../endpoints/api.txt)
 - [Mezo Documentation](https://mezo.org/docs/)
 - [Mezo GitHub](https://github.com/mezo-org/)
 - [Ethers.js Documentation](https://docs.ethers.io/)
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -215,17 +215,17 @@ npm run test:integration
 4. Add tests
 5. Submit a pull request
 
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details
 
-## 🆘 Support
+## Support
 
 - **Discord**: [Mezo Community](https://discord.mezo.org)
 - **GitHub Issues**: Create an issue for bugs or feature requests
-- **Email**: support@degenforge.com
+- **Email**: support@ghala.io
 
-## 🔄 Version History
+## Version History
 
 - **v1.0.0** - Initial implementation with Mezo integration
   - BTC deposit and mUSD minting

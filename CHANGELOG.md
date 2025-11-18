@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the DegenForge project since November 5th, 2025.
+All notable changes to the Ghala project since November 5th, 2025.
 
 ## [Unreleased] - 2025-11-17
 

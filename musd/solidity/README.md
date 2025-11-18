@@ -22,11 +22,11 @@ brew install slither
 
 ### Testing
 
-```
+```bash
 $ pnpm test
 ```
 
-```
+```bash
 slither .
 ```
 
@@ -41,7 +41,7 @@ from the `.env.example` template, if `.env` does not exist.
 
 To do this manually:
 
-```
+```bash
 $ pnpm run prepare:env
 ```
 
@@ -50,7 +50,7 @@ $ pnpm run prepare:env
 We deploy our contracts with
 [hardhat-deploy](https://www.npmjs.com/package/hardhat-deploy) via
 
-```
+```bash
 $ pnpm run deploy [--network <network>]
 ```
 
@@ -63,7 +63,7 @@ detailed in `.env.example`.
 
 **In-Memory Hardhat** (great for development)
 
-```
+```bash
 pnpm run deploy
 ```
 
@@ -71,6 +71,6 @@ pnpm run deploy
 
 To deploy contracts on Sepolia run:
 
-```
+```bash
 $ pnpm run deploy --network matsnet
 ```

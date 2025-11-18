@@ -1,6 +1,6 @@
-# DegenForge ICP Bridge - Bitcoin & Solana Integration
+# Ghala ICP Bridge - Bitcoin & Solana Integration
 
-This directory contains the Internet Computer Protocol (ICP) canisters that power DegenForge's cross-chain bridge, enabling BTC deposits to mint mUSD on Mezo and bridge to Solana devnet for yield generation.
+This directory contains the Internet Computer Protocol (ICP) canisters that power Ghala's cross-chain bridge, enabling BTC deposits to mint mUSD on Mezo and bridge to Solana devnet for yield generation.
 
 ## Architecture
 

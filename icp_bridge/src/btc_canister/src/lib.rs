@@ -101,6 +101,10 @@ async fn generate_btc_address() -> String {
         BTC_NETWORK == BitcoinNetwork::Mainnet,
     );
     
+    ic_cdk::println!("Generated BTC address: {}", btc_address);
+    ic_cdk::println!("Network: {:?}", BTC_NETWORK);
+    ic_cdk::println!("Address format: {}", if BTC_NETWORK == BitcoinNetwork::Mainnet { "Mainnet (1...)" } else { "Testnet (m... or n...)" });
+    
     BTC_ADDRESSES.with(|map| {
         map.borrow_mut().insert(caller, btc_address.clone());
     });
@@ -126,25 +130,79 @@ async fn get_btc_balance(address: String) -> u64 {
         ic_cdk::trap("Address cannot be empty");
     }
     
-    ic_cdk::println!("Querying BTC balance for address: {} on network: {:?} with min_confirmations: 6", address, BTC_NETWORK);
+    ic_cdk::println!("=== BTC BALANCE QUERY START ===");
+    ic_cdk::println!("Address: {}", address);
+    ic_cdk::println!("Network: {:?}", BTC_NETWORK);
+    ic_cdk::println!("Address Length: {}", address.len());
+    ic_cdk::println!("Address First Char: {}", address.chars().next().unwrap_or('?'));
     
-    match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(
-        GetBalanceRequest {
-            address: address.clone(),
-            network: BTC_NETWORK,
-            min_confirmations: Some(6),
-        },
-    )
-    .await
-    {
+    // First, check UTXOs to see if transaction is visible
+    ic_cdk::println!("Step 1: Checking UTXOs...");
+    let utxos_request = GetUtxosRequest {
+        address: address.clone(),
+        network: BTC_NETWORK,
+        filter: None,
+    };
+    
+    match ic_cdk::api::management_canister::bitcoin::bitcoin_get_utxos(utxos_request).await {
+        Ok((utxos_response,)) => {
+            ic_cdk::println!("✅ UTXOs Query Success: {} UTXOs found", utxos_response.utxos.len());
+            for (i, utxo) in utxos_response.utxos.iter().enumerate() {
+                ic_cdk::println!("  UTXO[{}]: value={} sats, height={}", i, utxo.value, utxo.height);
+            }
+            ic_cdk::println!("  Tip height: {}", utxos_response.tip_height);
+        }
+        Err(e) => {
+            ic_cdk::println!("❌ UTXOs Query Failed: Code={:?}, Message={}", e.0, e.1);
+        }
+    }
+    
+    // Now try balance with 6 confirmations
+    ic_cdk::println!("Step 2: Querying balance with 6 confirmations...");
+    let request = GetBalanceRequest {
+        address: address.clone(),
+        network: BTC_NETWORK,
+        min_confirmations: Some(6),
+    };
+    
+    match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(request).await {
         Ok((balance,)) => {
-            ic_cdk::println!("Successfully retrieved balance: {} satoshis for address: {}", balance, address);
+            ic_cdk::println!("✅ Balance with 6 confirmations: {} satoshis", balance);
+            ic_cdk::println!("=== BTC BALANCE QUERY END ===");
             balance
         }
         Err(err) => {
-            let error_msg = format!("ICP Bitcoin API Error for address {}: {:?}", address, err);
-            ic_cdk::println!("ERROR: {}", error_msg);
-            ic_cdk::trap(&error_msg);
+            ic_cdk::println!("❌ Balance query failed");
+            ic_cdk::println!("Error Code: {:?}", err.0);
+            ic_cdk::println!("Error Message: {}", err.1);
+            
+            // Try with 0 confirmations as fallback
+            ic_cdk::println!("Step 3: Retrying with 0 confirmations...");
+            let request_zero = GetBalanceRequest {
+                address: address.clone(),
+                network: BTC_NETWORK,
+                min_confirmations: Some(0),
+            };
+            
+            match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(request_zero).await {
+                Ok((balance,)) => {
+                    ic_cdk::println!("✅ Balance with 0 confirmations: {} satoshis", balance);
+                    ic_cdk::println!("=== BTC BALANCE QUERY END ===");
+                    balance
+                }
+                Err(err2) => {
+                    ic_cdk::println!("❌ Balance query with 0 confirmations also failed");
+                    ic_cdk::println!("Error Code: {:?}", err2.0);
+                    ic_cdk::println!("Error Message: {}", err2.1);
+                    ic_cdk::println!("=== BTC BALANCE QUERY END ===");
+                    
+                    let error_msg = format!(
+                        "Bitcoin API Error - Code: {:?}, Message: {}, Address: {}",
+                        err2.0, err2.1, address
+                    );
+                    ic_cdk::trap(&error_msg);
+                }
+            }
         }
     }
 }

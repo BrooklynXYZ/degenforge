@@ -4,6 +4,7 @@
 **November 11, 2025**
 
 ## Deployment Status
+
 ✅ **SUCCESSFULLY DEPLOYED TO ICP MAINNET**
 
 ---
@@ -35,10 +36,12 @@
 ## Deployment Details
 
 ### Identity Used
+
 - **Identity**: `mainnet-deploy`
 - **Principal**: `w3j2q-cd22y-455zw-yagxp-trblj-rbfyx-nxpkb-62sbv-tybze-tducx-xqe`
 
 ### Cycles Allocation
+
 - **Initial Cycles**: 10.000 TC (from voucher)
 - **BTC Handler**: ~2.496 TC remaining
 - **Bridge Orchestrator**: ~2.494 TC remaining
@@ -48,6 +51,7 @@
 ### Canister Status
 
 All canisters are **Running** with:
+
 - ✅ Code installed successfully
 - ✅ Health checks passing
 - ✅ Sufficient cycles balance
@@ -58,16 +62,19 @@ All canisters are **Running** with:
 ## Configuration
 
 ### Network Configuration
+
 - **ICP Network**: Mainnet (`ic`)
 - **Bitcoin Network**: Testnet (configured in `dfx.json`)
 - **Mezo Network**: Testnet (RPC: `https://rpc.test.mezo.org`)
 - **Solana Network**: Devnet (RPC: `https://api.devnet.solana.com`)
 
 ### Key Configuration
+
 - **ECDSA Key Name**: `test_key_1` (for Bitcoin/EVM operations)
 - **Schnorr Key**: Reserved for future Solana operations
 
 ### Contract Addresses (Mezo Testnet)
+
 - **mUSD Token**: `0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186`
 - **Borrow Manager**: `0xd02E8c38a8E3db71f8b2ae30B8186d7874934e12`
 
@@ -146,11 +153,13 @@ dfx canister --network ic call bridge_orchestrator health_check
 ## Troubleshooting
 
 ### If Canisters Stop Responding
+
 1. Check cycles balance: `dfx cycles --network ic balance`
 2. Check canister status: `dfx canister --network ic status <CANISTER_ID>`
 3. Top up cycles if needed: `dfx cycles top-up <CANISTER_ID> --amount 3.0 --network ic`
 
 ### If Health Check Fails
+
 1. Verify canister IDs are set: Check `set_canister_ids` was called
 2. Check canister logs via Candid interface
 3. Verify network connectivity
@@ -178,10 +187,12 @@ dfx canister --network ic call bridge_orchestrator health_check
 ## Recent Updates (November 17, 2025)
 
 ### Critical Fixes
+
 - **BTC Deposit Recognition**: Fixed issue where pre-existing funds on addresses were not recognized
 - **Security Review**: Completed comprehensive security audit
 
 ### Changes
+
 - Updated `deposit_btc_for_musd` to use actual balance from address
 - Enhanced error handling and logging
 - Improved transaction verification
@@ -191,6 +202,7 @@ For full changelog, see `CHANGELOG.md` in project root.
 ## Support
 
 For issues or questions:
+
 - Check canister status via Candid interface
 - Review `CHANGELOG.md` for recent changes
 - Consult `README.md` for development setup

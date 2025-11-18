@@ -7,6 +7,7 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
 ## Critical Fix Deployed
 
 ✅ **BTC Deposit Recognition Fix**
+
 - **Issue**: Canister was not recognizing pre-existing funds on BTC addresses (from faucets or previous deposits)
 - **Fix**: Updated `deposit_btc_for_musd` to use actual on-chain balance instead of requested amount
 - **Impact**: Pre-existing testnet funds are now automatically recognized
@@ -36,11 +37,13 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
 ## What Changed
 
 ### Code Changes
+
 - **File**: `icp_bridge/src/bridge_canister/src/lib.rs`
 - **Function**: `deposit_btc_for_musd`
 - **Lines**: 298-360
 
-### Key Changes:
+### Key Changes
+
 1. Changed verification from `btc_amount` to minimum 1 satoshi check
 2. Position updates now use actual balance from address (`verified_balance`)
 3. Added calculation for newly recognized funds
@@ -48,7 +51,8 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
 
 ## Testing the Fix
 
-### How to Test:
+### How to Test
+
 1. **With Pre-existing Funds**:
    - If you have testnet assets (mezo.mUSD, mezoBTC) on a deposit address
    - Call `deposit_btc_for_musd` with any amount (e.g., 1 satoshi)
@@ -61,7 +65,8 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
    - Wait for 6+ confirmations
    - Call `deposit_btc_for_musd` - should recognize full balance
 
-### Expected Behavior:
+### Expected Behavior
+
 - ✅ Pre-existing funds are recognized automatically
 - ✅ Position reflects actual on-chain balance
 - ✅ No double-counting of funds
@@ -78,11 +83,13 @@ Successfully redeployed the **Bridge Orchestrator** canister with critical fixes
 ## Verification
 
 Run health check:
+
 ```bash
 dfx canister --network ic call bridge_orchestrator health_check
 ```
 
 Expected response:
+
 ```json
 {
   status: "healthy",
@@ -110,6 +117,7 @@ Expected response:
 ## Support
 
 For issues or questions:
+
 - Check canister status: `dfx canister --network ic status bridge_orchestrator`
 - Review logs via Candid interface
 - See `REDEPLOYMENT_GUIDE.md` for upgrade instructions

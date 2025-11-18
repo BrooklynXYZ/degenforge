@@ -1168,17 +1168,17 @@ async fn bridge_musd_to_solana(musd_amount: u64) -> String {
     
     let position = POSITIONS.with(|map| {
         map.borrow().get(&caller).unwrap_or_else(|| {
-            BridgePosition {
-                user: caller,
-                btc_collateral: 0,
-                musd_minted: 0,
-                sol_deployed: 0,
-                status: "none".to_string(),
-                btc_address: "".to_string(),
-                sol_address: "".to_string(),
-            }
+            ic_cdk::trap("No position found. Please deposit BTC and mint mUSD first.")
         })
     });
+    
+    // CRITICAL: Validate user has enough mUSD to bridge
+    if position.musd_minted < musd_amount {
+        ic_cdk::trap(&format!(
+            "Insufficient mUSD balance. Available: {}, Requested: {}",
+            position.musd_minted, musd_amount
+        ));
+    }
     
     let solana_canister_id = CANISTER_IDS.with(|ids| {
         ids.borrow().borrow().solana_canister.clone().unwrap_or_else(|| {
@@ -1222,12 +1222,9 @@ async fn bridge_musd_to_solana(musd_amount: u64) -> String {
                 ic_cdk::trap(&format!("Solana bridge transaction failed: {}", message));
             }
             
-            // Only decrement musd_minted if it was tracked by the bridge
-            let new_musd_minted = if position.musd_minted >= musd_amount {
-                position.musd_minted - musd_amount
-            } else {
-                position.musd_minted
-            };
+            // Decrement musd_minted after successful bridge
+            let new_musd_minted = position.musd_minted.checked_sub(musd_amount)
+                .unwrap_or_else(|| ic_cdk::trap("Overflow: mUSD balance would underflow"));
             
             let new_sol_deployed = position.sol_deployed.checked_add(musd_amount)
                 .unwrap_or_else(|| ic_cdk::trap("Overflow: Sol deployed amount would overflow"));

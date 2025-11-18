@@ -4,7 +4,7 @@ This guide walks you through building a production APK that users can download a
 
 ## Prerequisites
 
-1. **EAS Account**: Sign up for free at expo.dev
+1. **EAS Account**: Sign up for free at [expo.dev](https://expo.dev)
 2. **EAS CLI**: Install globally
    ```bash
    npm install -g eas-cli
@@ -28,7 +28,7 @@ This script will:
 - Generate `Mobile/.env.production` with production canister IDs
 - Validate deployments
 
-**Note**: You need at least 9T cycles (3T per canister). Get free cycles from the ICP faucet.
+**Note**: You need at least 9T cycles (3T per canister). Get free cycles from [faucet.dfinity.org](https://faucet.dfinity.org)
 
 ## Step 2: Configure Production Canister IDs
 
@@ -122,7 +122,7 @@ This uses the `production` profile which builds an AAB (Android App Bundle) file
 
 ### Option B: Google Play Store
 
-1. **Create Play Console Account**: Visit the Google Play Console
+1. **Create Play Console Account**: [play.google.com/console](https://play.google.com/console)
 2. **Upload App Bundle**: Use the AAB file from `build:production-bundle`
 3. **Complete Store Listing**: Add screenshots, description, etc.
 4. **Submit for Review**: Google will review your app
@@ -202,6 +202,7 @@ dfx ledger top-up <canister-id> --network ic --amount 3.0
 - [ ] Monitor canister cycles and health
 
 For questions or issues, refer to:
+- [EAS Build Documentation](https://docs.expo.dev/build/introduction/)
 - [ICP Deployment Guide](../icp_bridge/README.md)
 - [Main README](../README.md)
 

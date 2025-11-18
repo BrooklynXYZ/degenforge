@@ -8,7 +8,7 @@ Developer documentation can be found in the [docs](docs) directory. Particularly
 
 ### Installation
 
-This project uses [pnpm](https://pnpm.io/) as a package manager ([installation documentation](https://pnpm.io/installation)).
+This project uses pnpm as a package manager.
 
 To install dependencies run:
 
@@ -35,7 +35,7 @@ pnpm test
 
 ### Pre-commit hooks
 
-Setup [pre-commit](https://pre-commit.com/) hooks to automatically discover code issues before submitting the code.
+Setup pre-commit hooks to automatically discover code issues before submitting the code.
 
 1. Install `pre-commit` tool:
    ```bash

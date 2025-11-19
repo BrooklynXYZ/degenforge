@@ -1,7 +1,10 @@
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::management_canister::{
-    bitcoin::{BitcoinNetwork, GetBalanceRequest, GetUtxosRequest},
-    ecdsa::{EcdsaCurve, EcdsaKeyId},
+use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId};
+// Use the Bitcoin canister API (not deprecated management canister API)
+use ic_cdk::api::call::CallResult;
+use ic_cdk::api::management_canister::bitcoin::{
+    BitcoinNetwork, GetBalanceRequest, GetUtxosRequest, GetUtxosResponse,
+    Utxo, MillisatoshiPerByte,
 };
 use ic_stable_structures::{memory_manager::{MemoryManager, VirtualMemory, MemoryId}, StableBTreeMap, DefaultMemoryImpl, Storable, storable::Bound};
 use serde_bytes::ByteBuf;
@@ -12,6 +15,20 @@ mod bitcoin_address;
 
 const KEY_NAME: &str = "test_key_1";
 const BTC_NETWORK: BitcoinNetwork = BitcoinNetwork::Testnet;
+
+// Bitcoin canister IDs (not deprecated management canister API)
+const BITCOIN_TESTNET_CANISTER_ID: &str = "g4xu7-jiaaa-aaaan-aaaaq-cai";
+const BITCOIN_MAINNET_CANISTER_ID: &str = "ghsi2-tqaaa-aaaan-aaaca-cai";
+
+// Helper to get the correct Bitcoin canister ID based on network
+fn get_bitcoin_canister_id() -> Principal {
+    let canister_id = match BTC_NETWORK {
+        BitcoinNetwork::Mainnet => BITCOIN_MAINNET_CANISTER_ID,
+        BitcoinNetwork::Testnet => BITCOIN_TESTNET_CANISTER_ID,
+        _ => BITCOIN_TESTNET_CANISTER_ID,
+    };
+    Principal::from_text(canister_id).expect("Invalid Bitcoin canister ID")
+}
 
 #[derive(Clone, Debug, CandidType, Deserialize)]
 struct DerivationPath(Vec<Vec<u8>>);
@@ -96,6 +113,12 @@ async fn generate_btc_address() -> String {
         }
     };
     
+    ic_cdk::println!("=== ADDRESS GENERATION DEBUG ===");
+    ic_cdk::println!("Public key length: {}", public_key_response.public_key.len());
+    ic_cdk::println!("Public key (hex): {}", hex::encode(&public_key_response.public_key));
+    ic_cdk::println!("Derivation path: {:?}", derivation_path.0);
+    ic_cdk::println!("Caller Principal: {}", caller.to_text());
+    
     let btc_address = bitcoin_address::public_key_to_p2pkh(
         &public_key_response.public_key,
         BTC_NETWORK == BitcoinNetwork::Mainnet,
@@ -104,6 +127,7 @@ async fn generate_btc_address() -> String {
     ic_cdk::println!("Generated BTC address: {}", btc_address);
     ic_cdk::println!("Network: {:?}", BTC_NETWORK);
     ic_cdk::println!("Address format: {}", if BTC_NETWORK == BitcoinNetwork::Mainnet { "Mainnet (1...)" } else { "Testnet (m... or n...)" });
+    ic_cdk::println!("=== END ADDRESS GENERATION ===");
     
     BTC_ADDRESSES.with(|map| {
         map.borrow_mut().insert(caller, btc_address.clone());
@@ -130,21 +154,26 @@ async fn get_btc_balance(address: String) -> u64 {
         ic_cdk::trap("Address cannot be empty");
     }
     
-    ic_cdk::println!("=== BTC BALANCE QUERY START ===");
+    ic_cdk::println!("=== BTC BALANCE QUERY START (using Bitcoin canister API) ===");
     ic_cdk::println!("Address: {}", address);
     ic_cdk::println!("Network: {:?}", BTC_NETWORK);
-    ic_cdk::println!("Address Length: {}", address.len());
-    ic_cdk::println!("Address First Char: {}", address.chars().next().unwrap_or('?'));
+    ic_cdk::println!("Bitcoin Canister ID: {}", get_bitcoin_canister_id().to_text());
     
     // First, check UTXOs to see if transaction is visible
-    ic_cdk::println!("Step 1: Checking UTXOs...");
+    ic_cdk::println!("Step 1: Checking UTXOs via Bitcoin canister...");
     let utxos_request = GetUtxosRequest {
         address: address.clone(),
         network: BTC_NETWORK,
         filter: None,
     };
     
-    match ic_cdk::api::management_canister::bitcoin::bitcoin_get_utxos(utxos_request).await {
+    let bitcoin_canister = get_bitcoin_canister_id();
+    
+    match ic_cdk::call::<(GetUtxosRequest,), (GetUtxosResponse,)>(
+        bitcoin_canister,
+        "bitcoin_get_utxos",
+        (utxos_request,),
+    ).await {
         Ok((utxos_response,)) => {
             ic_cdk::println!("✅ UTXOs Query Success: {} UTXOs found", utxos_response.utxos.len());
             for (i, utxo) in utxos_response.utxos.iter().enumerate() {
@@ -153,28 +182,30 @@ async fn get_btc_balance(address: String) -> u64 {
             ic_cdk::println!("  Tip height: {}", utxos_response.tip_height);
         }
         Err(e) => {
-            ic_cdk::println!("❌ UTXOs Query Failed: Code={:?}, Message={}", e.0, e.1);
+            ic_cdk::println!("❌ UTXOs Query Failed: {:?}", e);
         }
     }
     
     // Now try balance with 6 confirmations
-    ic_cdk::println!("Step 2: Querying balance with 6 confirmations...");
+    ic_cdk::println!("Step 2: Querying balance with 6 confirmations via Bitcoin canister...");
     let request = GetBalanceRequest {
         address: address.clone(),
         network: BTC_NETWORK,
         min_confirmations: Some(6),
     };
     
-    match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(request).await {
+    match ic_cdk::call::<(GetBalanceRequest,), (u64,)>(
+        bitcoin_canister,
+        "bitcoin_get_balance",
+        (request,),
+    ).await {
         Ok((balance,)) => {
             ic_cdk::println!("✅ Balance with 6 confirmations: {} satoshis", balance);
             ic_cdk::println!("=== BTC BALANCE QUERY END ===");
             balance
         }
         Err(err) => {
-            ic_cdk::println!("❌ Balance query failed");
-            ic_cdk::println!("Error Code: {:?}", err.0);
-            ic_cdk::println!("Error Message: {}", err.1);
+            ic_cdk::println!("❌ Balance query failed: {:?}", err);
             
             // Try with 0 confirmations as fallback
             ic_cdk::println!("Step 3: Retrying with 0 confirmations...");
@@ -184,23 +215,20 @@ async fn get_btc_balance(address: String) -> u64 {
                 min_confirmations: Some(0),
             };
             
-            match ic_cdk::api::management_canister::bitcoin::bitcoin_get_balance(request_zero).await {
+            match ic_cdk::call::<(GetBalanceRequest,), (u64,)>(
+                bitcoin_canister,
+                "bitcoin_get_balance",
+                (request_zero,),
+            ).await {
                 Ok((balance,)) => {
                     ic_cdk::println!("✅ Balance with 0 confirmations: {} satoshis", balance);
                     ic_cdk::println!("=== BTC BALANCE QUERY END ===");
                     balance
                 }
                 Err(err2) => {
-                    ic_cdk::println!("❌ Balance query with 0 confirmations also failed");
-                    ic_cdk::println!("Error Code: {:?}", err2.0);
-                    ic_cdk::println!("Error Message: {}", err2.1);
+                    ic_cdk::println!("❌ Balance query with 0 confirmations also failed: {:?}", err2);
                     ic_cdk::println!("=== BTC BALANCE QUERY END ===");
-                    
-                    let error_msg = format!(
-                        "Bitcoin API Error - Code: {:?}, Message: {}, Address: {}",
-                        err2.0, err2.1, address
-                    );
-                    ic_cdk::trap(&error_msg);
+                    ic_cdk::trap(&format!("Bitcoin API Error: {:?}, Address: {}", err2, address));
                 }
             }
         }
@@ -213,17 +241,24 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
         ic_cdk::trap("Address cannot be empty");
     }
     
-    let utxos_result = ic_cdk::api::management_canister::bitcoin::bitcoin_get_utxos(
-        GetUtxosRequest {
+    ic_cdk::println!("Getting UTXOs from Bitcoin canister for address: {}", address);
+    
+    let bitcoin_canister = get_bitcoin_canister_id();
+    
+    let utxos_result = ic_cdk::call::<(GetUtxosRequest,), (GetUtxosResponse,)>(
+        bitcoin_canister,
+        "bitcoin_get_utxos",
+        (GetUtxosRequest {
             address: address.clone(),
             network: BTC_NETWORK,
             filter: None,
-        },
+        },),
     )
     .await;
     
     match utxos_result {
         Ok((response,)) => {
+            ic_cdk::println!("✅ Found {} UTXOs", response.utxos.len());
             response.utxos.into_iter().map(|utxo| {
                 let mut outpoint = utxo.outpoint.txid.to_vec();
                 outpoint.extend_from_slice(&utxo.outpoint.vout.to_le_bytes());
@@ -235,7 +270,7 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
             }).collect()
         }
         Err(err) => {
-            ic_cdk::trap(&format!("Failed to fetch UTXOs for address {}: {:?}", address, err));
+            ic_cdk::trap(&format!("Bitcoin Canister API Error: {:?}, Address: {}", err, address));
         }
     }
 }

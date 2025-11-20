@@ -159,6 +159,8 @@ async fn get_btc_balance(address: String) -> u64 {
     ic_cdk::println!("Network: {:?}", BTC_NETWORK);
     ic_cdk::println!("Bitcoin Canister ID: {}", get_bitcoin_canister_id().to_text());
     
+    const CYCLES_FOR_BTC_CALL: u128 = 10_000_000_000;
+    
     // First, check UTXOs to see if transaction is visible
     ic_cdk::println!("Step 1: Checking UTXOs via Bitcoin canister...");
     let utxos_request = GetUtxosRequest {
@@ -169,10 +171,11 @@ async fn get_btc_balance(address: String) -> u64 {
     
     let bitcoin_canister = get_bitcoin_canister_id();
     
-    match ic_cdk::call::<(GetUtxosRequest,), (GetUtxosResponse,)>(
+    match ic_cdk::api::call::call_with_payment::<(GetUtxosRequest,), (GetUtxosResponse,)>(
         bitcoin_canister,
         "bitcoin_get_utxos",
         (utxos_request,),
+        CYCLES_FOR_BTC_CALL
     ).await {
         Ok((utxos_response,)) => {
             ic_cdk::println!("✅ UTXOs Query Success: {} UTXOs found", utxos_response.utxos.len());
@@ -194,10 +197,11 @@ async fn get_btc_balance(address: String) -> u64 {
         min_confirmations: Some(6),
     };
     
-    match ic_cdk::call::<(GetBalanceRequest,), (u64,)>(
+    match ic_cdk::api::call::call_with_payment::<(GetBalanceRequest,), (u64,)>(
         bitcoin_canister,
         "bitcoin_get_balance",
         (request,),
+        CYCLES_FOR_BTC_CALL
     ).await {
         Ok((balance,)) => {
             ic_cdk::println!("✅ Balance with 6 confirmations: {} satoshis", balance);
@@ -215,10 +219,11 @@ async fn get_btc_balance(address: String) -> u64 {
                 min_confirmations: Some(0),
             };
             
-            match ic_cdk::call::<(GetBalanceRequest,), (u64,)>(
+            match ic_cdk::api::call::call_with_payment::<(GetBalanceRequest,), (u64,)>(
                 bitcoin_canister,
                 "bitcoin_get_balance",
                 (request_zero,),
+                CYCLES_FOR_BTC_CALL
             ).await {
                 Ok((balance,)) => {
                     ic_cdk::println!("✅ Balance with 0 confirmations: {} satoshis", balance);
@@ -245,7 +250,11 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
     
     let bitcoin_canister = get_bitcoin_canister_id();
     
-    let utxos_result = ic_cdk::call::<(GetUtxosRequest,), (GetUtxosResponse,)>(
+    // Cycle cost for Bitcoin API calls
+    // 10 billion cycles is plenty for testnet requests
+    const CYCLES_FOR_BTC_CALL: u128 = 10_000_000_000;
+    
+    let utxos_result = ic_cdk::api::call::call_with_payment::<(GetUtxosRequest,), (GetUtxosResponse,)>(
         bitcoin_canister,
         "bitcoin_get_utxos",
         (GetUtxosRequest {
@@ -253,6 +262,7 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
             network: BTC_NETWORK,
             filter: None,
         },),
+        CYCLES_FOR_BTC_CALL,
     )
     .await;
     

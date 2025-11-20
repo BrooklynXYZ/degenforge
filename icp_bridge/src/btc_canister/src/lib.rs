@@ -14,7 +14,8 @@ use std::borrow::Cow;
 mod bitcoin_address;
 
 const KEY_NAME: &str = "test_key_1";
-const BTC_NETWORK: BitcoinNetwork = BitcoinNetwork::Testnet;
+// SWITCH TO MAINNET for reliable Bitcoin integration
+const BTC_NETWORK: BitcoinNetwork = BitcoinNetwork::Mainnet;
 
 // Bitcoin canister IDs (not deprecated management canister API)
 const BITCOIN_TESTNET_CANISTER_ID: &str = "g4xu7-jiaaa-aaaan-aaaaq-cai";

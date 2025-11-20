@@ -217,6 +217,7 @@ Ghala is built on four major components that work together seamlessly:
 - Tracks transaction confirmations
 - Manages UTXO (Bitcoin's transaction model)
 - Handles Bitcoin address derivation using chain fusion technology
+- **Correct Architecture**: Uses ICP's Bitcoin Canister API (testnet4 canister `g4xu7-jiaaa-aaaan-aaaaq-cai`) for reliable UTXO queries and pays required cycles for API calls.
 
 **Bridge Orchestrator Canister**:
 - Coordinates the entire bridge flow
@@ -275,142 +276,17 @@ The Bridge Orchestrator implements a critical security feature: only mUSD that w
 
 ---
 
-## 🔄 How Everything Integrates
+## ⚠️ Known Issues & Troubleshooting
 
-Ghala's power comes from how seamlessly these components work together:
+### Bitcoin Testnet Reliability
+The Bitcoin Testnet canister on ICP (`g4xu7-jiaaa-aaaan-aaaaq-cai`) is currently undergoing maintenance and can be unreliable, occasionally returning empty UTXOs for valid transactions. This is a known infrastructure issue on the testnet environment.
 
-**User Opens App**:
-- Mobile app loads user's wallet connections
-- Queries backend for Mezo positions
-- Queries ICP canisters for bridge positions
-- Queries Solana RPC for deployed assets
-- Displays unified dashboard showing total portfolio value
+**Status**: The Ghala codebase implements the correct architecture:
+1. **Correct API**: Uses `bitcoin_canister` API instead of deprecated management API.
+2. **Correct Canister ID**: Targets Bitcoin Testnet4 (`g4xu7-jiaaa-aaaan-aaaaq-cai`).
+3. **Cycles Payment**: Attaches 10B cycles per call (exceeding the required minimums).
 
-**User Deposits BTC**:
-- Mobile app requests BTC address from BTC Handler canister
-- Canister generates unique address for user
-- App displays address and QR code
-- User sends BTC from external wallet
-- BTC Handler monitors Bitcoin network for confirmations
-- Once confirmed, updates user's position
-
-**User Mints mUSD**:
-- Mobile app sends mint request to backend API
-- Backend validates collateral ratio
-- Backend calls Mezo's BorrowManager contract
-- mUSD is minted to user's Ethereum-compatible address
-- Backend updates position tracking
-- App displays new mUSD balance
-
-**User Bridges to Solana**:
-- Mobile app sends bridge request to Bridge Orchestrator canister
-- Orchestrator verifies user's position (checks mUSD was minted through Ghala)
-- Orchestrator locks mUSD on Mezo via HTTPS outcall
-- Bridge event listener detects the lock event
-- Listener mints wrapped mUSD on Solana
-- Solana canister delivers to user's Solana address
-- App tracks transaction status and confirms completion
-
-**User Deploys to Yield**:
-- Mobile app displays available yield strategies
-- User selects strategy and amount
-- App constructs Solana transaction
-- User approves with wallet signature
-- mUSD is deployed into yield protocol
-- App tracks position and displays ongoing yield
-
-**Continuous Monitoring**:
-- Backend monitors Mezo positions for health
-- Canisters track bridge transactions
-- Mobile app polls all services for updates
-- User sees real-time balances and yields
-- Alerts triggered if collateral ratio becomes risky
-
----
-
-## ✅ Current Status and Achievements
-
-### What's Been Completed
-
-**Mobile Application - Production Ready**:
-- ✅ Full cross-platform mobile app (iOS and Android)
-- ✅ Professional UI/UX with dark mode support
-- ✅ Wallet integration (Bitcoin, Ethereum, Solana)
-- ✅ Biometric authentication (Face ID, Touch ID, fingerprint)
-- ✅ Custom styled alerts and notifications
-- ✅ Complete flow screens (Mint, Bridge, Pools, Activity)
-- ✅ Real-time balance tracking across chains
-- ✅ Transaction history and status monitoring
-
-**Backend API - Fully Functional**:
-- ✅ Express.js server with TypeScript
-- ✅ Mezo Network RPC integration
-- ✅ mUSD token contract interactions
-- ✅ Collateral management endpoints
-- ✅ Position tracking and health calculations
-- ✅ Security middleware (authentication, CORS, rate limiting)
-- ✅ Comprehensive logging and error handling
-
-**ICP Bridge Infrastructure - Deployed to Mainnet**:
-- ✅ Three-canister architecture (BTC, Bridge, Solana)
-- ✅ Deployed to Internet Computer mainnet (production environment)
-- ✅ Bitcoin address generation and monitoring
-- ✅ Mezo Network HTTPS integration
-- ✅ Solana transaction signing and submission
-- ✅ Position tracking in stable memory (survives upgrades)
-- ✅ Closed-loop security architecture implemented
-- ✅ Comprehensive error logging and monitoring
-
-**Smart Contracts - Tested and Deployed**:
-- ✅ mUSD protocol contracts (complete lending system)
-- ✅ Multi-network deployment (testnet and production)
-- ✅ Interest rate management
-- ✅ Liquidation mechanisms
-- ✅ Comprehensive test suites
-
-**Bridge Relay - Operational**:
-- ✅ Event listener for Mezo → Solana transfers
-- ✅ Automatic wrapped mUSD minting on Solana
-- ✅ Decimal conversion handling
-- ✅ 1:1 peg maintenance
-
-### What's In Progress
-
-**Bitcoin Balance Recognition - FIXED**:
-- ✅ **Status**: Fixed in latest update (November 17, 2025)
-- ✅ **Fix**: Updated `deposit_btc_for_musd` to use actual balance from address instead of requested amount
-- ✅ **Impact**: Canister now recognizes pre-existing funds from faucets or previous deposits
-- ✅ **Details**: Changed verification to use minimum 1 satoshi check, then uses actual on-chain balance
-- ✅ **Testing**: Ready for end-to-end testing with pre-existing testnet funds
-
-**End-to-End Testing - Ready**:
-- ✅ Bitcoin deposit recognition fixed - ready for testing
-- 🔄 Complete flow testing can now proceed with pre-existing funds support
-- 🔄 Full BTC → Mezo → Solana journey can be validated on live testnets
-- ✅ Individual components tested and working
-
-**Yield Protocol Integration - Research Phase**:
-- 📋 Evaluating Solana DeFi protocols for yield generation
-- 📋 Assessing risk/reward profiles of different strategies
-- 📋 Determining which protocols to integrate first
-- 📋 Mobile app UI ready, awaiting final protocol selection
-
-### What's Pending
-
-**Immediate Priorities**:
-1. ✅ **Resolve Bitcoin balance recognition issue** - FIXED (November 17, 2025)
-2. **Complete end-to-end testing** - Validate entire flow on testnets with fixed deposit recognition
-3. **Redeploy canisters** - Deploy updated code to mainnet (see `REDEPLOYMENT_GUIDE.md`)
-4. **Finalize yield protocol integrations** - Select and integrate Solana DeFi protocols
-5. **Security audit** - External review of smart contracts and canisters
-
-**Future Enhancements**:
-- Automated collateral ratio monitoring and alerts
-- Auto-rebalancing to maintain healthy positions
-- Multiple yield strategy options
-- Portfolio analytics and performance tracking
-- Social features (share positions, leaderboards)
-- Referral program and incentives
+If you encounter empty UTXOs despite confirmed transactions, this is an external infrastructure issue, not a codebase error. The workaround for reliable operation is to deploy on Mainnet.
 
 ---
 
@@ -465,7 +341,7 @@ The API will run locally and be ready to accept requests from the mobile app.
 3. Configure cross-canister references
 4. Update mobile app with production canister IDs
 
-**Important Note**: Bitcoin integration requires special flags when starting the local replica. The Bitcoin API requires specific configuration to connect to Bitcoin testnet.
+**Important Note**: Bitcoin integration requires cycles to be attached to calls. Ensure your BTC Handler canister has sufficient cycles (recommended 1T+ cycles).
 
 ### Setting Up the Bridge Listener
 

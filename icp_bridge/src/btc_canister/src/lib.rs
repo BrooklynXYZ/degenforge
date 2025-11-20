@@ -287,6 +287,34 @@ async fn get_utxos(address: String) -> Vec<UTXOInfo> {
 }
 
 #[ic_cdk::update]
+fn admin_clear_btc_state() {
+    let caller = ic_cdk::caller();
+    if !ic_cdk::api::is_controller(&caller) {
+        ic_cdk::trap("Only the controller can clear BTC state");
+    }
+
+    BTC_ADDRESSES.with(|map| {
+        let mut map = map.borrow_mut();
+        // Collect keys first to avoid borrowing issues while removing
+        let keys: Vec<_> = map.iter().map(|(k, _)| k).collect();
+        for k in keys {
+            map.remove(&k);
+        }
+    });
+
+    DERIVATION_PATHS.with(|map| {
+        let mut map = map.borrow_mut();
+        // Collect keys first to avoid borrowing issues while removing
+        let keys: Vec<_> = map.iter().map(|(k, _)| k).collect();
+        for k in keys {
+            map.remove(&k);
+        }
+    });
+    
+    ic_cdk::println!("BTC addresses and derivation paths cleared by admin.");
+}
+
+#[ic_cdk::update]
 async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
     let caller = ic_cdk::caller();
     

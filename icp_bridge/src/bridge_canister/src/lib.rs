@@ -206,6 +206,7 @@ async fn is_controller(caller: Principal) -> bool {
     }
 }
 
+#[ic_cdk::update]
 async fn set_canister_ids(btc_canister: String, solana_canister: String) -> String {
     let caller = ic_cdk::caller();
     

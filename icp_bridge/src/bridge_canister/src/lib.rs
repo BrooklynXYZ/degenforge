@@ -236,6 +236,17 @@ async fn set_canister_ids(btc_canister: String, solana_canister: String) -> Stri
     format!("Canister IDs set: BTC={}, Solana={}", btc_canister, solana_canister)
 }
 
+#[ic_cdk::query]
+fn get_my_btc_address_via_bridge() -> String {
+    let caller = ic_cdk::caller();
+    POSITIONS.with(|map| {
+        map.borrow()
+            .get(&caller)
+            .map(|position| position.btc_address.clone())
+            .unwrap_or_default()
+    })
+}
+
 async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, min_required: u64) -> Result<u64, String> {
     let balance_result: Result<(u64,), _> = ic_cdk::call(btc_canister, "get_btc_balance", (btc_address.to_string(),))
         .await;

@@ -1153,18 +1153,11 @@ fn build_redeem_collateral_calldata(
     lower_hint.extend_from_slice(&user_bytes);
     calldata.extend_from_slice(&lower_hint);
     
-    // 5. _partialRedemptionHintNICR (uint256) -> 1100 * 1e18 (1100000000000000000000)
-    // 1100 * 10^18 = 0x3BA1A934D0C2400000
-    // Actually, let's construct it carefully.
-    // 1100 * 10^18 = 1,100,000,000,000,000,000,000
-    // In bytes? simpler to just use the hex constant or u128.
+    // 5. _partialRedemptionHintNICR (uint256) -> 1100 * 1e18
     let nicr: u128 = 1_100_000_000_000_000_000_000;
-    let mut nicr_bytes = vec![0u8; 16]; // u128 fits in 16 bytes, pad 16 more
-    nicr_bytes.extend_from_slice(&nicr.to_be_bytes());
-    // Pad to 32 bytes (uint256)
-    let mut nicr_padded = vec![0u8; 16]; 
-    nicr_padded.extend_from_slice(&nicr_bytes);
-    calldata.extend_from_slice(&nicr_padded);
+    let mut nicr_word = vec![0u8; 16]; // Pad 16 leading zeros
+    nicr_word.extend_from_slice(&nicr.to_be_bytes()); // Add 16 value bytes -> Total 32 bytes
+    calldata.extend_from_slice(&nicr_word);
     
     // 6. _maxIterations (uint256) -> 0
     let max_iter = vec![0u8; 32];
@@ -1188,7 +1181,7 @@ async fn redeem_musd(musd_amount: u64) -> String {
     let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
     if let Some(pos) = position {
         if pos.musd_minted < musd_amount {
-             ic_cdk::trap("Insufficient mUSD minted to redeem");
+                ic_cdk::trap("Insufficient mUSD minted to redeem");
         }
     } else {
         ic_cdk::trap("No position found");

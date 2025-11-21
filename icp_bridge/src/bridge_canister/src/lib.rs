@@ -35,7 +35,8 @@ const INTEREST_RATE: u64 = 1;
 const TRANSACTION_TIMEOUT_SECS: u64 = 45;
 const MAX_POLL_ATTEMPTS: u8 = 15;
 const DEFAULT_GAS_LIMIT: u64 = 350_000;
-const DEFAULT_GAS_PRICE: u64 = 20_000_000_000;
+const DEFAULT_GAS_PRICE: u64 = 5_000_000_000; // 5 Gwei (Mainnet optimized)
+const DEFAULT_PRIORITY_FEE: u64 = 1_000_000_000; // 1 Gwei
 
 thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
@@ -576,8 +577,8 @@ async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
     
     // EIP-1559 Fees
     // TODO: Use eth_feeHistory via EVM RPC for better estimation
-    let max_priority_fee = 2_000_000_000; // 2 Gwei
-    let max_fee = DEFAULT_GAS_PRICE;      // 20 Gwei
+    let max_priority_fee = DEFAULT_PRIORITY_FEE;
+    let max_fee = DEFAULT_GAS_PRICE;
     let gas_limit = DEFAULT_GAS_LIMIT;
     
     let (tx_hash_hex, signed_tx) = sign_eip1559_transaction(
@@ -1047,7 +1048,7 @@ async fn initiate_bridge_transfer(btc_amount: u64) -> String {
     let canister_eth_address = get_canister_eth_address(caller).await;
     let nonce = get_and_increment_nonce(&canister_eth_address).await.unwrap();
     
-    let max_priority_fee = 2_000_000_000; 
+    let max_priority_fee = DEFAULT_PRIORITY_FEE;
     let max_fee = DEFAULT_GAS_PRICE;
     let gas_limit = DEFAULT_GAS_LIMIT;
     
@@ -1199,7 +1200,7 @@ async fn redeem_musd(musd_amount: u64) -> String {
         KEY_NAME,
         MEZO_CHAIN_ID,
         nonce,
-        2_000_000_000,
+        DEFAULT_PRIORITY_FEE,
         DEFAULT_GAS_PRICE,
         500_000, // Higher gas for redemption
         TROVE_MANAGER_ADDRESS,

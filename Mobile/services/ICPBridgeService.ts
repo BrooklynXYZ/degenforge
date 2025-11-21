@@ -91,10 +91,22 @@ class ICPBridgeService {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {
       const response = await bridgeOrchestratorAPI.mintMUSDOnMezo(btcToSatoshis(btcAmount));
-      logger.debug('mUSD minted', { response, btcAmount });
+      logger.debug('mUSD mint initiated', { response, btcAmount });
       return response;
     } catch (error) {
       logger.error('Error minting mUSD', error);
+      throw error;
+    }
+  }
+
+  async finalizeMintTransaction(txHash: string): Promise<MintResponse> {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    try {
+      const response = await bridgeOrchestratorAPI.finalizeMintTransaction(txHash);
+      logger.debug('mUSD mint finalized', { response });
+      return response;
+    } catch (error) {
+      logger.error('Error finalizing mUSD mint', error);
       throw error;
     }
   }

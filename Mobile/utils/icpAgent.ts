@@ -184,6 +184,17 @@ export class BridgeOrchestratorAPI {
     }
   }
 
+  async finalizeMintTransaction(txHash: string): Promise<MintResponse> {
+    try {
+      const actor = await this.actorPromise;
+      const response = await actor.finalize_mint_transaction(txHash);
+      return response;
+    } catch (error) {
+      logger.error('Error finalizing mint transaction', error);
+      throw error;
+    }
+  }
+
   async bridgeMUSDToSolana(musdAmount: bigint): Promise<string> {
     try {
       const actor = await this.actorPromise;

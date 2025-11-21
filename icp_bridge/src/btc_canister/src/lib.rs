@@ -10,11 +10,13 @@ use ic_stable_structures::{memory_manager::{MemoryManager, VirtualMemory, Memory
 use serde_bytes::ByteBuf;
 use std::cell::RefCell;
 use std::borrow::Cow;
-use std::str::FromStr;
-use bitcoin::{Address, Network, Transaction, TxIn, TxOut, OutPoint, Txid, ScriptBuf, Sequence, Witness, Amount};
-use bitcoin::blockdata::script::Builder;
-use bitcoin::sighash::{SighashCache, EcdsaSighashType};
-use bitcoin::consensus::Encodable;
+// Bitcoin transaction building temporarily disabled due to wasm32 compatibility issues
+// TODO: Implement manual transaction building or use wasm-compatible bitcoin library
+// use std::str::FromStr;
+// use bitcoin::{Address, Network, Transaction, TxIn, TxOut, OutPoint, Txid, ScriptBuf, Sequence, Witness, Amount};
+// use bitcoin::blockdata::script::Builder;
+// use bitcoin::sighash::{SighashCache, EcdsaSighashType};
+// use bitcoin::consensus::Encodable;
 
 mod bitcoin_address;
 
@@ -351,170 +353,20 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
     ByteBuf::from(signature)
 }
 
-fn transform_network(network: BitcoinNetwork) -> Network {
-    match network {
-        BitcoinNetwork::Mainnet => Network::Bitcoin,
-        BitcoinNetwork::Testnet => Network::Testnet,
-        BitcoinNetwork::Regtest => Network::Regtest,
-    }
-}
+// fn transform_network(network: BitcoinNetwork) -> Network {
+//     match network {
+//         BitcoinNetwork::Mainnet => Network::Bitcoin,
+//         BitcoinNetwork::Testnet => Network::Testnet,
+//         BitcoinNetwork::Regtest => Network::Regtest,
+//     }
+// }
 
 #[ic_cdk::update]
-async fn send_btc(to_address: String, amount_satoshis: u64) -> String {
-    let caller = ic_cdk::caller();
-    
-    // 1. Get caller's derived BTC address
-    let my_address = BTC_ADDRESSES.with(|map| {
-        map.borrow().get(&caller).unwrap_or_else(|| {
-            ic_cdk::trap("No BTC address found for caller. Generate one first.")
-        })
-    });
-    
-    // 2. Get UTXOs
-    let network = BTC_NETWORK;
-    let bitcoin_canister = get_bitcoin_canister_id();
-    let cycles = 10_000_000_000;
-    
-    let (utxos_res,): (GetUtxosResponse,) = ic_cdk::api::call::call_with_payment(
-        bitcoin_canister,
-        "bitcoin_get_utxos",
-        (GetUtxosRequest {
-            address: my_address.clone(),
-            network,
-            filter: None,
-        },),
-        cycles
-    ).await.unwrap();
-    
-    // 3. Select Inputs
-    let fee_satoshis = 10_000; // Fixed fee for simplicity in this MVP
-    let total_needed = amount_satoshis + fee_satoshis;
-    
-    let mut selected_utxos = Vec::new();
-    let mut total_selected = 0;
-    
-    for utxo in utxos_res.utxos {
-        selected_utxos.push(utxo.clone());
-        total_selected += utxo.value;
-        if total_selected >= total_needed {
-            break;
-        }
-    }
-    
-    if total_selected < total_needed {
-        ic_cdk::trap(&format!("Insufficient balance. Needed: {}, Available: {}", total_needed, total_selected));
-    }
-    
-    // 4. Build Transaction
-    let to_addr = Address::from_str(&to_address).expect("Invalid destination address")
-        .require_network(transform_network(network)).expect("Address network mismatch");
-        
-    let my_addr = Address::from_str(&my_address).expect("Invalid source address")
-        .require_network(transform_network(network)).expect("Address network mismatch");
-
-    let mut inputs = Vec::new();
-    for utxo in &selected_utxos {
-        inputs.push(TxIn {
-            previous_output: OutPoint {
-                txid: Txid::from_slice(&utxo.outpoint.txid).unwrap(),
-                vout: utxo.outpoint.vout,
-            },
-            script_sig: ScriptBuf::new(), // Populated later
-            sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
-            witness: Witness::default(),
-        });
-    }
-    
-    let mut outputs = Vec::new();
-    // Destination output
-    outputs.push(TxOut {
-        value: Amount::from_sat(amount_satoshis),
-        script_pubkey: to_addr.script_pubkey(),
-    });
-    
-    // Change output
-    let change = total_selected - total_needed;
-    if change > 546 { // Dust limit
-        outputs.push(TxOut {
-            value: Amount::from_sat(change),
-            script_pubkey: my_addr.script_pubkey(),
-        });
-    }
-    
-    let mut tx = Transaction {
-        version: 2,
-        lock_time: bitcoin::absolute::LockTime::ZERO,
-        input: inputs,
-        output: outputs,
-    };
-    
-    // 5. Sign Inputs
-    let derivation_path = DERIVATION_PATHS.with(|map| {
-        map.borrow().get(&caller).unwrap().0
-    });
-    
-    // We need to sign each input. This requires ECDSA via management canister.
-    // Note: This logic is simplified for P2PKH. SegWit/Taproot differs.
-    // Assuming P2PKH for generated addresses in this canister.
-    
-    let mut cache = SighashCache::new(&tx);
-    
-    for i in 0..selected_utxos.len() {
-        let utxo = &selected_utxos[i];
-        // For P2PKH, we need the script_pubkey of the previous output to sign
-        // Since we don't have the full previous tx, we reconstruct the script from our address
-        // because we own the UTXO.
-        let prev_script = my_addr.script_pubkey();
-        
-        let sighash = cache.legacy_signature_hash(
-            i,
-            &prev_script,
-            EcdsaSighashType::All.to_u32(),
-        ).expect("Failed to compute sighash");
-        
-        let signature_result = ic_cdk::api::management_canister::ecdsa::sign_with_ecdsa(
-            ic_cdk::api::management_canister::ecdsa::SignWithEcdsaArgument {
-                message_hash: sighash.to_byte_array().to_vec(),
-                derivation_path: derivation_path.clone(),
-                key_id: EcdsaKeyId {
-                    curve: EcdsaCurve::Secp256k1,
-                    name: KEY_NAME.to_string(),
-                },
-            },
-        ).await.unwrap().0;
-        
-        let mut sig_with_hashtype = signature_result.signature;
-        sig_with_hashtype.push(EcdsaSighashType::All.to_u32() as u8);
-        
-        // Get pubkey (cached or fetched)
-        let pubkey_res = ic_cdk::api::management_canister::ecdsa::ecdsa_public_key(
-            ic_cdk::api::management_canister::ecdsa::EcdsaPublicKeyArgument {
-                canister_id: None,
-                derivation_path: derivation_path.clone(),
-                key_id: EcdsaKeyId { curve: EcdsaCurve::Secp256k1, name: KEY_NAME.to_string() },
-            }
-        ).await.unwrap().0;
-        
-        // Construct script_sig for P2PKH: <sig> <pubkey>
-        let mut script_sig = Builder::new();
-        script_sig.push_slice(&sig_with_hashtype);
-        script_sig.push_slice(&pubkey_res.public_key);
-        
-        tx.input[i].script_sig = script_sig.into_script();
-    }
-    
-    // 6. Broadcast
-    let mut tx_bytes = Vec::new();
-    tx.consensus_encode(&mut tx_bytes).unwrap();
-    
-    ic_cdk::api::management_canister::bitcoin::bitcoin_send_transaction(
-        ic_cdk::api::management_canister::bitcoin::SendTransactionRequest {
-            transaction: tx_bytes,
-            network,
-        }
-    ).await.unwrap();
-    
-    tx.txid().to_string()
+async fn send_btc(_to_address: String, _amount_satoshis: u64) -> String {
+    // TODO: Bitcoin transaction building temporarily disabled due to wasm32 compatibility issues with bitcoin crate
+    // The bitcoin crate requires native compilation (secp256k1-sys) which doesn't work with wasm32-unknown-unknown
+    // Need to implement manual transaction building or use a wasm-compatible bitcoin library
+    ic_cdk::trap("Bitcoin transaction sending is temporarily disabled. Manual transaction building needs to be implemented for wasm32 compatibility.")
 }
 
 #[ic_cdk::query]

@@ -148,6 +148,23 @@ pub struct BridgeStats {
 }
 
 #[derive(CandidType, Deserialize, Debug)]
+pub struct RpcHttpHeader {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+pub struct RpcApi {
+    pub url: String,
+    pub headers: Option<Vec<RpcHttpHeader>>,
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+pub struct RpcConfig {
+    // Empty for now, can be extended if needed
+}
+
+#[derive(CandidType, Deserialize, Debug)]
 pub enum RpcServices {
     Custom {
         chain_id: u64,
@@ -454,7 +471,7 @@ async fn sign_eip1559_transaction(
     stream.append(&to_bytes);
     stream.append(&value);
     stream.append(&data);
-    stream.append_list::<Vec<u8>, _>(&[]); // Empty access list
+    stream.begin_list(0); // Empty access list
     
     let mut encoded = vec![0x02];
     encoded.extend_from_slice(stream.out().as_ref());
@@ -507,7 +524,7 @@ async fn sign_eip1559_transaction(
     stream.append(&to_bytes);
     stream.append(&value);
     stream.append(&data);
-    stream.append_list::<Vec<u8>, _>(&[]); // Empty access list
+    stream.begin_list(0); // Empty access list
     stream.append(&y_parity);
     
     let r = &signature_bytes[0..32];
@@ -1030,7 +1047,7 @@ async fn initiate_bridge_transfer(btc_amount: u64) -> String {
     let caller = ic_cdk::caller();
     
     // 1. Verify BTC Balance
-    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).clone());
     if let Some(pos) = position {
         if pos.btc_collateral < btc_amount {
             ic_cdk::trap("Insufficient BTC collateral");
@@ -1092,7 +1109,7 @@ async fn bridge_btc_to_mezo_old_stub(btc_amount: u64) -> String {
 async fn send_btc_to_address(destination_address: String, amount: u64) -> String {
     let caller = ic_cdk::caller();
     // Verify user has balance (internal logic)
-    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).clone());
     if let Some(pos) = position {
         if pos.btc_collateral < amount {
             ic_cdk::trap("Insufficient BTC collateral");
@@ -1179,7 +1196,7 @@ async fn redeem_musd(musd_amount: u64) -> String {
     
     // Ensure user has mUSD (internal tracking)
     // Note: Redemption burns mUSD to get BTC.
-    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).clone());
     if let Some(pos) = position {
         if pos.musd_minted < musd_amount {
                 ic_cdk::trap("Insufficient mUSD minted to redeem");

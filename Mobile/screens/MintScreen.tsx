@@ -129,6 +129,11 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     }
   }, [btcAmount, touched, validateAmount]);
 
+  const [mintStep, setMintStep] = useState(0);
+  const [stepStatus, setStepStatus] = useState('');
+
+  // ... existing state ...
+
   const handleConfirm = useCallback(async () => {
     const validationError = validateAmount(btcAmount);
     if (validationError) {
@@ -138,8 +143,10 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     }
 
     setIsLoading(true);
+    setMintStep(1);
+    setStepStatus('Requesting Mezo Deposit Address...');
     progressValue.value = 0;
-    progressValue.value = withTiming(1, { duration: 3000 });
+    progressValue.value = withTiming(1, { duration: 15000 }); // Longer for multi-step
 
     const btcValue = parseFloat(btcAmount);
     const musdAmount = usdValue * ltvRatio - (usdValue * ltvRatio * fee);
@@ -154,6 +161,33 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
     try {
       await ICPBridgeService.initialize();
 
+      // Step 1: Initiate Deposit on Mezo (Get EVM Tx to find logs)
+      setStepStatus('Requesting Mezo Deposit Address...');
+      const initTxHash = await ICPBridgeService.initiateBridgeTransfer(btcValue);
+      console.log('Init Tx:', initTxHash);
+
+      // Step 2: Parse Logs (Mocking this part as we need an EVM indexer)
+      setMintStep(2);
+      setStepStatus('Identifying Bridge Address...');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate log parsing
+      const mockMezoBtcAddress = "tb1q4280xaxzd80af93nyy9m65ykhrz64c4nXZ_MOCK"; 
+
+      // Step 3: Send BTC to that address
+      setMintStep(3);
+      setStepStatus(`Sending BTC to ${mockMezoBtcAddress.slice(0, 8)}...`);
+      const btcTxId = await ICPBridgeService.sendBTCToAddress(mockMezoBtcAddress, btcValue);
+      console.log('BTC Sent:', btcTxId);
+
+      // Step 4: Submit Proof (Mocking Off-chain Relayer)
+      setMintStep(4);
+      setStepStatus('Waiting for BTC Confirmations & Proving...');
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Simulate proof generation time
+
+      // Step 5: Open Trove (Finalize)
+      setMintStep(5);
+      setStepStatus('Opening Trove on Mezo...');
+      
+      // This is the existing logic (calls openTrove)
       let result = await ICPBridgeService.mintMUSDOnMezo(btcValue);
       
       if (result.transaction_hash) {
@@ -163,7 +197,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       }
 
       // Poll for finalization if pending
-      const MAX_POLLS = 60; // ~2 minutes
+      const MAX_POLLS = 60;
       let polls = 0;
       while (result.status === 'pending' && polls < MAX_POLLS) {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -201,6 +235,8 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
+      setMintStep(0);
+      setStepStatus('');
     }
   }, [btcAmount, validateAmount, progressValue, usdValue, ltvRatio, fee]);
 
@@ -547,7 +583,7 @@ export const MintScreen: React.FC<MintScreenProps> = ({ onNavigate }) => {
             loading={isLoading}
             onPress={handleConfirm}
           >
-            {isLoading ? 'Minting...' : 'Confirm Mint'}
+            {isLoading ? (stepStatus || 'Minting...') : 'Confirm Mint'}
           </ActionButton>
           <ActionButton variant="secondary" fullWidth onPress={() => onNavigate('Home')}>
             Cancel

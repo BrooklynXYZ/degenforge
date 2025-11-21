@@ -111,6 +111,30 @@ class ICPBridgeService {
     }
   }
 
+  async initiateBridgeTransfer(btcAmount: number): Promise<string> {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    try {
+      const txHash = await bridgeOrchestratorAPI.initiateBridgeTransfer(btcToSatoshis(btcAmount));
+      logger.debug('Bridge transfer initiated', { txHash, btcAmount });
+      return txHash;
+    } catch (error) {
+      logger.error('Error initiating bridge transfer', error);
+      throw error;
+    }
+  }
+
+  async sendBTCToAddress(address: string, btcAmount: number): Promise<string> {
+    if (!this.isInitialized) throw new Error('Service not initialized');
+    try {
+      const txid = await bridgeOrchestratorAPI.sendBTCToAddress(address, btcToSatoshis(btcAmount));
+      logger.debug('BTC sent to address', { address, btcAmount, txid });
+      return txid;
+    } catch (error) {
+      logger.error('Error sending BTC to address', error);
+      throw error;
+    }
+  }
+
   async bridgeMUSDToSolana(musdAmount: number): Promise<string> {
     if (!this.isInitialized) throw new Error('Service not initialized');
     try {

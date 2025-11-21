@@ -10,15 +10,25 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 
-// Constants
-const MEZO_TESTNET_RPC: &str = "https://rpc.test.mezo.org";
-const MEZO_TESTNET_CHAIN_ID: u64 = 31611;
+// Constants - MEZO MAINNET (Real BTC)
+const MEZO_MAINNET_RPC: &str = "https://rpc-http.mezo.boar.network"; // Mezo Mainnet Public RPC
+const MEZO_CHAIN_ID: u64 = 31612; // Mezo Mainnet Chain ID
 
 const EVM_RPC_CANISTER_ID: &str = "7hfb6-caaaa-aaaar-qadga-cai";
-const MUSD_TOKEN_ADDRESS: &str = "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503"; // Mezo Testnet mUSD
-const BORROW_MANAGER_ADDRESS: &str = "0xCdF7028ceAB81fA0C6971208e83fa7872994beE5"; // Mezo Testnet BorrowerOperations
-const MEZO_BRIDGE_ADDRESS: &str = "0x3a3BaE133739f92a885070DbF3300d61B232497C"; // Mezo Testnet Bridge
-const KEY_NAME: &str = "test_key_1";
+
+// MEZO MAINNET CONTRACTS
+const MUSD_TOKEN_ADDRESS: &str = "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186"; 
+const MEZO_BRIDGE_ADDRESS: &str = "0xF6680EA3b480cA2b72D96ea13cCAF2cFd8e6908c"; // Mezo Bridge (tBTC)
+const BITCOIN_DEPOSITOR_ADDRESS: &str = "0x1D50D75933b7b7C8AD94dbfb748B5756E3889C24"; // BitcoinDepositor (Proxy)
+const TBTC_TOKEN_ADDRESS: &str = "0x7b7C000000000000000000000000000000000000"; // tBTC Token
+
+const TROVE_MANAGER_ADDRESS: &str = "0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193";
+const HINT_HELPERS_ADDRESS: &str = "0xD267b3bE2514375A075fd03C3D9CBa6b95317DC3";
+const SORTED_TROVES_ADDRESS: &str = "0x8C5DB4C62BF29c1C4564390d10c20a47E0b2749f";
+const BORROW_MANAGER_ADDRESS: &str = "0x44b1bac67dDA612a41a58AAf779143B181dEe031"; // BorrowerOperations
+const PRICE_FEED_ADDRESS: &str = "0xc5aC5A8892230E0A3e1c473881A2de7353fFcA88";
+
+const KEY_NAME: &str = "key_1"; // Production Key
 const MAX_LTV: u64 = 90;
 const INTEREST_RATE: u64 = 1;
 
@@ -573,7 +583,7 @@ async fn mint_musd_on_mezo(btc_amount: u64) -> MintResponse {
     let (tx_hash_hex, signed_tx) = sign_eip1559_transaction(
         caller,
         KEY_NAME,
-        MEZO_TESTNET_CHAIN_ID,
+        MEZO_CHAIN_ID,
         nonce,
         max_priority_fee,
         max_fee,
@@ -721,7 +731,7 @@ async fn get_eth_gas_price() -> Result<u64, String> {
     });
     
     let request = CanisterHttpRequestArgument {
-        url: MEZO_TESTNET_RPC.to_string(),
+        url: MEZO_MAINNET_RPC.to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
@@ -770,7 +780,7 @@ async fn estimate_gas(from: &str, to: &str, data: &[u8]) -> Result<u64, String> 
     });
     
     let request = CanisterHttpRequestArgument {
-        url: MEZO_TESTNET_RPC.to_string(),
+        url: MEZO_MAINNET_RPC.to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
@@ -815,7 +825,7 @@ async fn check_transaction_status(tx_hash: &str) -> Result<Option<bool>, String>
     });
     
     let request = CanisterHttpRequestArgument {
-        url: MEZO_TESTNET_RPC.to_string(),
+        url: MEZO_MAINNET_RPC.to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
@@ -884,7 +894,7 @@ async fn get_eth_nonce(address: &str) -> Result<u64, String> {
     });
     
     let request = CanisterHttpRequestArgument {
-        url: MEZO_TESTNET_RPC.to_string(),
+        url: MEZO_MAINNET_RPC.to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
@@ -925,9 +935,9 @@ async fn send_evm_transaction_via_chain_fusion(raw_tx_hex: &str) -> Result<Strin
         .map_err(|e| format!("Invalid EVM RPC canister ID: {:?}", e))?;
     
     let rpc_services = RpcServices::Custom {
-        chain_id: MEZO_TESTNET_CHAIN_ID,
+        chain_id: MEZO_CHAIN_ID,
         services: vec![RpcApi {
-            url: MEZO_TESTNET_RPC.to_string(),
+            url: MEZO_MAINNET_RPC.to_string(),
             headers: Some(vec![RpcHttpHeader {
                 name: "Content-Type".to_string(),
                 value: "application/json".to_string(),
@@ -980,7 +990,7 @@ async fn send_eth_transaction(raw_tx_hex: &str) -> Result<String, String> {
     });
     
     let request = CanisterHttpRequestArgument {
-        url: MEZO_TESTNET_RPC.to_string(),
+        url: MEZO_MAINNET_RPC.to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
@@ -1012,6 +1022,210 @@ async fn send_eth_transaction(raw_tx_hex: &str) -> Result<String, String> {
         }
         Err(err) => Err(format!("HTTP request failed: {:?}", err)),
     }
+}
+
+#[ic_cdk::update]
+async fn initiate_bridge_transfer(btc_amount: u64) -> String {
+    let caller = ic_cdk::caller();
+    
+    // 1. Verify BTC Balance
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    if let Some(pos) = position {
+        if pos.btc_collateral < btc_amount {
+            ic_cdk::trap("Insufficient BTC collateral");
+        }
+    } else {
+        ic_cdk::trap("No position found");
+    }
+
+    // 2. Initiate Deposit on Mezo (EVM Call)
+    // We call BitcoinDepositor.initiateDeposit()
+    // This emits an event with the BTC address. Frontend must parse this.
+    
+    // Function: initiateDeposit()
+    let function_selector = calculate_function_selector("initiateDeposit()");
+    let canister_eth_address = get_canister_eth_address(caller).await;
+    let nonce = get_and_increment_nonce(&canister_eth_address).await.unwrap();
+    
+    let max_priority_fee = 2_000_000_000; 
+    let max_fee = DEFAULT_GAS_PRICE;
+    let gas_limit = DEFAULT_GAS_LIMIT;
+    
+    let (tx_hash_hex, signed_tx) = sign_eip1559_transaction(
+        caller,
+        KEY_NAME,
+        MEZO_CHAIN_ID,
+        nonce,
+        max_priority_fee,
+        max_fee,
+        gas_limit,
+        BITCOIN_DEPOSITOR_ADDRESS, // Target: BitcoinDepositor
+        0, // Value: 0 (ETH)
+        &function_selector // Data: initiateDeposit()
+    ).await;
+    
+    // 3. Broadcast
+    let raw_tx_hex = format!("0x{}", hex::encode(&signed_tx));
+    let tx_hash = match send_evm_transaction_via_chain_fusion(&raw_tx_hex).await {
+        Ok(hash) => hash,
+        Err(err) => {
+             // Fallback or error
+             ic_cdk::trap(&format!("Failed to initiate deposit: {}", err));
+        }
+    };
+    
+    // Return the TX Hash. Frontend will:
+    // 1. Wait for receipt
+    // 2. Extract 'DepositRevealed' event -> 'btcDepositAddress'
+    // 3. Call send_btc_to_address(btcDepositAddress, amount)
+    tx_hash
+}
+
+#[ic_cdk::update]
+async fn bridge_btc_to_mezo_old_stub(btc_amount: u64) -> String {
+    // Deprecated in favor of initiate_bridge_transfer + send_btc_to_address flow
+    initiate_bridge_transfer(btc_amount).await
+}
+
+#[ic_cdk::update]
+async fn send_btc_to_address(destination_address: String, amount: u64) -> String {
+    let caller = ic_cdk::caller();
+    // Verify user has balance (internal logic)
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    if let Some(pos) = position {
+        if pos.btc_collateral < amount {
+            ic_cdk::trap("Insufficient BTC collateral");
+        }
+        // Deduct? No, the btc_canister holds the UTXOs. The position tracks "recognized" balance.
+        // If we send it out, we must decrease the position.
+        let new_collateral = pos.btc_collateral - amount;
+        let updated_pos = BridgePosition {
+            btc_collateral: new_collateral,
+            status: "bridging_to_mezo".to_string(),
+            ..pos
+        };
+        POSITIONS.with(|map| map.borrow_mut().insert(caller, updated_pos));
+    } else {
+        ic_cdk::trap("No position");
+    }
+
+    let btc_canister_id = CANISTER_IDS.with(|ids| {
+        ids.borrow().borrow().btc_canister.clone().unwrap()
+    });
+    let btc_canister = Principal::from_text(&btc_canister_id).unwrap();
+    
+    // Call btc_canister.send_btc
+    let (txid,): (String,) = ic_cdk::call(
+        btc_canister, 
+        "send_btc", 
+        (destination_address, amount)
+    ).await.unwrap();
+    
+    txid
+}
+
+fn build_redeem_collateral_calldata(
+    musd_amount: u64,
+    user_address: &str
+) -> Vec<u8> {
+    // Function selector: redeemCollateral(uint256,address,address,address,uint256,uint256,uint256)
+    let function_selector = calculate_function_selector("redeemCollateral(uint256,address,address,address,uint256,uint256,uint256)");
+    let mut calldata = function_selector;
+    
+    // 1. _amount (uint256)
+    let mut amount_bytes = vec![0u8; 24];
+    amount_bytes.extend_from_slice(&musd_amount.to_be_bytes());
+    calldata.extend_from_slice(&amount_bytes);
+    
+    // 2. _firstRedemptionHint (address) -> 0x0
+    let zero_addr = vec![0u8; 12]; // Padded to 32 bytes (12 + 20)
+    let mut first_hint = vec![0u8; 32]; // 0x0 is all zeros
+    calldata.extend_from_slice(&first_hint);
+    
+    // 3. _upperPartialRedemptionHint (address) -> user_address
+    let user_bytes = hex::decode(user_address.trim_start_matches("0x")).unwrap();
+    let mut upper_hint = vec![0u8; 12];
+    upper_hint.extend_from_slice(&user_bytes);
+    calldata.extend_from_slice(&upper_hint);
+    
+    // 4. _lowerPartialRedemptionHint (address) -> user_address
+    let mut lower_hint = vec![0u8; 12];
+    lower_hint.extend_from_slice(&user_bytes);
+    calldata.extend_from_slice(&lower_hint);
+    
+    // 5. _partialRedemptionHintNICR (uint256) -> 1100 * 1e18 (1100000000000000000000)
+    // 1100 * 10^18 = 0x3BA1A934D0C2400000
+    // Actually, let's construct it carefully.
+    // 1100 * 10^18 = 1,100,000,000,000,000,000,000
+    // In bytes? simpler to just use the hex constant or u128.
+    let nicr: u128 = 1_100_000_000_000_000_000_000;
+    let mut nicr_bytes = vec![0u8; 16]; // u128 fits in 16 bytes, pad 16 more
+    nicr_bytes.extend_from_slice(&nicr.to_be_bytes());
+    // Pad to 32 bytes (uint256)
+    let mut nicr_padded = vec![0u8; 16]; 
+    nicr_padded.extend_from_slice(&nicr_bytes);
+    calldata.extend_from_slice(&nicr_padded);
+    
+    // 6. _maxIterations (uint256) -> 0
+    let max_iter = vec![0u8; 32];
+    calldata.extend_from_slice(&max_iter);
+    
+    // 7. _maxFeePercentage (uint256) -> 5% (5 * 10^16)
+    let max_fee: u64 = 50_000_000_000_000_000;
+    let mut fee_bytes = vec![0u8; 24];
+    fee_bytes.extend_from_slice(&max_fee.to_be_bytes());
+    calldata.extend_from_slice(&fee_bytes);
+
+    calldata
+}
+
+#[ic_cdk::update]
+async fn redeem_musd(musd_amount: u64) -> String {
+    let caller = ic_cdk::caller();
+    
+    // Ensure user has mUSD (internal tracking)
+    // Note: Redemption burns mUSD to get BTC.
+    let position = POSITIONS.with(|map| map.borrow().get(&caller).cloned());
+    if let Some(pos) = position {
+        if pos.musd_minted < musd_amount {
+             ic_cdk::trap("Insufficient mUSD minted to redeem");
+        }
+    } else {
+        ic_cdk::trap("No position found");
+    }
+
+    let canister_eth_address = get_canister_eth_address(caller).await;
+    
+    let calldata = build_redeem_collateral_calldata(musd_amount, &canister_eth_address);
+    
+    let nonce = get_and_increment_nonce(&canister_eth_address).await.unwrap();
+    
+    // Send to TroveManager
+    let (tx_hash_hex, signed_tx) = sign_eip1559_transaction(
+        caller,
+        KEY_NAME,
+        MEZO_CHAIN_ID,
+        nonce,
+        2_000_000_000,
+        DEFAULT_GAS_PRICE,
+        500_000, // Higher gas for redemption
+        TROVE_MANAGER_ADDRESS,
+        0,
+        &calldata
+    ).await;
+    
+    let raw_tx_hex = format!("0x{}", hex::encode(&signed_tx));
+    let tx_hash = send_evm_transaction_via_chain_fusion(&raw_tx_hex).await.expect("Failed to send redemption tx");
+    
+    // Update internal state (Burn mUSD)
+    POSITIONS.with(|map| {
+        let mut p = map.borrow().get(&caller).unwrap();
+        p.musd_minted -= musd_amount;
+        p.status = "redeeming_musd".to_string();
+        map.borrow_mut().insert(caller, p);
+    });
+    
+    tx_hash
 }
 
 #[ic_cdk::update]

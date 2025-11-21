@@ -195,6 +195,28 @@ export class BridgeOrchestratorAPI {
     }
   }
 
+  async initiateBridgeTransfer(btcAmount: bigint): Promise<string> {
+    try {
+      const actor = await this.actorPromise;
+      const txHash = await actor.initiate_bridge_transfer(btcAmount);
+      return txHash;
+    } catch (error) {
+      logger.error('Error initiating bridge transfer', error);
+      throw error;
+    }
+  }
+
+  async sendBTCToAddress(destinationAddress: string, amount: bigint): Promise<string> {
+    try {
+      const actor = await this.actorPromise;
+      const txid = await actor.send_btc_to_address(destinationAddress, amount);
+      return txid;
+    } catch (error) {
+      logger.error('Error sending BTC to address', error);
+      throw error;
+    }
+  }
+
   async bridgeMUSDToSolana(musdAmount: bigint): Promise<string> {
     try {
       const actor = await this.actorPromise;

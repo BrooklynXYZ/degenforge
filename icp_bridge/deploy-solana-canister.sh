@@ -135,3 +135,4 @@ echo "  4. Monitor cycles usage:"
 echo "     dfx canister --network ic status solana_canister"
 echo ""
 
+

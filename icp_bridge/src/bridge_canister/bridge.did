@@ -39,10 +39,11 @@ service : () -> {
   bridge_musd_to_solana : (nat64) -> (text);
   calculate_max_mintable : (nat64) -> (nat64) query;
   deploy_to_yield_protocol : (nat64, text) -> (text);
-  deposit_btc_for_musd : (nat64) -> (DepositResponse);
+  deposit_btc_for_musd : (nat64, opt text) -> (DepositResponse);
   get_bridge_stats : () -> (BridgeStats) query;
   get_cycles_balance : () -> (nat64) query;
   get_my_position : () -> (BridgePosition) query;
+  debug_get_config : () -> (text) query;
   get_position : (principal) -> (BridgePosition) query;
   health_check : () -> (HealthStatus) query;
   mint_musd_on_mezo : (nat64) -> (MintResponse);

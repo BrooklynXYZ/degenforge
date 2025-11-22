@@ -6,9 +6,11 @@ type CanisterStats = record {
 type UTXOInfo = record { height : nat64; value : nat64; outpoint : blob };
 service : () -> {
   generate_btc_address : () -> (text);
+  get_btc_address_for_principal : (principal) -> (text);
   get_btc_balance : (text) -> (nat64);
   get_canister_stats : () -> (CanisterStats) query;
   get_my_btc_address : () -> (text) query;
+  debug_get_address_map : () -> (vec record { text; text }) query;
   get_utxos : (text) -> (vec UTXOInfo);
   send_btc : (text, nat64) -> (text);
   sign_transaction : (blob) -> (blob);

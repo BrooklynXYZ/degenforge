@@ -244,6 +244,7 @@ async fn set_canister_ids(btc_canister: String, solana_canister: String) -> Stri
     format!("Canister IDs set: BTC={}, Solana={}", btc_canister, solana_canister)
 }
 
+<<<<<<< Updated upstream
 // Helper function to verify BTC deposit by checking balance
 async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, required_amount: u64) -> Result<u64, String> {
     // Get BTC balance from BTC canister (with 6 confirmations minimum)
@@ -253,23 +254,71 @@ async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, required
     match balance_result {
         Ok((balance,)) => {
             if balance >= required_amount {
+=======
+#[ic_cdk::query]
+fn get_my_btc_address_via_bridge() -> String {
+    let caller = ic_cdk::caller();
+    POSITIONS.with(|map| {
+        map.borrow()
+            .get(&caller)
+            .map(|position| position.btc_address.clone())
+            .unwrap_or_default()
+    })
+}
+
+async fn verify_btc_deposit(btc_canister: Principal, btc_address: &str, min_required: u64) -> Result<u64, String> {
+    ic_cdk::println!("=== BRIDGE: verify_btc_deposit START ===");
+    ic_cdk::println!("Bridge calling BTC handler: {}", btc_canister.to_text());
+    ic_cdk::println!("BTC address to verify: {}", btc_address);
+    ic_cdk::println!("Min required balance: {} sats", min_required);
+    
+    // The BTC handler needs cycles to call the Bitcoin canister (10B cycles)
+    // Pass 15B cycles to ensure the BTC handler has enough
+    const CYCLES_FOR_BTC_HANDLER: u64 = 15_000_000_000;
+    
+    let balance_result: Result<(u64,), _> = ic_cdk::api::call::call_with_payment(
+        btc_canister, 
+        "get_btc_balance", 
+        (btc_address.to_string(),),
+        CYCLES_FOR_BTC_HANDLER
+    ).await;
+    
+    match balance_result {
+        Ok((balance,)) => {
+            ic_cdk::println!("✅ BTC handler returned balance: {} sats", balance);
+            ic_cdk::println!("=== BRIDGE: verify_btc_deposit END ===");
+            if balance >= min_required {
+>>>>>>> Stashed changes
                 Ok(balance)
             } else {
                 Err(format!("Insufficient BTC deposit. Required: {}, Found: {}", required_amount, balance))
             }
         }
-        Err(e) => Err(format!("Failed to get BTC balance: {:?}", e))
+        Err(e) => {
+            ic_cdk::println!("❌ BTC handler call failed: {:?}", e);
+            ic_cdk::println!("=== BRIDGE: verify_btc_deposit END ===");
+            Err(format!("Failed to get BTC balance: {:?}", e))
+        }
     }
 }
 
 #[ic_cdk::update]
+<<<<<<< Updated upstream
 async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
     // Input validation
+=======
+async fn deposit_btc_for_musd(btc_amount: u64, btc_address_opt: Option<String>) -> DepositResponse {
+>>>>>>> Stashed changes
     if btc_amount == 0 {
         ic_cdk::trap("Invalid input: BTC amount must be greater than 0");
     }
     
     let caller = ic_cdk::caller();
+    
+    ic_cdk::println!("=== BRIDGE: deposit_btc_for_musd START ===");
+    ic_cdk::println!("Caller principal: {}", caller.to_text());
+    ic_cdk::println!("Requested BTC amount: {}", btc_amount);
+    ic_cdk::println!("Provided BTC address: {:?}", btc_address_opt);
     
     let btc_canister_id = CANISTER_IDS.with(|ids| {
         ids.borrow().borrow().btc_canister.clone().unwrap_or_else(|| {
@@ -277,7 +326,12 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
         })
     });
     
+<<<<<<< Updated upstream
     // Call BTC handler canister to generate address
+=======
+    ic_cdk::println!("BTC canister ID from config: {}", btc_canister_id);
+    
+>>>>>>> Stashed changes
     let btc_canister = match Principal::from_text(&btc_canister_id) {
         Ok(principal) => principal,
         Err(e) => {
@@ -285,13 +339,53 @@ async fn deposit_btc_for_musd(btc_amount: u64) -> DepositResponse {
         }
     };
     
-    let btc_address_result: Result<(String,), _> = ic_cdk::call(btc_canister, "generate_btc_address", ())
-        .await;
+    // First, check if there's an existing position with a BTC address
+    let existing_position = POSITIONS.with(|map| {
+        map.borrow().get(&caller)
+    });
     
-    let btc_address = match btc_address_result {
-        Ok((addr,)) => addr,
-        Err(err) => {
-            ic_cdk::trap(&format!("Failed to generate BTC address: {:?}", err));
+    let btc_address = if let Some(addr) = btc_address_opt {
+        // Use provided address if given
+        if addr.is_empty() {
+            ic_cdk::trap("Provided BTC address cannot be empty");
+        }
+        ic_cdk::println!("Using provided BTC address: {}", addr);
+        addr
+    } else if let Some(pos) = existing_position {
+        // Use existing BTC address if available
+        if !pos.btc_address.is_empty() {
+            ic_cdk::println!("Using existing position BTC address: {}", pos.btc_address);
+            pos.btc_address.clone()
+        } else {
+            // Try to get the address for this principal from BTC handler
+            ic_cdk::println!("Querying BTC handler for principal's address...");
+            let address_result: Result<(String,), _> = ic_cdk::call(btc_canister, "get_btc_address_for_principal", (caller,))
+                .await;
+            match address_result {
+                Ok((addr,)) if !addr.is_empty() => {
+                    ic_cdk::println!("BTC handler returned address: {}", addr);
+                    addr
+                },
+                _ => {
+                    // If address not found, user must generate it first
+                    ic_cdk::trap("BTC address not found for this principal. Please call generate_btc_address on the BTC handler first with your identity, or provide the BTC address as the second parameter.");
+                }
+            }
+        }
+    } else {
+        // No existing position - try to get address for this principal
+        ic_cdk::println!("No existing position, querying BTC handler for principal's address...");
+        let address_result: Result<(String,), _> = ic_cdk::call(btc_canister, "get_btc_address_for_principal", (caller,))
+            .await;
+        match address_result {
+            Ok((addr,)) if !addr.is_empty() => {
+                ic_cdk::println!("BTC handler returned address: {}", addr);
+                addr
+            },
+            _ => {
+                // If address not found, user must generate it first or provide it
+                ic_cdk::trap("BTC address not found for this principal. Please call generate_btc_address on the BTC handler first with your identity, or provide the BTC address as the second parameter.");
+            }
         }
     };
     
@@ -1328,6 +1422,28 @@ pub struct HealthStatus {
     pub solana_canister_configured: bool,
     pub total_positions: u64,
     pub timestamp: u64,
+}
+
+#[ic_cdk::query]
+fn debug_get_config() -> String {
+    let btc_canister = CANISTER_IDS.with(|ids| {
+        ids.borrow().borrow().btc_canister.clone()
+    });
+    let solana_canister = CANISTER_IDS.with(|ids| {
+        ids.borrow().borrow().solana_canister.clone()
+    });
+    
+    format!(
+        "Bridge Configuration:\n\
+         - BTC Canister: {:?}\n\
+         - Solana Canister: {:?}\n\
+         - Total Positions: {}\n\
+         - Cycles Balance: {}",
+        btc_canister,
+        solana_canister,
+        POSITIONS.with(|map| map.borrow().len()),
+        ic_cdk::api::canister_balance()
+    )
 }
 
 #[ic_cdk::query]

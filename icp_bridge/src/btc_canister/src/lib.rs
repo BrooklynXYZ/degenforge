@@ -121,6 +121,13 @@ fn get_my_btc_address() -> String {
 }
 
 #[ic_cdk::update]
+fn get_btc_address_for_principal(principal: Principal) -> String {
+    BTC_ADDRESSES.with(|map| {
+        map.borrow().get(&principal).unwrap_or_default()
+    })
+}
+
+#[ic_cdk::update]
 async fn get_btc_balance(address: String) -> u64 {
     if address.is_empty() {
         ic_cdk::trap("Address cannot be empty");
@@ -217,6 +224,15 @@ async fn sign_transaction(message_hash: ByteBuf) -> ByteBuf {
 #[ic_cdk::update]
 async fn send_btc(_to_address: String, _amount_satoshis: u64) -> String {
     ic_cdk::trap("Bitcoin sending not implemented. Use external wallet for now.");
+}
+
+#[ic_cdk::query]
+fn debug_get_address_map() -> Vec<(String, String)> {
+    BTC_ADDRESSES.with(|map| {
+        map.borrow().iter()
+            .map(|(principal, address)| (principal.to_text(), address))
+            .collect()
+    })
 }
 
 #[ic_cdk::query]
